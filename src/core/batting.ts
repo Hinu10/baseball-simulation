@@ -30,7 +30,7 @@ export function cursorSize(b: Batter, mode: SwingMode): { halfW: number; halfH: 
 
 /** 当たるタイミングの幅（±秒）。 */
 export function timingWindow(b: Batter, mode: SwingMode): number {
-  return (0.07 + 0.05 * (b.meet / 100)) * (mode === 'power' ? 0.78 : 1);
+  return (0.077 + 0.055 * (b.meet / 100)) * (mode === 'power' ? 0.78 : 1);
 }
 
 /** かんたん打撃では、当たるタイミングの幅を広げる。 */
@@ -90,6 +90,11 @@ function bunt(b: Batter, pitch: Pitch, swing: SwingCommand, rng: Rng): SwingOutc
   return contact(pitch, speed, launch, spray, 0.3, false);
 }
 
+/** 当たったときにかすってファウルになる確率。芯から外れるほど、タイミングがずれるほど高い。 */
+export function foulChance(off: number, nt: number): number {
+  return clamp(1.6 * Math.max(0, off - 0.3) + 0.8 * Math.max(0, Math.abs(nt) - 0.3), 0, 0.95);
+}
+
 export function evaluateSwing(b: Batter, pitch: Pitch, swing: SwingCommand, rng: Rng): SwingOutcome {
   if (swing.easy) {
     const cursor = easyCursor(b, pitch, swing.mode, swing.bunt ? 0 : swing.easy.lift);
@@ -117,8 +122,8 @@ export function evaluateSwing(b: Batter, pitch: Pitch, swing: SwingCommand, rng:
   // 早く振れば引っ張り、遅れれば流し方向。外角の球は流し方向に飛びやすい（右打者・左打者とも x の符号で同じ式になる）。
   const pull = b.bats === 'R' ? 1 : -1;
   let spray = pull * nt * 60 + 14 * (pitch.plate.x / 0.25) + rng.gauss(0, 6);
-  // カーソルの端で当たると打球が散る（ファウルチップ・ファウルになりやすい）。
-  if (off > 0.65 && rng.chance((off - 0.65) * 2.2)) {
+  // カーソルの端やタイミングのずれで当たると打球が散る（ファウルチップ・ファウルになりやすい）。
+  if (rng.chance(foulChance(off, nt))) {
     // かすった当たりは後ろや横へ飛ぶファウルになる。
     const back = rng.chance(0.6);
     launch = rng.range(back ? 15 : 30, back ? 70 : 75);

@@ -23,6 +23,16 @@ const contact = (o: SwingOutcome) => {
   assert.equal(o.kind, 'contact');
   return o as Extract<SwingOutcome, { kind: 'contact' }>;
 };
+/** 前に飛んだ当たり（かすったファウルでない）。 */
+const isForward = (c: { spray: number }) => Math.abs(c.spray) < 50;
+/** 乱数を変えながら、前に飛んだ最初の当たりを返す。 */
+const fairContact = (swing: (rng: Rng) => SwingOutcome) => {
+  for (let i = 1; i < 50; i++) {
+    const c = contact(swing(new Rng(i)));
+    if (isForward(c)) return c;
+  }
+  throw new Error('前に飛ぶ当たりがない');
+};
 
 test('タイミングが合い芯で捉えると、速い打球がセンター方向へ飛ぶ', () => {
   const p = pitch();
@@ -54,8 +64,8 @@ test('右打者は早く振ると三塁側へ引っ張り、遅れると一塁�
 test('カーソルが球より上ならゴロ、下ならフライになる', () => {
   const p = pitch();
   const h = cursorSize(slugger, 'meet').halfH;
-  const over = contact(evaluateSwing(slugger, p, swingAt(p, 0, { x: 0, y: p.plate.y + h * 0.6 }), new Rng(4)));
-  const under = contact(evaluateSwing(slugger, p, swingAt(p, 0, { x: 0, y: p.plate.y - h * 0.6 }), new Rng(4)));
+  const over = fairContact((rng) => evaluateSwing(slugger, p, swingAt(p, 0, { x: 0, y: p.plate.y + h * 0.6 }), rng));
+  const under = fairContact((rng) => evaluateSwing(slugger, p, swingAt(p, 0, { x: 0, y: p.plate.y - h * 0.6 }), rng));
   assert.equal(battedBallType(over.launch), 'ground');
   assert.ok(['fly', 'popup'].includes(battedBallType(under.launch)), `under=${under.launch}`);
 });
@@ -106,9 +116,9 @@ test('かんたん打撃：カーソルがずれていてもタイミングが�
 test('かんたん打撃：W でフライ、S でゴロ。大きく外れた球には届かない', () => {
   const p = pitch();
   const launch = (lift: number) => {
-    let sum = 0;
-    for (let i = 0; i < 20; i++) sum += contact(evaluateSwing(slugger, p, { ...swingAt(p), easy: { lift } }, new Rng(i + 1))).launch;
-    return sum / 20;
+    // かすってファウルになった当たりは角度が別に決まるので除く。
+    const fair = Array.from({ length: 40 }, (_, i) => contact(evaluateSwing(slugger, p, { ...swingAt(p), easy: { lift } }, new Rng(i + 1)))).filter(isForward);
+    return fair.reduce((sum, c) => sum + c.launch, 0) / fair.length;
   };
   assert.equal(battedBallType(launch(-1)), 'ground');
   assert.equal(battedBallType(launch(1)), 'fly');
