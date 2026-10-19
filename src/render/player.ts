@@ -53,6 +53,7 @@ export class PlayerFigure {
   private readonly armR = new THREE.Group();
   private readonly batYaw = new THREE.Group();
   private readonly batTilt = new THREE.Group();
+  private readonly glove: THREE.Mesh;
 
   constructor(look: TeamLook) {
     const uniform = mat(look.uniform);
@@ -101,7 +102,8 @@ export class PlayerFigure {
       arm.add(mesh(new THREE.CapsuleGeometry(0.06, 0.2, 4, 8), mat(SKIN), 0, -0.24, 0));
       this.upper.add(arm);
     }
-    this.armL.add(mesh(new THREE.SphereGeometry(0.11, 12, 10), mat(GLOVE), 0, -0.4, 0.02));
+    this.glove = mesh(new THREE.SphereGeometry(0.11, 12, 10), mat(GLOVE), 0, -0.4, 0.02);
+    this.armL.add(this.glove);
 
     // バット：胸の前を軸に回す（batYaw が水平の振り、batTilt が立て具合）。
     this.batYaw.position.set(0, 0.35, 0.05);
@@ -124,6 +126,7 @@ export class PlayerFigure {
     this.armL.rotation.z = -0.12;
     this.armR.rotation.z = 0.12;
     this.batYaw.visible = false;
+    this.glove.visible = true;
     this.batYaw.rotation.set(0, 0, 0);
     this.batTilt.rotation.set(0, 0, 0);
   }
@@ -237,6 +240,7 @@ export class PlayerFigure {
       case 'swing':
       case 'bunt': {
         this.batYaw.visible = true;
+        this.glove.visible = false;
         this.legL.rotation.z = -0.15;
         this.legR.rotation.z = 0.15;
         this.armL.rotation.x = -1.1;

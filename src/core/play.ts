@@ -989,9 +989,9 @@ export class PlaySim {
     const fielder = this.firstFielder ? POSITION_NAME[this.firstFielder] : '';
 
     if (this.homeRun) {
-      const runs = this.runners.filter((r) => r.state === 'active').map((r) => ({ playerId: r.playerId, time: this.time }));
+      const runs = [...this.runs, ...this.runners.filter((r) => r.state === 'active').map((r) => ({ playerId: r.playerId, time: this.time }))];
       const text = runs.length === 4 ? '満塁ホームラン！' : runs.length === 1 ? 'ソロホームラン！' : `${['', '', 'ツーラン', 'スリーラン'][runs.length]}ホームラン！`;
-      return { outs: [], runs: [...this.runs, ...runs], bases, hit: 4, text, foul: false };
+      return { outs: this.outs, runs, bases, hit: 4, text, foul: false };
     }
     if (this.groundRule) {
       const runs = [...this.runs];
