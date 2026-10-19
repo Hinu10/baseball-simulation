@@ -8,10 +8,10 @@ import { createPitch, type Pitch } from './pitching.ts';
 import { Rng } from './rng.ts';
 import { parseTeams, type Batter } from './teams.ts';
 
-const [comets] = parseTeams(raw);
-const slugger: Batter = { ...comets.batters[3], bats: 'R', meet: 70, power: 85 };
+const [maikai] = parseTeams(raw);
+const slugger: Batter = { ...maikai.batters[3], bats: 'R', meet: 70, power: 85 };
 const pitch = (x = 0, y = 0.8): Pitch => ({
-  ...createPitch(comets.pitchers[0], { type: 'fastball', target: { x, y } }, 0, new Rng(1)),
+  ...createPitch(maikai.pitchers[0], { type: 'fastball', target: { x, y } }, 0, new Rng(1)),
   plate: { x, y }
 });
 const swingAt = (p: Pitch, dt = 0, cursor = p.plate, mode: SwingCommand['mode'] = 'meet'): SwingCommand => ({

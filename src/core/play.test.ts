@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { createGameState, currentBatter, type GameState } from './gameState.ts';
 import { rad, v3 } from './math.ts';
-import { NO_INPUT, PlaySim, type RunningStrategy } from './play.ts';
+import { diveRange, NO_INPUT, PlaySim, wildThrowChance, type RunningStrategy } from './play.ts';
 import { Rng } from './rng.ts';
 import { applyPlay } from './rules.ts';
 import { parseTeams } from './teams.ts';
@@ -42,15 +42,19 @@ function play(o: Setup) {
     running: o.running ?? 'normal',
     humanDefense: o.humanDefense ?? false,
     humanOffense: false,
-    rng: new Rng(o.seed ?? 1)
+    rng: new Rng(o.seed ?? 7)
   });
   const events: string[] = [];
+  const texts: string[] = [];
   while (!sim.done) {
     sim.tick(1 / 60, NO_INPUT);
-    for (const e of sim.events) events.push(e.type);
+    for (const e of sim.events) {
+      events.push(e.type);
+      if (e.text) texts.push(e.text);
+    }
     sim.events.length = 0;
   }
-  return { sim, state: s, result: sim.result(), events };
+  return { sim, state: s, result: sim.result(), events, texts };
 }
 
 const applied = (s: GameState, r: ReturnType<typeof play>['result']) => {
@@ -156,4 +160,35 @@ test('さまざまな打球でプレーが必ず終わり、塁が重ならな�
       assert.equal(accounted, total, result.text);
     }
   }
+});
+
+test('悪送球は守備と肩が低いほど、遠いほど起こりやすい', () => {
+  assert.ok(wildThrowChance({ fielding: 40, arm: 40 }, 30) > wildThrowChance({ fielding: 90, arm: 90 }, 30));
+  assert.ok(wildThrowChance({ fielding: 70, arm: 70 }, 50) > wildThrowChance({ fielding: 70, arm: 70 }, 15));
+  assert.ok(wildThrowChance({ fielding: 90, arm: 90 }, 30) < 0.01);
+});
+
+test('平凡なゴロでも失策はごく稀に起こり、失策で生きても安打にならない', () => {
+  let errors = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const { result, events } = play({ speed: 30, launch: -6, spray: -18, seed });
+    if (!result.error) continue;
+    errors++;
+    assert.ok(events.includes('error'), events.join());
+    assert.equal(result.hit, 0);
+    assert.match(result.text, /エラー/);
+  }
+  assert.ok(errors >= 1 && errors <= 15, `300回中 ${errors} 回`);
+});
+
+test('CPU の守備選手も届きそうな打球にはダイビングし、守備がうまいほど遠くまで跳ぶ', () => {
+  assert.ok(diveRange(90) > diveRange(50));
+  let caught = 0;
+  // 内野の間を抜けそうな強いゴロとライナーを打ち分ける。
+  for (let spray = -40; spray <= 40; spray += 2) {
+    for (const [speed, launch] of [[38, -4], [36, 8]] as const) {
+      if (play({ speed, launch, spray }).texts.includes('ダイビングキャッチ！')) caught++;
+    }
+  }
+  assert.ok(caught >= 1 && caught <= 40, `82球中ダイビングキャッチが ${caught} 回`);
 });

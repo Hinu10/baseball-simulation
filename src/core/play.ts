@@ -33,6 +33,13 @@ const INFIELD_EDGE = 42;
 const BATTER_START = 0.35;
 const CATCH_REACH = 0.75;
 const DIVE_REACH = 1.9;
+const DIVE_TIME = 0.45;
+/** ダイビングの速さ（m/s）。守備がうまいほど遠くへ跳べる。 */
+const diveSpeed = (fielding: number) => 6 + 2 * (fielding / 100);
+/** CPU の守備選手が走っても届かないとき、ダイビングを試みる距離の上限（走って届く距離から先、m）。 */
+export const diveRange = (fielding: number) => 0.6 + 2.6 * (fielding / 100);
+/** これより先にボールが近くを通るなら、まだ跳ばない（秒）。 */
+const DIVE_LOOKAHEAD = 0.4;
 const FORCE_RADIUS = 1.0;
 const TAG_RADIUS = 1.2;
 const OUTFIELD = new Set<Position>(['LF', 'CF', 'RF']);
@@ -52,6 +59,7 @@ export interface PlayFielder {
   home: Vec3;
   speed: number;
   throwSpeed: number;
+  arm: number;
   fielding: number;
   role: 'chase' | 'cover' | 'backup' | 'idle';
   coverBase: number | null;
@@ -97,9 +105,11 @@ export interface ThrowState {
   duration: number;
   arc: number;
   thrower: number;
+  /** 悪送球。受け手は捕れず、ボールはベースの先へ転がる。 */
+  wild: boolean;
 }
 
-export type PlayEventType = 'catch' | 'drop' | 'throw' | 'out' | 'safe' | 'score' | 'bounce' | 'fence' | 'homerun' | 'foul' | 'ground-rule';
+export type PlayEventType = 'catch' | 'drop' | 'error' | 'throw' | 'out' | 'safe' | 'score' | 'bounce' | 'fence' | 'homerun' | 'foul' | 'ground-rule';
 export interface PlayEvent {
   type: PlayEventType;
   text?: string;
@@ -135,6 +145,9 @@ const throwSpeed = (arm: number) => 24 + 14 * (arm / 100);
 const ON_BASE = 0.02;
 /** 送球にかかる時間。40m を越える遠投は山なり・ワンバウンドになるぶん遅くなる。 */
 const throwTime = (f: { throwSpeed: number }, dist: number) => dist / f.throwSpeed + Math.max(0, dist - 40) * 0.022;
+/** 悪送球の確率。守備と肩が低いほど、送球距離が長いほど高い。 */
+export const wildThrowChance = (f: { fielding: number; arm: number }, dist: number) =>
+  (0.002 + 0.012 * (1 - f.fielding / 100) + 0.008 * (1 - f.arm / 100)) * clamp(dist / 30, 0.5, 1.8);
 const BASE_NAME = ['本塁', '一塁', '二塁', '三塁', '本塁'];
 
 export class PlaySim {
@@ -170,6 +183,8 @@ export class PlaySim {
   private settledFair = false;
   private firstFielder: Position | null = null;
   private caughtFly = false;
+  /** 最初に失策した守備位置。 */
+  private errorBy: Position | null = null;
   /** 飛んでいる打球をノーバウンドで捕れる守備選手がいるか（走者の判断に使う）。 */
   private flyCatchable = false;
   private settleTime = 0;
@@ -205,6 +220,7 @@ export class PlaySim {
         home,
         speed: fielderSpeed(x.speed),
         throwSpeed: throwSpeed(x.arm),
+        arm: x.arm,
         fielding: x.fielding,
         role: 'idle',
         coverBase: null,
@@ -560,9 +576,12 @@ export class PlaySim {
   private catchChance(f: PlayFielder, diving: boolean): number {
     const v = this.ball.vel;
     const speed = Math.hypot(v.x, v.y, v.z);
-    const base = this.ball.bounces === 0 ? 0.985 : 0.975;
+    // 平凡な打球でもごく稀に捕り損ねる。守備が低いほど多く、バウンドした打球は少し難しい。
+    const base = 1 - (0.004 + 0.022 * (1 - f.fielding / 100)) - (this.ball.bounces === 0 ? 0 : 0.006);
     const penalty = Math.max(0, speed - 20) * 0.013 * (1.25 - f.fielding / 100);
-    return clamp(base - penalty - (diving ? 0.25 : 0), 0.35, 0.995);
+    // ダイビングで捕れるかも守備しだい。
+    const dive = diving ? 0.65 - 0.35 * (f.fielding / 100) : 0;
+    return clamp(base - penalty - dive, 0.35, 0.995);
   }
 
   private tryCatch() {
@@ -579,7 +598,8 @@ export class PlaySim {
       // 打球が投手・捕手の手前でまだ速いうちは捕れない（打った直後の自打球などを除く）。
       if (this.time < 0.15) continue;
       if (!this.touched && !this.settledFair && !isFair(b.pos) && b.bounces > 0) return;
-      const ok = this.rng.chance(this.catchChance(f, diving));
+      const chance = this.catchChance(f, diving);
+      const ok = this.rng.chance(chance);
       this.touch(f, b.pos);
       if (this.done) return;
       if (ok) {
@@ -590,10 +610,11 @@ export class PlaySim {
           this.caughtFly = true;
           const batter = this.batterRunner;
           const kind = battedBallType(this.launch);
+          if (diving) this.emit('catch', b.pos, 'ダイビングキャッチ！');
           this.recordOut(batter, 'fly', `${POSITION_NAME[f.position]}${kind === 'liner' ? 'ライナー' : 'フライ'}`);
           for (const r of this.runners) if (r.state === 'active' && !r.isBatter && r.u > r.origin + ON_BASE) r.mustReturn = true;
         } else {
-          this.emit('catch', b.pos);
+          this.emit('catch', b.pos, diving ? 'ダイビングキャッチ！' : undefined);
         }
       } else {
         // はじいた：勢いを殺して少し転がす。
@@ -602,7 +623,10 @@ export class PlaySim {
         b.vel = v3(Math.sin(ang) * sp, air ? 1.5 : 0, Math.cos(ang) * sp);
         b.rolling = !air;
         f.recover = 0.55;
-        this.emit('drop', b.pos, 'はじいた');
+        // 捕れて当然の打球を落としたら失策。強い打球やダイビングは記録しない。
+        const error = chance >= 0.95;
+        if (error) this.errorBy ??= f.position;
+        this.emit(error ? 'error' : 'drop', b.pos, error ? `${POSITION_NAME[f.position]}が捕球エラー` : 'はじいた');
         this.repredict();
         this.assignFielders();
       }
@@ -693,7 +717,17 @@ export class PlaySim {
     f.animTime = 0;
     this.ballMode = 'thrown';
     this.holder = -1;
-    this.throw = { from, to, base, t: 0, duration: throwTime(f, dist), arc: Math.min(5, dist * 0.05), thrower: i };
+    // ごく稀に悪送球になる。守備と肩が低いほど、遠いほど多い。
+    const wild = this.rng.chance(wildThrowChance(f, dist));
+    if (wild) {
+      const side = this.rng.chance(0.5) ? 1 : -1;
+      const miss = this.rng.range(2.5, 5);
+      const dx = (to.x - from.x) / dist;
+      const dz = (to.z - from.z) / dist;
+      to.x += -dz * side * miss + dx * 1.5;
+      to.z += dx * side * miss + dz * 1.5;
+    }
+    this.throw = { from, to, base, t: 0, duration: throwTime(f, dist), arc: Math.min(5, dist * 0.05), thrower: i, wild };
     this.emit('throw', from, `${BASE_NAME[base]}へ送球`);
     this.assignFielders();
   }
@@ -706,10 +740,14 @@ export class PlaySim {
     p.y += th.arc * 4 * s * (1 - s);
     this.ball.pos = p;
     if (s < 1) return;
+    if (th.wild) {
+      this.errorBy ??= this.fielders[th.thrower].position;
+      this.emit('error', th.to, `${POSITION_NAME[this.fielders[th.thrower].position]}が悪送球`);
+    }
     let best = -1;
     let bestD = 1.8;
     this.fielders.forEach((f, i) => {
-      if (i === th.thrower || f.recover > 0) return;
+      if (th.wild || i === th.thrower || f.recover > 0) return;
       const d = distXZ(f.pos, th.to);
       if (d < bestD) {
         bestD = d;
@@ -725,7 +763,8 @@ export class PlaySim {
     }
     // 受け手がいない：ボールはベース付近を転がる。
     const dir = scale(v3(th.to.x - th.from.x, 0, th.to.z - th.from.z), 1 / Math.max(1, distXZ(th.from, th.to)));
-    this.ball = createBall(v3(th.to.x, 0.4, th.to.z), v3(dir.x * 4, 0, dir.z * 4));
+    const roll = th.wild ? 8 : 4;
+    this.ball = createBall(v3(th.to.x, 0.4, th.to.z), v3(dir.x * roll, 0, dir.z * roll));
     this.ball.bounces = 1;
     this.ball.rolling = true;
     this.ballMode = 'live';
@@ -742,8 +781,8 @@ export class PlaySim {
     }
     if (f.dive > 0) {
       f.dive -= dt;
-      f.pos.x += f.diveDir.x * 7 * dt;
-      f.pos.z += f.diveDir.z * 7 * dt;
+      f.pos.x += f.diveDir.x * diveSpeed(f.fielding) * dt;
+      f.pos.z += f.diveDir.z * diveSpeed(f.fielding) * dt;
       if (f.dive <= 0) f.recover = 0.7;
       return;
     }
@@ -780,6 +819,37 @@ export class PlaySim {
         f.animTime = 0;
       }
     }
+  }
+
+  private startDive(f: PlayFielder, dir: { x: number; z: number }) {
+    f.diveDir = dir;
+    f.dive = DIVE_TIME;
+    f.anim = 'dive';
+    f.animTime = 0;
+  }
+
+  /** CPU の守備選手：走っても届かないが跳べば届きそうな打球にダイビングする。届く距離は守備で決まる。 */
+  private aiDive(f: PlayFielder): boolean {
+    if (f.role !== 'chase' || this.ballMode !== 'live' || f.dive > 0 || f.recover > 0 || this.time < REACTION) return false;
+    const b = this.ball;
+    const air = b.bounces === 0 && !b.rolling;
+    // ボールがいちばん近くを通る時刻。まだ近づいてくる途中なら、走って追えばよいので跳ばない。
+    const vv = b.vel.x * b.vel.x + b.vel.z * b.vel.z;
+    if (vv < 1) return false;
+    const t = ((f.pos.x - b.pos.x) * b.vel.x + (f.pos.z - b.pos.z) * b.vel.z) / vv;
+    if (t < 0 || t > DIVE_LOOKAHEAD) return false;
+    if (air) {
+      // そのときちょうど捕れる高さまで落ちてくる飛球だけ。
+      const y = b.pos.y + b.vel.y * t - 4.9 * t * t;
+      if (y > 2.0 || y < 0.15) return false;
+    } else if (b.pos.y > 1.0) return false;
+    const at = v3(b.pos.x + b.vel.x * t, 0, b.pos.z + b.vel.z * t);
+    const d = distXZ(f.pos, at);
+    const run = f.speed * (air ? 1 : GROUND_BALL_PACE) * t + CATCH_REACH;
+    const jump = Math.min(diveRange(f.fielding), diveSpeed(f.fielding) * Math.min(t + 0.1, DIVE_TIME) + DIVE_REACH - CATCH_REACH);
+    if (d <= run || d > run + jump) return false;
+    this.startDive(f, { x: (at.x - f.pos.x) / d, z: (at.z - f.pos.z) / d });
+    return true;
   }
 
   private updateHolderAI(i: number, dt: number) {
@@ -854,10 +924,7 @@ export class PlaySim {
       const l = Math.hypot(input.move.x, input.move.y);
       const toBall = { x: this.ball.pos.x - f.pos.x, z: this.ball.pos.z - f.pos.z };
       const tl = Math.hypot(toBall.x, toBall.z) || 1;
-      f.diveDir = l > 0.1 ? { x: input.move.x / l, z: input.move.y / l } : { x: toBall.x / tl, z: toBall.z / tl };
-      f.dive = 0.45;
-      f.anim = 'dive';
-      f.animTime = 0;
+      this.startDive(f, l > 0.1 ? { x: input.move.x / l, z: input.move.y / l } : { x: toBall.x / tl, z: toBall.z / tl });
       return;
     }
     if (assist) {
@@ -953,6 +1020,7 @@ export class PlaySim {
         if (this.ballMode === 'held' && this.holder === i) this.moveFielder(f, dt, null);
         return;
       }
+      this.aiDive(f);
       this.moveFielder(f, dt, null);
     });
     if (this.humanDefense && this.controlled >= 0) this.updateHumanFielder(input, dt);
@@ -1022,9 +1090,15 @@ export class PlaySim {
       const out = this.outs.find((o) => o.playerId === batter.playerId)!;
       text = out.kind === 'fly' ? `${fielder}${kind === 'liner' ? 'ライナー' : 'フライ'}` : `${fielder}${this.bunt ? 'へのバント' : 'ゴロ'}`;
       if (this.outs.length >= 2) text += this.outs.length >= 3 ? '（トリプルプレー）' : '（併殺）';
+      // バントで打者だけがアウトになり、走者が進めば送りバント（犠打）。
+      const advanced = this.runners.some((r) => !r.isBatter && (r.state === 'scored' || (r.state === 'active' && Math.round(r.u) > r.origin)));
+      if (this.bunt && this.outs.length === 1 && advanced) return { outs: this.outs, runs: this.runs, bases, hit, text: '送りバント', foul: false, sacrifice: true };
     } else if (this.outs.length > 0) {
       text = this.bunt ? '送りバント' : `${fielder}ゴロ（フィルダースチョイス）`;
       if (this.bunt && this.outs.length > 0) text = `${fielder}へのバント（フィルダースチョイス）`;
+    } else if (this.errorBy) {
+      // 失策で生きたら安打にしない（MVP では失策がなくても安打だったかは判定しない）。
+      return { outs: this.outs, runs: this.runs, bases, hit: 0, text: `${POSITION_NAME[this.errorBy]}のエラー`, foul: false, error: true };
     } else {
       const reached = batter.state === 'scored' ? 4 : clamp(Math.round(batter.u), 1, 3);
       hit = reached as PlayResult['hit'];

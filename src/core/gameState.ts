@@ -33,11 +33,59 @@ export interface PlayLogEntry {
   runs: number;
 }
 
+/** 打撃成績（打席・打数・安打・本塁打・打点）。 */
+export interface BattingLine {
+  pa: number;
+  ab: number;
+  h: number;
+  hr: number;
+  rbi: number;
+}
+
+export const emptyLine = (): BattingLine => ({ pa: 0, ab: 0, h: 0, hr: 0, rbi: 0 });
+
+/** 打率。打数 0 なら null。 */
+export const battingAverage = (l: BattingLine): number | null => (l.ab ? l.h / l.ab : null);
+
+/** 成績を足し合わせる。 */
+export function addLines(a: BattingLine, b: BattingLine): BattingLine {
+  return { pa: a.pa + b.pa, ab: a.ab + b.ab, h: a.h + b.h, hr: a.hr + b.hr, rbi: a.rbi + b.rbi };
+}
+
+/** 投手成績（アウト数・失点・被安打・奪三振・与四球・勝敗）。失点はすべて自責点として扱う。 */
+export interface PitchingLine {
+  outs: number;
+  r: number;
+  h: number;
+  so: number;
+  bb: number;
+  w: number;
+  l: number;
+}
+
+export const emptyPitchingLine = (): PitchingLine => ({ outs: 0, r: 0, h: 0, so: 0, bb: 0, w: 0, l: 0 });
+
+/** 投手成績を足し合わせる。 */
+export function addPitchingLines(a: PitchingLine, b: PitchingLine): PitchingLine {
+  return { outs: a.outs + b.outs, r: a.r + b.r, h: a.h + b.h, so: a.so + b.so, bb: a.bb + b.bb, w: a.w + b.w, l: a.l + b.l };
+}
+
+/** 防御率（9回あたりの失点）。投球回 0 なら null。 */
+export const earnedRunAverage = (l: PitchingLine): number | null => (l.outs ? (l.r * 27) / l.outs : null);
+
 export type EndReason = 'regulation' | 'walkoff' | 'skip-bottom';
 
+/** 選べる規定イニング。 */
+export const INNINGS_OPTIONS = [3, 7, 9] as const;
+export type Innings = (typeof INNINGS_OPTIONS)[number];
+/** 規定イニングごとに許す延長の回数。 */
+export const EXTRA_INNINGS: Record<Innings, number> = { 3: 1, 7: 2, 9: 3 };
+
 export interface GameState {
-  /** 規定イニング（MVP は 3）。 */
+  /** 規定イニング。 */
   innings: number;
+  /** 規定回で同点のときに続ける延長の回数（0 なら延長なし）。 */
+  extraInnings: number;
   inning: number;
   half: Half;
   outs: number;
@@ -52,9 +100,15 @@ export interface GameState {
   winner: TeamIndex | null;
   endReason: EndReason | null;
   log: PlayLogEntry[];
+  /** この試合の打撃成績（選手 id ごと）。 */
+  batting: Record<string, BattingLine>;
+  /** この試合の投手成績（選手 id ごと）。 */
+  pitching: Record<string, PitchingLine>;
+  /** 最後にリードを奪ったときの勝利投手・敗戦投手の候補。試合終了で勝敗をつける。 */
+  decision: { win: string; lose: string } | null;
 }
 
-export function createGameState(away: TeamData, home: TeamData, innings = 3, mode: MatchMode = 'manual'): GameState {
+export function createGameState(away: TeamData, home: TeamData, innings = 3, mode: MatchMode = 'manual', extraInnings = 0): GameState {
   const team = (t: TeamData): TeamGameState => ({
     team: t,
     lineup: lineupOf(t),
@@ -68,6 +122,7 @@ export function createGameState(away: TeamData, home: TeamData, innings = 3, mod
   });
   return {
     innings,
+    extraInnings,
     inning: 1,
     half: 'top',
     outs: 0,
@@ -79,7 +134,10 @@ export function createGameState(away: TeamData, home: TeamData, innings = 3, mod
     over: false,
     winner: null,
     endReason: null,
-    log: []
+    log: [],
+    batting: {},
+    pitching: {},
+    decision: null
   };
 }
 

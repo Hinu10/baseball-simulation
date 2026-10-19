@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { createPitch, DEFAULT_ZONE, fatigue, isStrike, pitchPosition, PITCHES } from './pitching.ts';
+import { createPitch, DEFAULT_ZONE, fatigue, isStrike, missChance, pitchPosition, PITCHES } from './pitching.ts';
 import { Rng } from './rng.ts';
 import { parseTeams, type Pitcher } from './teams.ts';
 import { PITCH_TYPES } from './types.ts';
 
-const [comets] = parseTeams(raw);
-const ace = comets.pitchers[0];
+const [maikai] = parseTeams(raw);
+const ace = maikai.pitchers[0];
 const withControl = (control: number): Pitcher => ({ ...ace, control });
 
 test('ゾーンにかかればストライク、外れればボール', () => {
@@ -66,4 +66,19 @@ test('投球数が増えると疲れ、球速が落ちる', () => {
   const fresh = createPitch(ace, { type: 'fastball', target: { x: 0, y: 0.8 } }, 0, rng);
   const tired = createPitch(ace, { type: 'fastball', target: { x: 0, y: 0.8 } }, 1, new Rng(5));
   assert.ok(tired.speedKmh < fresh.speedKmh);
+});
+
+test('制球の乱れはたまに起こり、コントロールが低いほど・疲れているほど多い', () => {
+  assert.ok(missChance(withControl(30), 0) > missChance(withControl(90), 0));
+  assert.ok(missChance(ace, 1) > missChance(ace, 0));
+  const rate = (control: number) => {
+    const rng = new Rng(11);
+    let missed = 0;
+    for (let i = 0; i < 4000; i++) if (createPitch(withControl(control), { type: 'fastball', target: { x: 0, y: 0.8 } }, 0, rng).missed) missed++;
+    return missed / 4000;
+  };
+  const good = rate(90);
+  const poor = rate(30);
+  assert.ok(good > 0.005 && good < 0.04, `コントロール90で ${good}`);
+  assert.ok(poor > good && poor < 0.1, `コントロール30で ${poor}`);
 });

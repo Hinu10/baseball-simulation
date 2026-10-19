@@ -1,7 +1,7 @@
 // 野球のルール。試合状態（GameState）を書き換えるのはこのファイルだけ。
 // 手動・監督・自動のどのモードも、投球の判定とプレーの結果をここに渡す。
 
-import { battingTeam, benchBatters, benchPitchers, currentBatter, fieldingTeam, score, type GameState, type TeamIndex } from './gameState.ts';
+import { battingTeam, benchBatters, benchPitchers, currentBatter, emptyLine, emptyPitchingLine, fieldingTeam, score, type BattingLine, type GameState, type PitchingLine, type TeamIndex } from './gameState.ts';
 
 export type PitchCall = 'ball' | 'called-strike' | 'swinging-strike' | 'foul' | 'foul-bunt';
 export type PlateAppearanceEnd = 'strikeout' | 'walk' | null;
@@ -33,16 +33,33 @@ export interface PlayResult {
   /** 記録上の安打（0 = 安打でない、4 = 本塁打）。 */
   hit: 0 | 1 | 2 | 3 | 4;
   text: string;
+  /** 失策で打者が生きた。 */
+  error?: boolean;
+  /** 送りバント（打数に数えない）。 */
+  sacrifice?: boolean;
 }
 
 function log(s: GameState, text: string, runs: number) {
   s.log.push({ inning: s.inning, half: s.half, batterId: currentBatter(s).id, text, runs });
 }
 
+/** いま投げている投手の成績。 */
+function pitcherLine(s: GameState): PitchingLine {
+  return (s.pitching[s.teams[fieldingTeam(s)].pitcher.id] ??= emptyPitchingLine());
+}
+
 function addRuns(s: GameState, runs: number) {
-  const t = s.teams[battingTeam(s)];
+  const bat = battingTeam(s);
+  const t = s.teams[bat];
   while (t.runsByInning.length < s.inning) t.runsByInning.push(0);
+  if (!runs) return;
+  const lead = () => score(s, bat) - score(s, (1 - bat) as TeamIndex);
+  const before = lead();
   t.runsByInning[s.inning - 1] += runs;
+  // 失点はマウンドの投手につける（前の投手が残した走者も含めて簡単に扱う）。
+  pitcherLine(s).r += runs;
+  // リードを奪ったら、そのときの両チームの投手が勝利・敗戦投手の候補になる。
+  if (before <= 0 && lead() > 0) s.decision = { win: t.pitcher.id, lose: s.teams[fieldingTeam(s)].pitcher.id };
 }
 
 function endGame(s: GameState, reason: GameState['endReason']) {
@@ -51,6 +68,10 @@ function endGame(s: GameState, reason: GameState['endReason']) {
   const away = score(s, 0);
   const home = score(s, 1);
   s.winner = away === home ? null : away > home ? 0 : 1;
+  if (s.winner !== null && s.decision) {
+    (s.pitching[s.decision.win] ??= emptyPitchingLine()).w += 1;
+    (s.pitching[s.decision.lose] ??= emptyPitchingLine()).l += 1;
+  }
 }
 
 /** 最終回以降の裏に後攻がリードしたらサヨナラ。 */
@@ -69,7 +90,7 @@ function nextBatter(s: GameState) {
   s.strikes = 0;
 }
 
-/** 3アウトで攻守交代。試合終了（3回裏の省略・規定回終了）もここで決まる。 */
+/** 3アウトで攻守交代。試合終了（最終回裏の省略・規定回や延長の終了）もここで決まる。 */
 export function endHalfInning(s: GameState) {
   s.outs = 0;
   s.balls = 0;
@@ -85,8 +106,8 @@ export function endHalfInning(s: GameState) {
     }
     s.half = 'bottom';
   } else {
-    if (s.inning >= s.innings) {
-      // MVP の独自ルール：規定回で同点なら引き分け（延長なし）。
+    // 規定回で決着がつくか、同点のまま延長の上限まで終われば試合終了（引き分け）。
+    if (s.inning >= s.innings && (score(s, 0) !== score(s, 1) || s.inning >= s.innings + s.extraInnings)) {
       endGame(s, 'regulation');
       return;
     }
@@ -116,9 +137,21 @@ function forceAdvanceBatter(s: GameState): number {
   return runs;
 }
 
+/** いまの打者の打席の結果を成績に足す。nextBatter より前に呼ぶ。 */
+function recordPlateAppearance(s: GameState, line: Partial<BattingLine>) {
+  const id = currentBatter(s).id;
+  const l = (s.batting[id] ??= emptyLine());
+  l.pa += 1;
+  l.ab += line.ab ?? 0;
+  l.h += line.h ?? 0;
+  l.hr += line.hr ?? 0;
+  l.rbi += line.rbi ?? 0;
+}
+
 /** 投球数を数える。インプレー以外の判定（pitchCall）とインプレー（applyPlay）の両方から呼ぶ。 */
 function countPitch(s: GameState) {
   s.teams[fieldingTeam(s)].pitchCount += 1;
+  pitcherLine(s);
 }
 
 /** ボール・ストライク・ファウルの判定を反映する。打席が終わったら 'strikeout' か 'walk'。 */
@@ -129,7 +162,9 @@ export function pitchCall(s: GameState, call: PitchCall): PlateAppearanceEnd {
     s.balls += 1;
     if (s.balls < 4) return null;
     const runs = forceAdvanceBatter(s);
+    pitcherLine(s).bb += 1;
     log(s, runs ? '四球（押し出し）' : '四球', runs);
+    recordPlateAppearance(s, { rbi: runs });
     addRuns(s, runs);
     if (!checkWalkoff(s)) nextBatter(s);
     return 'walk';
@@ -139,6 +174,10 @@ export function pitchCall(s: GameState, call: PitchCall): PlateAppearanceEnd {
   s.strikes += 1;
   if (s.strikes < 3) return null;
   log(s, call === 'foul-bunt' ? 'スリーバント失敗' : call === 'called-strike' ? '見逃し三振' : '空振り三振', 0);
+  recordPlateAppearance(s, { ab: 1 });
+  const p = pitcherLine(s);
+  p.so += 1;
+  p.outs += 1;
   nextBatter(s);
   recordOut(s, 1);
   return 'strikeout';
@@ -160,9 +199,22 @@ export function applyPlay(s: GameState, r: PlayResult) {
   if (s.over) return;
   countPitch(s);
   const runs = countedRuns(s.outs, r);
+  const p = pitcherLine(s);
+  p.outs += Math.min(r.outs.length, 3 - s.outs);
+  if (r.hit) p.h += 1;
   addRuns(s, runs.length);
   if (r.hit) s.teams[battingTeam(s)].hits += 1;
   log(s, r.text, runs.length);
+  // 犠打・犠飛は打数に数えない。失策と併殺の得点は打点にしない。
+  const batterId = currentBatter(s).id;
+  const sacFly = runs.length > 0 && r.outs.some((o) => o.playerId === batterId && o.kind === 'fly');
+  const doublePlay = r.outs.length >= 2 && r.outs.some((o) => o.kind === 'force');
+  recordPlateAppearance(s, {
+    ab: r.sacrifice || sacFly ? 0 : 1,
+    h: r.hit ? 1 : 0,
+    hr: r.hit === 4 ? 1 : 0,
+    rbi: r.error || doublePlay ? 0 : runs.length
+  });
   if (checkWalkoff(s)) return;
   const outsAfter = s.outs + r.outs.length;
   nextBatter(s);

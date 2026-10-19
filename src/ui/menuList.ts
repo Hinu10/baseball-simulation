@@ -68,6 +68,8 @@ export class MenuList {
 
   private mark() {
     [...this.el.children].forEach((c, i) => c.classList.toggle('focused', i === this.focus));
+    // 画面に収まらないメニューでは、選んだ項目が見えるようにスクロールする。
+    this.el.children[this.focus]?.scrollIntoView({ block: 'nearest' });
   }
 
   /** 毎フレーム呼ぶ。 */
