@@ -11,8 +11,8 @@ export const BALL_RADIUS = 0.037;
 export const PHYSICS_DT = 1 / 120;
 
 const GROUND = {
-  grass: { restitution: 0.4, keep: 0.7, roll: 3.6 },
-  dirt: { restitution: 0.46, keep: 0.8, roll: 2.6 }
+  grass: { restitution: 0.4, keep: 0.8, roll: 3.0 },
+  dirt: { restitution: 0.46, keep: 0.88, roll: 1.8 }
 };
 /** これより弱い跳ね返りは転がりに移る（m/s）。 */
 const ROLL_THRESHOLD = 1.4;
