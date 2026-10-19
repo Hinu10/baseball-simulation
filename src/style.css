@@ -146,6 +146,8 @@ button {
   box-shadow: 0 10px 30px rgba(0, 20, 60, 0.35);
   text-align: center;
   max-width: 92vw;
+  max-height: 96vh;
+  overflow: auto;
 }
 .logo {
   font-size: 44px;
@@ -778,4 +780,114 @@ button {
     width: 100%;
     padding-left: 3.4em;
   }
+}
+
+/* ---- ペナント ---- */
+.pennant-progress {
+  margin-top: 6px;
+  color: #1b3a8c;
+  font-weight: 700;
+  font-size: 14px;
+}
+.pennant-card {
+  width: min(760px, 94vw);
+}
+.pennant-card h2 small {
+  margin-left: 10px;
+  font-size: 14px;
+  color: #556;
+}
+.pennant-tabs button {
+  --team: #1b3a8c;
+}
+.pennant-champion {
+  margin: 4px 0 8px;
+  padding: 8px;
+  border-radius: 10px;
+  background: #fff4d6;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 900;
+  color: #a86b00;
+}
+.pennant-table td {
+  font-variant-numeric: tabular-nums;
+}
+.pennant-team {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--team);
+  color: var(--team-ink, #fff);
+  font-weight: 700;
+}
+.pennant-card h3 {
+  margin: 12px 0 4px;
+  padding-left: 8px;
+  border-left: 5px solid #1b3a8c;
+  color: #1b3a8c;
+}
+.pennant-card h3 small {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #778;
+}
+.pennant-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.pennant-results b {
+  margin: 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.pennant-races {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 0 18px;
+}
+.pennant-race .value {
+  text-align: right;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.pennant-race .order {
+  color: #1b3a8c;
+}
+.pennant-race .empty {
+  color: #99a;
+}
+.pennant-buttons {
+  display: flex;
+  gap: 8px;
+}
+.pennant-buttons .close {
+  flex: 2;
+}
+.pennant-buttons .reset {
+  flex: 1;
+  margin-top: 10px;
+  padding: 10px;
+  border: 2px solid #c8102e;
+  border-radius: 10px;
+  background: #fff;
+  color: #c8102e;
+  font-weight: 700;
+}
+.pennant-buttons .reset.armed {
+  background: #c8102e;
+  color: #fff;
+}
+.pennant-summary {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #334;
+}
+.pennant-summary b {
+  color: #1b3a8c;
+  font-size: 16px;
+}
+.pennant-summary .others span {
+  margin-right: 12px;
 }

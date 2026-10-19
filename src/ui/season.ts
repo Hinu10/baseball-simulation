@@ -1,29 +1,26 @@
-// 通算の打撃成績を端末に保存する（ペナントレースのように試合をまたいで積み上がる）。
-import { addLines, emptyLine, type BattingLine, type GameState } from '../core/gameState.ts';
+// ペナントレースの経過（順位・通算成績）を端末に保存する。計算は core/pennant.ts。
+import type { BattingLine } from '../core/gameState.ts';
+import { emptyPennant, type Pennant } from '../core/pennant.ts';
 
-const KEY = 'baseball-simulation.season';
+const KEY = 'baseball-simulation.pennant';
 export type SeasonStats = Record<string, BattingLine>;
 
-export function loadSeason(): SeasonStats {
+export function loadPennant(): Pennant {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as SeasonStats;
+    if (raw) return { ...emptyPennant(), ...JSON.parse(raw) };
   } catch {
-    // 読めなければ通算 0 から。
+    // 読めなければ開幕から。
   }
-  return {};
+  return emptyPennant();
 }
 
-/** 終わった試合の成績を通算に足して保存する。 */
-export function addGameToSeason(season: SeasonStats, s: GameState): SeasonStats {
-  const next = { ...season };
-  for (const [id, line] of Object.entries(s.batting)) next[id] = addLines(next[id] ?? emptyLine(), line);
+export function savePennant(p: Pennant) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    localStorage.setItem(KEY, JSON.stringify(p));
   } catch {
     // 保存できなくても遊べる。
   }
-  return next;
 }
 
 /** 打率の表記（.285、1.000）。打数 0 は「-.---」。 */

@@ -1,7 +1,7 @@
 // 野球のルール。試合状態（GameState）を書き換えるのはこのファイルだけ。
 // 手動・監督・自動のどのモードも、投球の判定とプレーの結果をここに渡す。
 
-import { battingTeam, benchBatters, benchPitchers, currentBatter, emptyLine, fieldingTeam, score, type BattingLine, type GameState, type TeamIndex } from './gameState.ts';
+import { battingTeam, benchBatters, benchPitchers, currentBatter, emptyLine, emptyPitchingLine, fieldingTeam, score, type BattingLine, type GameState, type PitchingLine, type TeamIndex } from './gameState.ts';
 
 export type PitchCall = 'ball' | 'called-strike' | 'swinging-strike' | 'foul' | 'foul-bunt';
 export type PlateAppearanceEnd = 'strikeout' | 'walk' | null;
@@ -43,10 +43,23 @@ function log(s: GameState, text: string, runs: number) {
   s.log.push({ inning: s.inning, half: s.half, batterId: currentBatter(s).id, text, runs });
 }
 
+/** いま投げている投手の成績。 */
+function pitcherLine(s: GameState): PitchingLine {
+  return (s.pitching[s.teams[fieldingTeam(s)].pitcher.id] ??= emptyPitchingLine());
+}
+
 function addRuns(s: GameState, runs: number) {
-  const t = s.teams[battingTeam(s)];
+  const bat = battingTeam(s);
+  const t = s.teams[bat];
   while (t.runsByInning.length < s.inning) t.runsByInning.push(0);
+  if (!runs) return;
+  const lead = () => score(s, bat) - score(s, (1 - bat) as TeamIndex);
+  const before = lead();
   t.runsByInning[s.inning - 1] += runs;
+  // 失点はマウンドの投手につける（前の投手が残した走者も含めて簡単に扱う）。
+  pitcherLine(s).r += runs;
+  // リードを奪ったら、そのときの両チームの投手が勝利・敗戦投手の候補になる。
+  if (before <= 0 && lead() > 0) s.decision = { win: t.pitcher.id, lose: s.teams[fieldingTeam(s)].pitcher.id };
 }
 
 function endGame(s: GameState, reason: GameState['endReason']) {
@@ -55,6 +68,10 @@ function endGame(s: GameState, reason: GameState['endReason']) {
   const away = score(s, 0);
   const home = score(s, 1);
   s.winner = away === home ? null : away > home ? 0 : 1;
+  if (s.winner !== null && s.decision) {
+    (s.pitching[s.decision.win] ??= emptyPitchingLine()).w += 1;
+    (s.pitching[s.decision.lose] ??= emptyPitchingLine()).l += 1;
+  }
 }
 
 /** 最終回以降の裏に後攻がリードしたらサヨナラ。 */
@@ -134,6 +151,7 @@ function recordPlateAppearance(s: GameState, line: Partial<BattingLine>) {
 /** 投球数を数える。インプレー以外の判定（pitchCall）とインプレー（applyPlay）の両方から呼ぶ。 */
 function countPitch(s: GameState) {
   s.teams[fieldingTeam(s)].pitchCount += 1;
+  pitcherLine(s);
 }
 
 /** ボール・ストライク・ファウルの判定を反映する。打席が終わったら 'strikeout' か 'walk'。 */
@@ -144,6 +162,7 @@ export function pitchCall(s: GameState, call: PitchCall): PlateAppearanceEnd {
     s.balls += 1;
     if (s.balls < 4) return null;
     const runs = forceAdvanceBatter(s);
+    pitcherLine(s).bb += 1;
     log(s, runs ? '四球（押し出し）' : '四球', runs);
     recordPlateAppearance(s, { rbi: runs });
     addRuns(s, runs);
@@ -156,6 +175,9 @@ export function pitchCall(s: GameState, call: PitchCall): PlateAppearanceEnd {
   if (s.strikes < 3) return null;
   log(s, call === 'foul-bunt' ? 'スリーバント失敗' : call === 'called-strike' ? '見逃し三振' : '空振り三振', 0);
   recordPlateAppearance(s, { ab: 1 });
+  const p = pitcherLine(s);
+  p.so += 1;
+  p.outs += 1;
   nextBatter(s);
   recordOut(s, 1);
   return 'strikeout';
@@ -177,6 +199,9 @@ export function applyPlay(s: GameState, r: PlayResult) {
   if (s.over) return;
   countPitch(s);
   const runs = countedRuns(s.outs, r);
+  const p = pitcherLine(s);
+  p.outs += Math.min(r.outs.length, 3 - s.outs);
+  if (r.hit) p.h += 1;
   addRuns(s, runs.length);
   if (r.hit) s.teams[battingTeam(s)].hits += 1;
   log(s, r.text, runs.length);

@@ -366,3 +366,25 @@ test('打席ごとに打数・安打・本塁打・打点を記録する（四�
   applyPlay(s, { outs: [{ playerId: fly, kind: 'fly', time: 1 }], runs: [{ playerId: runner, time: 3 }], bases: [null, s.bases[1], s.bases[2], null], hit: 0, text: 'センターフライ' });
   assert.deepEqual(lineOf(fly), { pa: 1, ab: 0, h: 0, hr: 0, rbi: 1 });
 });
+
+test('投手成績：アウト・奪三振・与四球・被安打・失点を記録し、試合終了で勝敗をつける', () => {
+  const s = newGame();
+  const homeStarter = s.teams[1].pitcher.id;
+  // 1回表：先攻が本塁打で先制。
+  strikeout(s);
+  walk(s);
+  hit(s, 4);
+  threeOuts(s);
+  assert.deepEqual(s.pitching[homeStarter], { outs: 3, r: 2, h: 1, so: 3, bb: 1, w: 0, l: 0 });
+  // 1回裏：後攻が3点本塁打で逆転し、そのまま逃げ切る。
+  const awayStarter = s.teams[0].pitcher.id;
+  walk(s);
+  walk(s);
+  hit(s, 4);
+  playTo(s, 3, 'bottom');
+  assert.equal(s.over, true);
+  assert.equal(s.winner, 1);
+  assert.equal(s.pitching[homeStarter].w, 1);
+  assert.equal(s.pitching[awayStarter].l, 1);
+  assert.equal(s.pitching[awayStarter].r, 3);
+});

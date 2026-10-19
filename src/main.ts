@@ -5,6 +5,7 @@ import raw from './data/teams.json' with { type: 'json' };
 import { Sound } from './audio/sound.ts';
 import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { battingTeam, EXTRA_INNINGS, INNINGS_OPTIONS, score, type Innings, type MatchMode, type TeamIndex } from './core/gameState.ts';
+import { addGame, emptyPennant, pairOthers, seasonOver, standings, type GameResult } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
 import { parseTeams, teamStyle, type TeamData } from './core/teams.ts';
@@ -14,7 +15,8 @@ import { HELP_HTML } from './ui/help.ts';
 import { Hud, MODE_LABEL } from './ui/hud.ts';
 import { MenuList, type MenuItem } from './ui/menuList.ts';
 import { RANK_NOTE, rosterHtml } from './ui/roster.ts';
-import { addGameToSeason, loadSeason } from './ui/season.ts';
+import { PENNANT_TABS, pennantHtml, pennantProgress, pennantSummaryHtml, rankOf } from './ui/pennant.ts';
+import { loadPennant, savePennant } from './ui/season.ts';
 import { loadSettings, saveSettings, type Settings } from './ui/settings.ts';
 import { SubstitutionPanel } from './ui/substitution.ts';
 
@@ -39,6 +41,11 @@ class App {
   paused = false;
   helpOpen = false;
   rosterOpen = false;
+  pennantOpen = false;
+  /** ペナントの画面で表示しているタブ（PENNANT_TABS の添字）。 */
+  pennantTab = 0;
+  /** 「新しいシーズン」を一度押した（もう一度押すとリセット）。 */
+  private resetArmed = false;
   subsOpen = false;
   /** 選手・打順の画面で表示しているチーム（rosterTeams() の添字）。 */
   rosterIndex = 0;
@@ -54,8 +61,8 @@ class App {
   private heardEvents = 0;
   /** いまのプレーで攻撃しているチーム（そのファンが沸く）。 */
   private heardTeam: TeamIndex = 0;
-  /** 通算の打撃成績。試合が終わるたびに足して保存する。 */
-  private season = loadSeason();
+  /** ペナントレースの経過。試合が終わるたびに、他球場の試合も行って足して保存する。 */
+  private pennant = loadPennant();
   private readonly hud = new Hud();
   private readonly ui = document.getElementById('ui')!;
   private readonly menuEl = document.createElement('div');
@@ -63,6 +70,8 @@ class App {
   private readonly resultEl = document.createElement('div');
   private readonly helpEl = document.createElement('div');
   private readonly rosterEl = document.createElement('div');
+  private readonly pennantEl = document.createElement('div');
+  private readonly progressEl = document.createElement('div');
   private readonly subs = new SubstitutionPanel();
   private readonly menu: MenuList;
   private readonly pauseMenu: MenuList;
@@ -139,13 +148,15 @@ class App {
       },
       { kind: 'choice', label: '効果音', options: [{ value: 'on', label: 'オン' }, { value: 'off', label: 'オフ' }], get: () => this.settings.sound ? 'on' : 'off', set: (v) => this.setSound(v === 'on') },
       { kind: 'button', label: 'プレイボール！', primary: true, action: () => this.start() },
+      { kind: 'button', label: 'ペナント（順位・タイトル）', action: () => this.showPennant(true) },
       { kind: 'button', label: '選手・打順', action: () => this.showRoster(true) },
       { kind: 'button', label: '操作説明', action: () => this.showHelp(true) }
     ];
     this.menu = new MenuList(mainItems);
     this.menuEl.className = 'screen title-screen';
     this.menuEl.innerHTML = `<div class="title-card"><div class="logo">Baseball<br><span>Simulation</span></div><div class="sub">3・7・9回の CPU 戦 ／ Sky Park Stadium</div></div>`;
-    this.menuEl.querySelector('.title-card')!.append(this.menu.el);
+    this.progressEl.className = 'pennant-progress';
+    this.menuEl.querySelector('.title-card')!.append(this.progressEl, this.menu.el);
 
     const strategyItem = (key: keyof Strategy, label: string): MenuItem => ({
       kind: 'choice',
@@ -208,14 +219,16 @@ class App {
     this.helpEl.querySelector('.close')!.addEventListener('click', () => this.showHelp(false));
 
     this.rosterEl.className = 'screen help-screen roster-screen';
+    this.pennantEl.className = 'screen help-screen roster-screen';
 
     this.subs.onClose = () => this.showSubs(false);
 
-    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl, this.subs.el);
+    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl, this.pennantEl, this.subs.el);
     window.addEventListener('resize', () => this.resize());
     this.resize();
     this.showHelp(false);
     this.showRoster(false);
+    this.showPennant(false);
     this.showSubs(false);
     this.showScreen('menu');
     requestAnimationFrame((t) => this.loop(t));
@@ -263,6 +276,7 @@ class App {
     this.hud.el.style.display = s === 'match' ? '' : 'none';
     this.pauseEl.style.display = 'none';
     if (s === 'menu') {
+      this.renderProgress();
       this.menu.render();
       this.dressCrowd();
     }
@@ -323,6 +337,87 @@ class App {
     this.rosterMoveX = x;
   }
 
+  /** メニューに出す、ペナントの進み具合とあなたのチームの順位。 */
+  private renderProgress() {
+    const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
+    const rank = this.pennant.teams[mine.id] ? `　${mine.shortName} ${rankOf(this.pennant, teams, mine.id)}位` : '';
+    this.progressEl.textContent = `ペナント ${pennantProgress(this.pennant, teams)}${rank}`;
+  }
+
+  private showPennant(open: boolean) {
+    this.pennantOpen = open;
+    this.pennantEl.style.display = open ? '' : 'none';
+    this.resetArmed = false;
+    if (open) this.renderPennant();
+    else if (this.screen === 'menu') this.renderProgress();
+  }
+
+  private renderPennant() {
+    const you = this.match ? this.match.state.teams[this.match.humanTeam].team.id : this.settings.team;
+    const tabs = PENNANT_TABS.map((label, i) => `<button class="${i === this.pennantTab ? 'selected' : ''}" data-i="${i}">${label}</button>`).join('');
+    const over = seasonOver(this.pennant, teams);
+    const champion = over ? `<p class="pennant-champion">🏆 ${standings(this.pennant, teams)[0].team.nameJa} 優勝！</p>` : '';
+    const reset = this.resetArmed ? 'もう一度押すとリセット' : '新しいシーズンを始める';
+    this.pennantEl.innerHTML = `<div class="panel help-card roster-card pennant-card"><h2>ペナント<small>${pennantProgress(this.pennant, teams)}</small></h2>${champion}<div class="roster-tabs pennant-tabs">${tabs}</div>${pennantHtml(this.pennant, teams, this.pennantTab, you)}<p class="note">あなたの試合が終わるたびに、ほかの4球団も1試合ずつ行います。勝率は引き分けを除いて計算し、失点はすべて自責点として扱います。　A/D でタブ切り替え</p><div class="pennant-buttons"><button class="reset${this.resetArmed ? ' armed' : ''}">${reset}</button><button class="close">とじる（Esc）</button></div></div>`;
+    this.pennantEl.querySelectorAll<HTMLButtonElement>('.pennant-tabs button').forEach((b) =>
+      b.addEventListener('click', () => {
+        this.pennantTab = Number(b.dataset.i);
+        this.renderPennant();
+      })
+    );
+    this.pennantEl.querySelector('.reset')!.addEventListener('click', () => this.resetPennant());
+    this.pennantEl.querySelector('.close')!.addEventListener('click', () => this.showPennant(false));
+  }
+
+  private resetPennant() {
+    if (!this.resetArmed) {
+      this.resetArmed = true;
+      this.renderPennant();
+      return;
+    }
+    this.pennant = emptyPennant();
+    savePennant(this.pennant);
+    this.hud.season = this.pennant.batting;
+    this.resetArmed = false;
+    this.renderPennant();
+  }
+
+  private handlePennant(f: InputFrame) {
+    if (f.pressed.pause || f.pressed.secondary || f.pressed.primary) {
+      this.showPennant(false);
+      return;
+    }
+    const x = Math.abs(f.move.x) > 0.5 ? Math.sign(f.move.x) : 0;
+    if (x && x !== this.rosterMoveX) {
+      const n = PENNANT_TABS.length;
+      this.pennantTab = (this.pennantTab + x + n) % n;
+      this.renderPennant();
+    }
+    this.rosterMoveX = x;
+  }
+
+  /**
+   * 終わった試合をペナントに足し、同じ節の他球場の試合も自動で行う。
+   * シーズンが終わっていれば数えない。数えたら true。
+   */
+  private recordPennant(): boolean {
+    const m = this.match!;
+    const s = m.state;
+    if (seasonOver(this.pennant, teams)) return false;
+    const result = (g: typeof s): GameResult => ({ away: g.teams[0].team.id, home: g.teams[1].team.id, awayRuns: score(g, 0), homeRuns: score(g, 1) });
+    let p = addGame(this.pennant, s);
+    const round = [result(s)];
+    for (const [away, home] of pairOthers(this.pennant, teams, [round[0].away, round[0].home])) {
+      const other = new Match({ away, home, innings: s.innings, mode: 'auto', difficulty: 'normal' });
+      other.skipToEnd();
+      p = addGame(p, other.state);
+      round.push(result(other.state));
+    }
+    this.pennant = { ...p, lastRound: round };
+    savePennant(this.pennant);
+    return true;
+  }
+
   private showSubs(open: boolean) {
     this.subsOpen = open;
     this.subs.el.style.display = open ? '' : 'none';
@@ -355,7 +450,7 @@ class App {
     this.match = new Match({ away, home, innings: st.innings, mode: st.mode, fielding: st.fielding, batting: st.batting, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
     this.heardPlay = null;
     this.heardEvents = 0;
-    this.hud.season = this.season;
+    this.hud.season = this.pennant.batting;
     this.view.attach(this.match);
     this.speed = 1;
     this.overTime = 0;
@@ -381,8 +476,8 @@ class App {
   private showResult() {
     const m = this.match!;
     const s = m.state;
-    // 最後まで終わった試合だけ通算成績に足す（途中でメニューに戻った試合は数えない）。
-    this.season = addGameToSeason(this.season, s);
+    // 最後まで終わった試合だけペナントに数える（途中でメニューに戻った試合は数えない）。
+    const counted = this.recordPennant();
     const a = score(s, 0);
     const h = score(s, 1);
     const winner = s.winner === null ? null : s.teams[s.winner].team;
@@ -394,12 +489,13 @@ class App {
     const lines = this.hudLines();
     this.resultEl.innerHTML = `<div class="panel result-card"><div class="result-head">試合終了${reason}</div><div class="result-title">${headline}</div><div class="result-sub">${sub}</div>
       <div class="result-score"><span style="--team:${s.teams[0].team.colors.primary}">${s.teams[0].team.nameJa}</span><b>${a} - ${h}</b><span style="--team:${s.teams[1].team.colors.primary}">${s.teams[1].team.nameJa}</span></div>
-      ${lines}<div class="result-log">${s.log
+      ${lines}${counted ? pennantSummaryHtml(this.pennant, teams, you) : '<div class="pennant-summary">シーズンは終了しています。ペナントの画面から新しいシーズンを始めると、また順位がつきます。</div>'}<div class="result-log">${s.log
         .filter((e) => e.runs > 0)
         .map((e) => `<div>${e.inning}回${e.half === 'top' ? '表' : '裏'}　${e.text.replace(/　.*/, '')}（${e.runs}点）</div>`)
         .join('')}</div></div>`;
     this.resultMenu = new MenuList([
       { kind: 'button', label: 'もう一度', primary: true, action: () => this.start() },
+      { kind: 'button', label: 'ペナント（順位・タイトル）', action: () => this.showPennant(true) },
       { kind: 'button', label: 'メインメニューへ', action: () => this.toMenu() }
     ]);
     this.resultEl.querySelector('.result-card')!.append(this.resultMenu.el);
@@ -478,6 +574,8 @@ class App {
       if (f.pressed.pause || f.pressed.secondary || f.pressed.primary) this.showHelp(false);
     } else if (this.rosterOpen) {
       this.handleRoster(f);
+    } else if (this.pennantOpen) {
+      this.handlePennant(f);
     } else if (this.subsOpen) {
       this.subs.handle(f, dt);
     } else if (this.screen === 'menu') {
@@ -508,7 +606,7 @@ class App {
     }
 
     // 歓声は試合を見ている間だけ。ポーズ・交代・説明の画面、結果、メニューでは絞る。
-    this.sound.setCrowd(this.screen === 'match' && !!this.match && !this.paused && !this.helpOpen && !this.rosterOpen && !this.subsOpen);
+    this.sound.setCrowd(this.screen === 'match' && !!this.match && !this.paused && !this.helpOpen && !this.rosterOpen && !this.pennantOpen && !this.subsOpen);
     if (this.match) {
       this.view.update(this.paused ? 0 : dt);
       if (this.screen === 'match') this.hud.update(this.match, this.view, w, h, this.speed);
