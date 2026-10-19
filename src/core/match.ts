@@ -3,14 +3,14 @@
 
 import { choosePitch, DEFAULT_STRATEGY, DIFFICULTY_ERROR, planSwing, type Difficulty, type Strategy } from './ai.ts';
 import { evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingMode } from './batting.ts';
-import { battingTeam, createGameState, currentBatter, currentPitcher, fieldingTeam, type GameState, type MatchMode, type TeamIndex } from './gameState.ts';
+import { battingTeam, benchPitchers, createGameState, currentBatter, currentPitcher, fieldingTeam, type GameState, type MatchMode, type TeamIndex } from './gameState.ts';
 import { clamp } from './math.ts';
 import { NO_INPUT, PlaySim, type PlayInput } from './play.ts';
 import { AIM_RANGE, createPitch, DEFAULT_ZONE, fatigue, isStrike, WINDUP_TIME, type Pitch, type PitchCommand, type PlatePoint } from './pitching.ts';
 import { Rng } from './rng.ts';
-import { applyPlay, pitchCall, type PitchCall } from './rules.ts';
+import { applyPlay, pitchCall, substitute, substitutionError, type PitchCall, type Substitution } from './rules.ts';
 import type { TeamData } from './teams.ts';
-import type { PitchType } from './types.ts';
+import { POSITION_LABEL, type PitchType } from './types.ts';
 
 /** 手動モードの守備を人が操作するか、CPU に任せるか。 */
 export type FieldingControl = 'manual' | 'auto';
@@ -40,6 +40,8 @@ const CURSOR_SPEED = 0.95;
 const START = { x: 0, y: (DEFAULT_ZONE.bottom + DEFAULT_ZONE.top) / 2 };
 /** 判定の表示時間（秒）。自動モードでは短くする。 */
 const RESULT_TIME = { call: 0.9, play: 1.8 };
+/** CPU チームが投手を代える疲れ（fatigue）の目安。 */
+const CPU_RELIEF_FATIGUE = 0.85;
 
 export class Match {
   readonly state: GameState;
@@ -75,6 +77,11 @@ export class Match {
 
   /** 次の投球前に切り替えるモード。 */
   pendingMode: MatchMode | null = null;
+
+  /** タイム（選手交代）の要求。次の投球前になったら画面側が交代画面を開いて false に戻す。 */
+  timeoutRequested = false;
+  /** 直近の選手交代の知らせ（clock は知らせた時刻）。 */
+  notice: { text: string; clock: number } | null = null;
 
   private readonly rng: Rng;
   private aiDelay = 1;
@@ -117,9 +124,59 @@ export class Match {
     this.strategy = { ...this.strategy, ...s };
   }
 
+  /** 投球前で、まだ投球が始まっていない（選手交代ができる）。 */
+  get canSubstitute(): boolean {
+    return this.phase === 'pre-pitch' && !this.pitchCmd;
+  }
+
+  requestTimeout() {
+    if (this.phase !== 'over') this.timeoutRequested = true;
+  }
+
+  /** 人のチームの選手交代。投球前だけ。できなければ理由を返す。 */
+  substitute(sub: Substitution): string | null {
+    if (!this.canSubstitute) return '投球前だけ交代できます';
+    const error = substitutionError(this.state, this.humanTeam, sub);
+    if (error) return error;
+    this.applySubstitution(this.humanTeam, sub);
+    this.enterPrePitch();
+    return null;
+  }
+
+  private applySubstitution(team: TeamIndex, sub: Substitution) {
+    const s = this.state;
+    const t = s.teams[team];
+    let text: string;
+    if (sub.kind === 'pitcher') {
+      text = `投手交代　${t.pitcher.name} → ${t.team.pitchers.find((p) => p.id === sub.playerId)!.name}`;
+    } else {
+      const out = t.lineup[sub.slot];
+      const inName = t.team.batters.find((b) => b.id === sub.playerId)!.name;
+      const batting = battingTeam(s) === team;
+      const label =
+        batting && t.battingIndex === sub.slot ? '代打' : batting && s.bases.includes(out.id) ? '代走' : `${POSITION_LABEL[t.positions[sub.slot]]}の交代`;
+      text = `${label}　${out.name} → ${inName}`;
+    }
+    substitute(s, team, sub);
+    this.notice = { text, clock: this.clock };
+  }
+
+  /** CPU チームは、打席の合間に疲れた投手を代える。 */
+  private cpuRelief() {
+    const s = this.state;
+    const team = fieldingTeam(s);
+    if (s.over || team === this.humanTeam || s.balls || s.strikes) return;
+    const t = s.teams[team];
+    const bench = benchPitchers(t);
+    if (!bench.length || fatigue(t.pitcher, t.pitchCount) < CPU_RELIEF_FATIGUE) return;
+    const next = bench.reduce((a, b) => (b.stamina > a.stamina ? b : a));
+    this.applySubstitution(team, { kind: 'pitcher', playerId: next.id });
+  }
+
   /** 自動モードで、試合終了まで一気に進める。 */
   skipToEnd(maxSeconds = 4 * 3600) {
     if (this.state.mode !== 'auto') this.requestMode('auto');
+    this.timeoutRequested = false;
     const dt = 1 / 30;
     for (let t = 0; t < maxSeconds && this.phase !== 'over'; t += dt) this.tick(dt);
   }
@@ -160,6 +217,7 @@ export class Match {
       this.state.mode = this.pendingMode;
       this.pendingMode = null;
     }
+    this.cpuRelief();
     this.setPhase(this.state.over ? 'over' : 'pre-pitch');
     this.pitch = null;
     this.pitchCmd = null;

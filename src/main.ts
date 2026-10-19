@@ -13,6 +13,7 @@ import { Hud, MODE_LABEL } from './ui/hud.ts';
 import { MenuList, type MenuItem } from './ui/menuList.ts';
 import { RANK_NOTE, rosterHtml } from './ui/roster.ts';
 import { loadSettings, saveSettings, type Settings } from './ui/settings.ts';
+import { SubstitutionPanel } from './ui/substitution.ts';
 
 const teams = parseTeams(raw);
 const MODES: MatchMode[] = ['manual', 'manager', 'auto'];
@@ -31,6 +32,7 @@ class App {
   paused = false;
   helpOpen = false;
   rosterOpen = false;
+  subsOpen = false;
   /** 選手・打順の画面で表示しているチーム（rosterTeams() の添字）。 */
   rosterIndex = 0;
   private rosterMoveX = 0;
@@ -47,6 +49,7 @@ class App {
   private readonly resultEl = document.createElement('div');
   private readonly helpEl = document.createElement('div');
   private readonly rosterEl = document.createElement('div');
+  private readonly subs = new SubstitutionPanel();
   private readonly menu: MenuList;
   private readonly pauseMenu: MenuList;
   private resultMenu: MenuList | null = null;
@@ -129,12 +132,13 @@ class App {
         hidden: isAuto
       },
       { kind: 'button', label: '試合終了までスキップ', action: () => this.skip(), hidden: isAuto },
+      { kind: 'button', label: '選手交代', action: () => this.substitution() },
       { kind: 'button', label: '選手・打順', action: () => this.showRoster(true) },
       { kind: 'button', label: '操作説明', action: () => this.showHelp(true) },
       { kind: 'button', label: 'メインメニューへ', action: () => this.toMenu() }
     ]);
     this.pauseEl.className = 'screen pause-screen';
-    this.pauseEl.innerHTML = '<div class="panel pause-card"><h2>ポーズ</h2><p class="note">モードの切り替えは次の投球から、守備の切り替えは次の打球から反映されます。</p></div>';
+    this.pauseEl.innerHTML = '<div class="panel pause-card"><h2>ポーズ</h2><p class="note">モードの切り替えは次の投球から、守備の切り替えは次の打球から反映されます。投球中・プレー中に選手交代を選ぶと、次の投球前に交代画面が開きます。</p></div>';
     this.pauseEl.querySelector('.pause-card')!.append(this.pauseMenu.el);
 
     this.resultEl.className = 'screen result-screen';
@@ -144,11 +148,14 @@ class App {
 
     this.rosterEl.className = 'screen help-screen roster-screen';
 
-    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl);
+    this.subs.onClose = () => this.showSubs(false);
+
+    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl, this.subs.el);
     window.addEventListener('resize', () => this.resize());
     this.resize();
     this.showHelp(false);
     this.showRoster(false);
+    this.showSubs(false);
     this.showScreen('menu');
     requestAnimationFrame((t) => this.loop(t));
   }
@@ -226,6 +233,24 @@ class App {
     this.rosterMoveX = x;
   }
 
+  private showSubs(open: boolean) {
+    this.subsOpen = open;
+    this.subs.el.style.display = open ? '' : 'none';
+    if (open && this.match) this.subs.open(this.match);
+  }
+
+  /** ポーズの「選手交代」。投球前ならすぐ開き、そうでなければタイムをかけて試合にもどる。 */
+  private substitution() {
+    const m = this.match;
+    if (!m || m.phase === 'over') return;
+    if (m.canSubstitute) {
+      this.showSubs(true);
+      return;
+    }
+    m.requestTimeout();
+    this.setPaused(false);
+  }
+
   private setPaused(p: boolean) {
     this.paused = p;
     this.pauseEl.style.display = p ? '' : 'none';
@@ -245,6 +270,7 @@ class App {
     this.overTime = 0;
     this.setPaused(false);
     this.showHelp(false);
+    this.showSubs(false);
     this.showScreen('match');
   }
 
@@ -255,6 +281,7 @@ class App {
 
   private toMenu() {
     this.setPaused(false);
+    this.showSubs(false);
     this.match = null;
     this.showScreen('menu');
   }
@@ -309,12 +336,18 @@ class App {
       if (f.pressed.pause || f.pressed.secondary || f.pressed.primary) this.showHelp(false);
     } else if (this.rosterOpen) {
       this.handleRoster(f);
+    } else if (this.subsOpen) {
+      this.subs.handle(f, dt);
     } else if (this.screen === 'menu') {
       this.menu.handle(f, dt);
     } else if (this.screen === 'result') {
       this.resultMenu?.handle(f, dt);
     } else if (this.match) {
-      if (f.pressed.pause) this.setPaused(!this.paused);
+      // タイムの要求があれば、投球前になったところで交代画面を開く。
+      if (this.match.timeoutRequested && this.match.canSubstitute && !this.paused) {
+        this.match.timeoutRequested = false;
+        this.showSubs(true);
+      } else if (f.pressed.pause) this.setPaused(!this.paused);
       else if (this.paused) this.pauseMenu.handle(f, dt);
       else {
         this.handleMatchKeys(f);

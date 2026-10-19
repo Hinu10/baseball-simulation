@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { createGameState, currentBatter, score, type GameState } from './gameState.ts';
-import { applyPlay, pitchCall, type PlayResult } from './rules.ts';
+import { benchBatters, benchPitchers, createGameState, currentBatter, currentBatterPosition, score, type GameState } from './gameState.ts';
+import { applyPlay, pitchCall, substitute, substitutionError, type PlayResult } from './rules.ts';
 import { parseTeams } from './teams.ts';
 
 const [away, home] = parseTeams(raw);
@@ -269,4 +269,40 @@ test('打順は9人目の次に1番へ戻る', () => {
   const s = newGame();
   for (let i = 0; i < 9; i++) walk(s);
   assert.equal(currentBatter(s).id, s.teams[0].lineup[0].id);
+});
+
+test('代打：控えの野手が打順と守備位置を引き継ぎ、下がった選手は再出場できない', () => {
+  const s = newGame();
+  const out = currentBatter(s);
+  const pos = currentBatterPosition(s);
+  const pinch = benchBatters(s.teams[0])[0];
+  substitute(s, 0, { kind: 'batter', slot: 0, playerId: pinch.id });
+  assert.equal(currentBatter(s).id, pinch.id);
+  assert.equal(currentBatterPosition(s), pos);
+  assert.ok(!benchBatters(s.teams[0]).includes(out), '下がった選手は控えに戻らない');
+  assert.ok(substitutionError(s, 0, { kind: 'batter', slot: 1, playerId: out.id }));
+  assert.ok(substitutionError(s, 0, { kind: 'batter', slot: 1, playerId: pinch.id }), '出場中の選手は入れられない');
+});
+
+test('代走：塁上の選手を代えると、塁の走者も代わる', () => {
+  const s = newGame();
+  walk(s);
+  const runner = s.bases[1]!;
+  const slot = s.teams[0].lineup.findIndex((b) => b.id === runner);
+  const sub = benchBatters(s.teams[0])[0];
+  substitute(s, 0, { kind: 'batter', slot, playerId: sub.id });
+  assert.equal(s.bases[1], sub.id);
+});
+
+test('投手交代：球数は 0 から、降板した投手は再登板できない', () => {
+  const s = newGame();
+  strikeout(s);
+  const starter = s.teams[1].pitcher;
+  assert.equal(s.teams[1].pitchCount, 3);
+  const relief = benchPitchers(s.teams[1])[0];
+  substitute(s, 1, { kind: 'pitcher', playerId: relief.id });
+  assert.equal(s.teams[1].pitcher.id, relief.id);
+  assert.equal(s.teams[1].pitchCount, 0);
+  assert.ok(substitutionError(s, 1, { kind: 'pitcher', playerId: starter.id }));
+  assert.throws(() => substitute(s, 1, { kind: 'pitcher', playerId: starter.id }));
 });

@@ -275,6 +275,25 @@ await page.waitForTimeout(150);
 const p1 = (await snap(page))!.pitches;
 await page.waitForTimeout(500);
 check((await snap(page))!.pitches === p1, 'ポーズ中は試合が止まる');
+
+// ---- 選手交代（投球中ならタイムをかけ、次の投球前に交代画面が開く） ----
+await page.click('.pause-screen button:text-is("選手交代")');
+await page.waitForFunction(() => getComputedStyle(document.querySelector('.sub-screen')!).display !== 'none', null, { timeout: 15000 }).catch(() => {});
+check(await visible('.sub-screen'), 'ポーズから選手交代の画面が開く');
+const lineupId = () => page.evaluate(() => (window as any).__bb.match.state.teams[(window as any).__bb.match.humanTeam].lineup[0].id as string);
+const before1 = await lineupId();
+await page.keyboard.press('KeyJ');
+await page.waitForTimeout(150);
+await page.keyboard.press('KeyJ');
+await page.waitForTimeout(200);
+check((await lineupId()) !== before1 && /→/.test((await page.textContent('.sub-message')) ?? ''), 'J・J で1番打者を控えの野手と交代できる');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+check(!(await visible('.sub-screen')), 'Esc で選手交代の画面を閉じる');
+if (!(await visible('.pause-screen'))) {
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+}
 await page.click('text=試合終了までスキップ');
 s = await waitFor(page, (x) => x.over, 10000);
 check(!!s, '試合終了まで一気に進む');

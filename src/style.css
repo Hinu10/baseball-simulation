@@ -670,3 +670,95 @@ button {
   opacity: 0.8;
   border: 2px dashed #fff;
 }
+
+/* 選手交代 */
+.roster-table tr.removed td {
+  color: #99a;
+}
+.sub-card {
+  width: min(720px, 94vw);
+}
+.sub-head {
+  font-size: 13px;
+  color: #556;
+  margin-bottom: 4px;
+}
+.sub-card h3 {
+  margin: 8px 0;
+  font-size: 15px;
+}
+.sub-message {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #fff4d6;
+  font-weight: 700;
+}
+.sub-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: #f1f3f8;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sub-row.pitcher {
+  margin-top: 6px;
+}
+.sub-row.focused {
+  border-color: #ff7a1a;
+  background: #fff;
+}
+.sub-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.sub-row .order {
+  width: 1.4em;
+  text-align: right;
+  font-weight: 700;
+}
+.sub-row .pos {
+  width: 1.6em;
+  text-align: center;
+  font-weight: 700;
+}
+.sub-row .name {
+  flex: 1;
+  min-width: 0;
+}
+.sub-row .name em {
+  margin-left: 8px;
+  font-style: normal;
+  font-size: 12px;
+  color: #b3122e;
+}
+.sub-stats {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sub-stat b {
+  margin-left: 2px;
+}
+@media (max-width: 560px) {
+  .sub-row {
+    flex-wrap: wrap;
+  }
+  .sub-stats {
+    width: 100%;
+    padding-left: 3.4em;
+  }
+}

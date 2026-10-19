@@ -1,7 +1,7 @@
 // 試合中の HUD（DOM）。Match の状態を読んで表示するだけ。
 import { STRATEGY_LABEL } from '../core/ai.ts';
 import { basePos } from '../core/field.ts';
-import { battingTeam, currentBatter, currentPitcher, fieldingTeam, score, type GameState } from '../core/gameState.ts';
+import { battingTeam, currentBatter, currentBatterPosition, currentPitcher, fieldingTeam, score, type GameState } from '../core/gameState.ts';
 import type { Match } from '../core/match.ts';
 import { fatigue, PITCHES } from '../core/pitching.ts';
 import { POSITION_LABEL } from '../core/types.ts';
@@ -105,7 +105,7 @@ export class Hud {
     const ft = s.teams[fieldingTeam(s)];
     this.html(
       'batter',
-      `<div class="role" style="--team:${bt.team.colors.primary}">${bt.battingIndex + 1}番 ${POSITION_LABEL[batter.position]}　${batter.bats === 'R' ? '右打' : '左打'}</div>
+      `<div class="role" style="--team:${bt.team.colors.primary}">${bt.battingIndex + 1}番 ${POSITION_LABEL[currentBatterPosition(s)]}　${batter.bats === 'R' ? '右打' : '左打'}</div>
        <div class="name">${esc(batter.name)}</div>
        <div class="stats"><span>ミート</span>${bar(batter.meet)}<span>パワー</span>${bar(batter.power, 'pow')}<span>走力</span>${bar(batter.speed, 'spd')}</div>`
     );
@@ -138,8 +138,9 @@ export class Hud {
     this.html('select', select);
     this.parts.select.style.display = select ? '' : 'none';
 
-    // 結果の文字。
-    const msg = m.phase === 'result' && m.message ? m.message : null;
+    // 結果の文字。結果の表示がないときは、選手交代の知らせを少しのあいだ出す。
+    const notice = m.notice && m.clock - m.notice.clock < 2.5 ? { text: m.notice.text, kind: 'info' as const } : null;
+    const msg = m.phase === 'result' && m.message ? m.message : notice;
     const key = msg ? `${msg.text}|${s.log.length}|${s.teams[1].pitchCount + s.teams[0].pitchCount}` : '';
     if (key !== this.bannerKey) {
       this.bannerKey = key;
@@ -162,6 +163,7 @@ export class Hud {
       g.push('WASD カーソル', 'J スイング', 'L ミート/強振', 'K バント');
     }
     if (m.mode === 'auto') g.push('F 早送り');
+    if (m.timeoutRequested) g.push('タイム要求中（次の投球前に選手交代）');
     g.push('Tab モード切替', 'Esc ポーズ');
     this.html('guide', g.map((x) => `<span>${x}</span>`).join(''));
 

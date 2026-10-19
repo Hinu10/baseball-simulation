@@ -1,7 +1,7 @@
 // 野球のルール。試合状態（GameState）を書き換えるのはこのファイルだけ。
 // 手動・監督・自動のどのモードも、投球の判定とプレーの結果をここに渡す。
 
-import { battingTeam, currentBatter, fieldingTeam, score, type GameState } from './gameState.ts';
+import { battingTeam, benchBatters, benchPitchers, currentBatter, fieldingTeam, score, type GameState, type TeamIndex } from './gameState.ts';
 
 export type PitchCall = 'ball' | 'called-strike' | 'swinging-strike' | 'foul' | 'foul-bunt';
 export type PlateAppearanceEnd = 'strikeout' | 'walk' | null;
@@ -172,4 +172,37 @@ export function applyPlay(s: GameState, r: PlayResult) {
     s.outs = outsAfter;
     s.bases = [null, r.bases[1], r.bases[2], r.bases[3]];
   }
+}
+
+/** 選手交代。野手は打順 slot の選手と入れ替わり（代打・代走・守備固め）、投手はマウンドの投手と入れ替わる。 */
+export type Substitution = { kind: 'batter'; slot: number; playerId: string } | { kind: 'pitcher'; playerId: string };
+
+/** 交代できなければ理由を返す。 */
+export function substitutionError(s: GameState, team: TeamIndex, sub: Substitution): string | null {
+  if (s.over) return '試合は終わっています';
+  const t = s.teams[team];
+  if (sub.kind === 'pitcher') {
+    if (!benchPitchers(t).some((p) => p.id === sub.playerId)) return 'その投手は出場できません';
+    return null;
+  }
+  if (!(sub.slot >= 0 && sub.slot < t.lineup.length)) return '打順が不正です';
+  if (!benchBatters(t).some((b) => b.id === sub.playerId)) return 'その野手は出場できません';
+  return null;
+}
+
+/** 交代を反映する。退いた選手は再出場できない。塁上の選手が代われば代走になる。 */
+export function substitute(s: GameState, team: TeamIndex, sub: Substitution) {
+  const error = substitutionError(s, team, sub);
+  if (error) throw new Error(error);
+  const t = s.teams[team];
+  if (sub.kind === 'pitcher') {
+    t.removed.push(t.pitcher.id);
+    t.pitcher = t.team.pitchers.find((p) => p.id === sub.playerId)!;
+    t.pitchCount = 0;
+    return;
+  }
+  const out = t.lineup[sub.slot];
+  t.removed.push(out.id);
+  t.lineup[sub.slot] = t.team.batters.find((b) => b.id === sub.playerId)!;
+  for (const b of [1, 2, 3] as const) if (s.bases[b] === out.id) s.bases[b] = sub.playerId;
 }

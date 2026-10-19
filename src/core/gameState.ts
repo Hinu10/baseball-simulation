@@ -1,6 +1,7 @@
 // 試合状態。ルール（rules.ts）だけがこれを書き換え、表示は読むだけにする。
 
 import { lineupOf, pitcherOf, type Batter, type Pitcher, type TeamData } from './teams.ts';
+import type { LineupPosition } from './types.ts';
 
 export type Half = 'top' | 'bottom';
 /** 0 = 先攻（ビジター）、1 = 後攻（ホーム）。 */
@@ -10,13 +11,18 @@ export type MatchMode = 'manual' | 'manager' | 'auto';
 export interface TeamGameState {
   team: TeamData;
   lineup: Batter[];
+  /** 打順ごとの守備位置。交代で入った選手は、その打順の守備位置を引き継ぐ。 */
+  positions: LineupPosition[];
   /** 次の打者の打順（0〜8）。 */
   battingIndex: number;
   /** イニングごとの得点。 */
   runsByInning: number[];
   hits: number;
   pitcher: Pitcher;
+  /** いまの投手の球数。投手が代わると 0 から数える。 */
   pitchCount: number;
+  /** 交代で試合から退いた選手の id。再出場はできない。 */
+  removed: string[];
 }
 
 export interface PlayLogEntry {
@@ -52,11 +58,13 @@ export function createGameState(away: TeamData, home: TeamData, innings = 3, mod
   const team = (t: TeamData): TeamGameState => ({
     team: t,
     lineup: lineupOf(t),
+    positions: lineupOf(t).map((b) => b.position),
     battingIndex: 0,
     runsByInning: [],
     hits: 0,
     pitcher: pitcherOf(t, t.startingPitcher),
-    pitchCount: 0
+    pitchCount: 0,
+    removed: []
   });
   return {
     innings,
@@ -85,6 +93,22 @@ export function score(s: GameState, t: TeamIndex): number {
 export function currentBatter(s: GameState): Batter {
   const t = s.teams[battingTeam(s)];
   return t.lineup[t.battingIndex];
+}
+
+/** いまの打者の守備位置。 */
+export function currentBatterPosition(s: GameState): LineupPosition {
+  const t = s.teams[battingTeam(s)];
+  return t.positions[t.battingIndex];
+}
+
+/** 控えの野手（打順に入っておらず、まだ退いていない）。 */
+export function benchBatters(t: TeamGameState): Batter[] {
+  return t.team.batters.filter((b) => !t.lineup.includes(b) && !t.removed.includes(b.id));
+}
+
+/** 控えの投手（登板中でなく、まだ退いていない）。 */
+export function benchPitchers(t: TeamGameState): Pitcher[] {
+  return t.team.pitchers.filter((p) => p !== t.pitcher && !t.removed.includes(p.id));
 }
 
 export function currentPitcher(s: GameState): Pitcher {

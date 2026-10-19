@@ -189,8 +189,9 @@ export class PlaySim {
     this.path = predictPath(this.ball);
 
     const players: { position: Position; id: string; name: string; speed: number; arm: number; fielding: number }[] = o.fielding.lineup
+      .map((b, i) => ({ position: o.fielding.positions[i], id: b.id, name: b.name, speed: b.speed, arm: b.arm, fielding: b.fielding }))
       .filter((b) => b.position !== 'DH')
-      .map((b) => ({ position: b.position as Position, id: b.id, name: b.name, speed: b.speed, arm: b.arm, fielding: b.fielding }));
+      .map((b) => ({ ...b, position: b.position as Position }));
     const p = o.fielding.pitcher;
     players.push({ position: 'P', id: p.id, name: p.name, speed: p.speed, arm: p.arm, fielding: p.fielding });
     this.fielders = players.map((x) => {

@@ -184,3 +184,28 @@ test('守備の切り替えは次の打球から反映される', () => {
   assert.equal(m.phase, 'play');
   assert.equal(m.play!.controlled, -1);
 });
+
+test('選手交代は投球前だけ。タイムをかけると次の投球前に止まれる', () => {
+  const m = new Match({ away, home, mode: 'auto', humanTeam: 1, seed: 8 });
+  until(m, () => m.phase === 'pitch');
+  const relief = home.pitchers[1];
+  assert.ok(!m.canSubstitute);
+  assert.ok(m.substitute({ kind: 'pitcher', playerId: relief.id }), '投球中は交代できない');
+  m.requestTimeout();
+  until(m, () => m.canSubstitute);
+  assert.ok(m.timeoutRequested);
+  assert.equal(m.substitute({ kind: 'pitcher', playerId: relief.id }), null);
+  assert.equal(m.state.teams[1].pitcher.id, relief.id);
+  assert.match(m.notice!.text, /投手交代/);
+});
+
+test('CPU チームは疲れた投手を打席の合間に代える', () => {
+  const m = new Match({ away, home, mode: 'auto', humanTeam: 1, seed: 2 });
+  const starter = away.pitchers.find((p) => p.id === away.startingPitcher)!;
+  // 先攻（CPU）の先発に、たくさん投げさせたことにする。
+  until(m, () => m.state.half === 'bottom' && m.phase === 'pitch');
+  m.state.teams[0].pitchCount = 500;
+  until(m, () => m.state.teams[0].pitcher !== starter || m.phase === 'over');
+  assert.notEqual(m.state.teams[0].pitcher, starter);
+  assert.equal(m.state.teams[0].removed.includes(starter.id), true);
+});
