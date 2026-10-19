@@ -69,7 +69,8 @@ export interface RosterSeason {
  * 今日の試合の成績は、試合が終わってから加わる。
  */
 export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
-  const order = [...team.lineup.map((id) => team.batters.find((b) => b.id === id)!), ...team.batters.filter((b) => !team.lineup.includes(b.id))];
+  // 2軍にいる選手も、成績の表には残す。
+  const order = [...team.lineup.map((id) => team.batters.find((b) => b.id === id)!), ...team.batters.filter((b) => !team.lineup.includes(b.id)), ...(team.farm?.batters ?? [])];
   const none = (cols: number) => `<td colspan="${cols}" class="empty">―</td>`;
   // 試合数・四球・三振・盗塁・登板は後から記録し始めたので、以前の保存データには無い（0 と区別して「―」）。
   const cell = (v: number | undefined) => `<td>${v ?? '―'}</td>`;
@@ -82,7 +83,7 @@ export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
       return `<tr><td class="pos">${POSITION_LABEL[b.position]}</td><td class="name">${esc(b.name)}<small>#${b.number}</small></td>${cells}</tr>`;
     })
     .join('');
-  const pitchers = team.pitchers
+  const pitchers = [...team.pitchers, ...(team.farm?.pitchers ?? [])]
     .map((p) => {
       const l = season.pitching[p.id];
       const cells = l
@@ -119,6 +120,7 @@ export function rosterHtml(team: TeamData, live?: RosterLive, season?: RosterSea
     <div class="roster-scroll"><table class="roster-table"><tr><th class="name">名前</th><th>役割</th><th>投</th><th>調子</th><th>球速</th><th>コントロール</th><th>スタミナ</th><th>変化球</th><th>球種</th>${todayHead}</tr>${team.pitchers
       .map((p) => pitcherRow(p, live, p.id === mound, t?.pitchCount ?? 0, removed.has(p.id)))
       .join('')}</table></div>
+    ${team.farm && (team.farm.batters.length || team.farm.pitchers.length) ? `<h3>2軍で調整中</h3><p class="farm">${[...team.farm.batters, ...team.farm.pitchers].map((p) => `${esc(p.name)}${conditionBadge(p.condition)}`).join('　')}</p>` : ''}
     ${season ? seasonStatsHtml(team, season) : ''}
   </div>`;
 }
