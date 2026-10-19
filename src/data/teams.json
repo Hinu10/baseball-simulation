@@ -40,7 +40,7 @@
         { "id": "osw-01", "name": "三鷹 疾風", "number": 2, "position": "SS", "bats": "R", "meet": 74, "power": 40, "speed": 88, "arm": 72, "fielding": 84 },
         { "id": "osw-02", "name": "大村 柊", "number": 8, "position": "2B", "bats": "L", "meet": 76, "power": 44, "speed": 70, "arm": 62, "fielding": 78 },
         { "id": "osw-03", "name": "大門 獅童", "number": 25, "position": "RF", "bats": "L", "meet": 74, "power": 82, "speed": 56, "arm": 82, "fielding": 66 },
-        { "id": "osw-04", "name": "井宮 将吾", "number": 5, "position": "3B", "bats": "R", "meet": 62, "power": 94, "speed": 40, "arm": 76, "fielding": 62 },
+        { "id": "osw-04", "name": "井宮 将吾", "number": 5, "position": "3B", "bats": "L", "meet": 62, "power": 94, "speed": 40, "arm": 76, "fielding": 62 },
         { "id": "osw-05", "name": "ジョンソン", "number": 42, "position": "DH", "bats": "R", "meet": 58, "power": 88, "speed": 32, "arm": 50, "fielding": 40 },
         { "id": "osw-06", "name": "桐生 晴", "number": 10, "position": "CF", "bats": "R", "meet": 66, "power": 52, "speed": 84, "arm": 70, "fielding": 84 },
         { "id": "osw-07", "name": "久保 慎吾", "number": 33, "position": "1B", "bats": "L", "meet": 64, "power": 68, "speed": 40, "arm": 56, "fielding": 64 },

@@ -162,6 +162,9 @@ export class Hud {
     }
     this.html('select', select);
     this.parts.select.style.display = select ? '' : 'none';
+    // 投手カードの高さは成績の行で変わるので、選択はその上に置く（カードを出さない狭い画面は CSS のまま）。
+    const card = this.parts.pitcher;
+    this.parts.select.style.bottom = select && card.offsetHeight ? `${this.el.clientHeight - card.offsetTop + 8}px` : '';
 
     // 結果の文字。結果の表示がないときは、選手交代の知らせを少しのあいだ出す。
     const notice = m.notice && m.clock - m.notice.clock < 2.5 ? { text: m.notice.text, kind: 'info' as const } : null;
