@@ -16,7 +16,7 @@ export const HELP_HTML = `
     <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 黄色い輪の選手を動かす（赤い印が落下点）</p>
     <p><kbd>J</kbd>＋<kbd>W</kbd> 二塁 ／ <kbd>J</kbd>＋<kbd>D</kbd> 一塁 ／ <kbd>J</kbd>＋<kbd>A</kbd> 三塁 ／ <kbd>J</kbd>＋<kbd>S</kbd> 本塁 へ送球（<kbd>J</kbd> だけでおすすめの塁）</p>
     <p><kbd>K</kbd> ダイビング　<kbd>L</kbd> ボールに近い選手に切り替え</p>
-    <p class="note">3秒操作しないと CPU が代わりに動きます。</p></section>
+    <p class="note">3秒操作しないと CPU が代わりに動きます。メニューやポーズで「守備：オート」にすると、守備はずっと CPU に任せられます。</p></section>
   <section><h3>走塁（打ったあと）</h3>
     <p><kbd>J</kbd> 進塁　<kbd>K</kbd> 帰塁　<kbd>L</kbd> 指示する走者を切り替え（全員 → 1人ずつ）</p>
     <p class="note">指示しない走者は CPU が判断して走ります。</p></section>
@@ -26,7 +26,7 @@ export const HELP_HTML = `
     <p><kbd>F</kbd> 自動モードの早送り（×1・×2・×4）</p>
     <p><kbd>Esc</kbd> ポーズ</p></section>
   <section><h3>モード</h3>
-    <p><b>手動</b>：投げる・打つ・守る・走るを自分で操作</p>
+    <p><b>手動</b>：投げる・打つ・守る・走るを自分で操作（守備だけ CPU に任せる「守備：オート」も選べます）</p>
     <p><b>監督</b>：選手は CPU が操作し、あなたは方針を指示</p>
     <p><b>自動</b>：CPU 同士の試合を観戦（早送り・試合終了までスキップ可）</p></section>
 </div>
