@@ -51,3 +51,11 @@ test('シーズン成績：全選手が並び、記録のある選手は打率�
   assert.ok(oldRow.slice(0, oldRow.indexOf('</tr>')).includes('<td>―</td>'), '記録の無い欄は 0 でなく「―」');
   assert.ok(rosterHtml(away, undefined, { batting: {}, pitching: {} }).includes('今季の打撃成績'));
 });
+
+test('2軍で調整中の選手を出し、成績の表にも残す', () => {
+  const down = away.batters.find((b) => !away.lineup.includes(b.id))!;
+  const t = { ...away, batters: away.batters.filter((b) => b !== down), farm: { batters: [{ ...down, condition: -1 }], pitchers: [] } };
+  const html = rosterHtml(t, undefined, { batting: {}, pitching: {} });
+  assert.ok(html.includes('2軍で調整中'));
+  assert.ok(html.slice(html.indexOf('今季の打撃成績')).includes(down.name));
+});

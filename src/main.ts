@@ -6,6 +6,7 @@ import { Sound } from './audio/sound.ts';
 import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { battingTeam, EXTRA_INNINGS, INNINGS_OPTIONS, score, type Innings, type MatchMode, type TeamIndex } from './core/gameState.ts';
 import { conditionedTeam, initialConditions } from './core/condition.ts';
+import { managedTeam } from './core/manager.ts';
 import { addGame, advanceConditions, emptyPennant, emptyRecord, gamesPlayed, pairOthers, seasonOver, standings, type GameResult, type Pennant } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
@@ -307,7 +308,9 @@ class App {
   /** 選手の今日の調子を反映した球団。先発はローテーションで回し、あなたのチームはメニューで選んだ投手にする。 */
   private today(t: TeamData): TeamData {
     const starter = t.id === this.settings.team ? this.myStarter() : this.rotation(t);
-    return { ...conditionedTeam(t, this.pennant.condition), startingPitcher: starter };
+    const team = { ...conditionedTeam(t, this.pennant.condition), startingPitcher: starter };
+    // あなたのチーム以外は、CPU の監督がひどく調子を落とした選手を2軍に落とし、打順を少し組み替える。
+    return t.id === this.settings.team ? team : managedTeam(team).team;
   }
 
   /** ローテーションで次に投げる先発（その球団のこれまでの試合数で決まる）。 */

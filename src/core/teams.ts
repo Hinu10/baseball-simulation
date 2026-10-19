@@ -89,6 +89,8 @@ export interface TeamData {
   /** 打順（野手の id を9人）。 */
   lineup: string[];
   startingPitcher: string;
+  /** 今日は2軍にいる選手（CPU の監督の采配、core/manager.ts）。試合には出ない。 */
+  farm?: { batters: Batter[]; pitchers: Pitcher[] };
 }
 
 const RATINGS = ['meet', 'power', 'speed', 'arm', 'fielding'] as const;
