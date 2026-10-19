@@ -133,6 +133,19 @@ await page.goto(base);
 await page.waitForTimeout(1200);
 check(await visible('.title-screen'), 'メインメニューが表示される');
 
+// ---- 選手・打順 ----
+await page.click('.title-screen >> text=選手・打順');
+await page.waitForTimeout(200);
+const roster = await page.evaluate(() => ({ rows: document.querySelectorAll('.roster-screen .roster-table tr').length, text: document.querySelector('.roster-card')?.textContent ?? '' }));
+check((await visible('.roster-screen')) && roster.rows > 9 && /ミート/.test(roster.text) && /球速/.test(roster.text), 'メニューから選手・打順を開ける（打順・能力・投手）');
+const firstTeam = await page.evaluate(() => document.querySelector('.roster-tabs .selected')?.textContent);
+await page.keyboard.press('KeyD');
+await page.waitForTimeout(150);
+check((await page.evaluate(() => document.querySelector('.roster-tabs .selected')?.textContent)) !== firstTeam, 'D で相手チームに切り替わる');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(150);
+check(!(await visible('.roster-screen')) && (await visible('.title-screen')), 'Esc で選手・打順を閉じる');
+
 // ---- 手動・後攻：1回表は人が投げて守る ----
 await startFromMenu('home', 'manual');
 let s = await waitFor(page, (x) => x.phase === 'pre-pitch');
@@ -254,6 +267,11 @@ check(await page.evaluate(() => document.querySelector('.mode .ff')?.textContent
 await page.keyboard.press('Escape');
 await page.waitForTimeout(200);
 check(await visible('.pause-screen'), 'Esc でポーズメニューが開く');
+await page.click('.pause-screen >> text=選手・打順');
+await page.waitForTimeout(200);
+check(await page.evaluate(() => /今日/.test(document.querySelector('.roster-card')?.textContent ?? '') && /登板中/.test(document.querySelector('.roster-card')?.textContent ?? '')), '試合中の選手・打順に今日の打席と登板中の投手が出る');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(150);
 const p1 = (await snap(page))!.pitches;
 await page.waitForTimeout(500);
 check((await snap(page))!.pitches === p1, 'ポーズ中は試合が止まる');

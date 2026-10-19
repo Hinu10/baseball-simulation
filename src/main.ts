@@ -5,12 +5,13 @@ import raw from './data/teams.json' with { type: 'json' };
 import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { score, type MatchMode } from './core/gameState.ts';
 import { Match, type FieldingControl } from './core/match.ts';
-import { parseTeams } from './core/teams.ts';
+import { parseTeams, type TeamData } from './core/teams.ts';
 import { InputMap, type InputFrame } from './input/actions.ts';
 import { MatchView } from './render/view.ts';
 import { HELP_HTML } from './ui/help.ts';
 import { Hud, MODE_LABEL } from './ui/hud.ts';
 import { MenuList, type MenuItem } from './ui/menuList.ts';
+import { RANK_NOTE, rosterHtml } from './ui/roster.ts';
 import { loadSettings, saveSettings, type Settings } from './ui/settings.ts';
 
 const teams = parseTeams(raw);
@@ -29,6 +30,10 @@ class App {
   match: Match | null = null;
   paused = false;
   helpOpen = false;
+  rosterOpen = false;
+  /** 選手・打順の画面で表示しているチーム（rosterTeams() の添字）。 */
+  rosterIndex = 0;
+  private rosterMoveX = 0;
   speed = 1;
   settings: Settings = loadSettings();
 
@@ -41,6 +46,7 @@ class App {
   private readonly pauseEl = document.createElement('div');
   private readonly resultEl = document.createElement('div');
   private readonly helpEl = document.createElement('div');
+  private readonly rosterEl = document.createElement('div');
   private readonly menu: MenuList;
   private readonly pauseMenu: MenuList;
   private resultMenu: MenuList | null = null;
@@ -81,6 +87,7 @@ class App {
         set: (v) => this.set({ difficulty: v as Settings['difficulty'] })
       },
       { kind: 'button', label: 'プレイボール！', primary: true, action: () => this.start() },
+      { kind: 'button', label: '選手・打順', action: () => this.showRoster(true) },
       { kind: 'button', label: '操作説明', action: () => this.showHelp(true) }
     ];
     this.menu = new MenuList(mainItems);
@@ -122,6 +129,7 @@ class App {
         hidden: isAuto
       },
       { kind: 'button', label: '試合終了までスキップ', action: () => this.skip(), hidden: isAuto },
+      { kind: 'button', label: '選手・打順', action: () => this.showRoster(true) },
       { kind: 'button', label: '操作説明', action: () => this.showHelp(true) },
       { kind: 'button', label: 'メインメニューへ', action: () => this.toMenu() }
     ]);
@@ -134,10 +142,13 @@ class App {
     this.helpEl.innerHTML = `<div class="panel help-card">${HELP_HTML}<button class="close">とじる（Esc）</button></div>`;
     this.helpEl.querySelector('.close')!.addEventListener('click', () => this.showHelp(false));
 
-    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl);
+    this.rosterEl.className = 'screen help-screen roster-screen';
+
+    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl);
     window.addEventListener('resize', () => this.resize());
     this.resize();
     this.showHelp(false);
+    this.showRoster(false);
     this.showScreen('menu');
     requestAnimationFrame((t) => this.loop(t));
   }
@@ -164,6 +175,55 @@ class App {
   private showHelp(open: boolean) {
     this.helpOpen = open;
     this.helpEl.style.display = open ? '' : 'none';
+  }
+
+  /** 選手・打順の画面に出すチーム。試合中は先攻・後攻、試合前はあなたのチームと相手。 */
+  private rosterTeams(): TeamData[] {
+    if (this.match) return this.match.state.teams.map((t) => t.team);
+    const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
+    return [mine, ...teams.filter((t) => t !== mine)];
+  }
+
+  private showRoster(open: boolean) {
+    this.rosterOpen = open;
+    this.rosterEl.style.display = open ? '' : 'none';
+    if (!open) return;
+    // 試合中はあなたのチームから見せる。
+    this.rosterIndex = this.match ? this.match.humanTeam : 0;
+    this.renderRoster();
+  }
+
+  private renderRoster() {
+    const list = this.rosterTeams();
+    const team = list[this.rosterIndex];
+    const m = this.match;
+    const live = m ? { state: m.state, index: this.rosterIndex as 0 | 1 } : undefined;
+    const you = m ? m.state.teams[m.humanTeam].team : list[0];
+    const tabs = list
+      .map((t, i) => `<button class="${i === this.rosterIndex ? 'selected' : ''}" data-i="${i}" style="--team:${t.colors.primary}">${t.nameJa}${t === you ? '<small>あなた</small>' : ''}</button>`)
+      .join('');
+    this.rosterEl.innerHTML = `<div class="panel help-card roster-card"><h2>選手・打順</h2><div class="roster-tabs">${tabs}</div>${rosterHtml(team, live)}<p class="note">${RANK_NOTE}　A/D でチーム切り替え</p><button class="close">とじる（Esc）</button></div>`;
+    this.rosterEl.querySelectorAll<HTMLButtonElement>('.roster-tabs button').forEach((b) =>
+      b.addEventListener('click', () => {
+        this.rosterIndex = Number(b.dataset.i);
+        this.renderRoster();
+      })
+    );
+    this.rosterEl.querySelector('.close')!.addEventListener('click', () => this.showRoster(false));
+  }
+
+  private handleRoster(f: InputFrame) {
+    if (f.pressed.pause || f.pressed.secondary || f.pressed.primary) {
+      this.showRoster(false);
+      return;
+    }
+    const x = Math.abs(f.move.x) > 0.5 ? Math.sign(f.move.x) : 0;
+    if (x && x !== this.rosterMoveX) {
+      const n = this.rosterTeams().length;
+      this.rosterIndex = (this.rosterIndex + x + n) % n;
+      this.renderRoster();
+    }
+    this.rosterMoveX = x;
   }
 
   private setPaused(p: boolean) {
@@ -247,6 +307,8 @@ class App {
 
     if (this.helpOpen) {
       if (f.pressed.pause || f.pressed.secondary || f.pressed.primary) this.showHelp(false);
+    } else if (this.rosterOpen) {
+      this.handleRoster(f);
     } else if (this.screen === 'menu') {
       this.menu.handle(f, dt);
     } else if (this.screen === 'result') {

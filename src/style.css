@@ -541,6 +541,120 @@ button {
   font-weight: 700;
 }
 
+/* ---- 選手・打順 ---- */
+.roster-card {
+  background: #fff;
+}
+.roster-table tr.bench-head td {
+  padding-top: 10px;
+  text-align: left;
+  font-weight: 700;
+  color: #1b3a8c;
+}
+.roster-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.roster-tabs button {
+  flex: 1;
+  padding: 8px;
+  border: 2px solid var(--team);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 15px;
+}
+.roster-tabs button.selected {
+  background: var(--team);
+  color: #fff;
+}
+.roster-tabs small {
+  margin-left: 6px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.roster-team h3 {
+  margin: 10px 0 4px;
+  padding-left: 8px;
+  border-left: 5px solid var(--team);
+  color: #1b3a8c;
+}
+.roster-scroll {
+  overflow-x: auto;
+}
+.roster-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.roster-table th {
+  font-size: 12px;
+  color: #556;
+  font-weight: 600;
+  padding: 2px 6px;
+  text-align: center;
+}
+.roster-table td {
+  padding: 4px 6px;
+  text-align: center;
+  border-top: 1px solid #e3e8f2;
+}
+.roster-table .name {
+  text-align: left;
+  font-weight: 700;
+}
+.roster-table .name small,
+.roster-table .speed small {
+  margin-left: 4px;
+  font-weight: 400;
+  color: #778;
+  font-size: 11px;
+}
+.roster-table .name em {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--team);
+  color: #fff;
+  font-style: normal;
+  font-size: 11px;
+}
+.roster-table .order {
+  font-weight: 900;
+  color: var(--team);
+}
+.roster-table tr.current td {
+  background: #fff4d6;
+}
+.roster-table .stat b {
+  display: inline-block;
+  width: 1.4em;
+  margin-right: 4px;
+  font-size: 15px;
+}
+.roster-table .stat {
+  font-variant-numeric: tabular-nums;
+}
+.r-S b { color: #d4245f; }
+.r-A b { color: #e5383b; }
+.r-B b { color: #ff7a1a; }
+.r-C b { color: #d9a400; }
+.r-D b { color: #1fa85a; }
+.r-E b { color: #2a8bd6; }
+.r-F b,
+.r-G b { color: #8a93a6; }
+.roster-table .today,
+.roster-table .pitches {
+  text-align: left;
+  font-size: 12px;
+  color: #445;
+  white-space: normal;
+  min-width: 120px;
+}
+
 @media (max-width: 700px) {
   .card {
     display: none;
