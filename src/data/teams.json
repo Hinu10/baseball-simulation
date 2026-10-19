@@ -171,10 +171,11 @@
         { "id": "hnz-p11", "name": "佐伯 律", "number": 43, "throws": "R", "velocity": 153, "control": 46, "stamina": 44, "breaking": 70, "pitches": ["fastball", "slider"], "arm": 55, "fielding": 46, "speed": 50, "role": "reliever" },
         { "id": "hnz-p12", "name": "西条 蒼真", "number": 58, "throws": "R", "velocity": 150, "control": 61, "stamina": 46, "breaking": 70, "pitches": ["fastball", "slider"], "arm": 65, "fielding": 49, "speed": 52, "role": "reliever" },
         { "id": "hnz-p13", "name": "藤堂 悠真", "number": 30, "throws": "R", "velocity": 150, "control": 60, "stamina": 52, "breaking": 59, "pitches": ["fastball", "curve"], "arm": 61, "fielding": 48, "speed": 45, "role": "reliever" },
-        { "id": "hnz-p14", "name": "草野 匠", "number": 42, "throws": "R", "velocity": 153, "control": 65, "stamina": 52, "breaking": 52, "pitches": ["fastball", "curve", "slider"], "arm": 75, "fielding": 60, "speed": 50, "role": "reliever" }
+        { "id": "hnz-p14", "name": "草野 匠", "number": 42, "throws": "R", "velocity": 153, "control": 65, "stamina": 52, "breaking": 52, "pitches": ["fastball", "curve", "slider"], "arm": 75, "fielding": 60, "speed": 50, "role": "reliever" },
+        { "id": "hnz-p15", "name": "久留米津 煌", "number": 14, "throws": "R", "velocity": 158, "control": 88, "stamina": 90, "breaking": 96, "pitches": ["fastball", "curve", "slider", "fork"], "arm": 86, "fielding": 72, "speed": 55, "role": "starter" }
       ],
       "lineup": ["hnz-01", "hnz-02", "hnz-03", "hnz-04", "hnz-05", "hnz-06", "hnz-07", "hnz-08", "hnz-09"],
-      "startingPitcher": "hnz-p1"
+      "startingPitcher": "hnz-p15"
     },
     {
       "id": "kamiyama",
