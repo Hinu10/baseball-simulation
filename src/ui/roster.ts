@@ -1,9 +1,11 @@
 // 選手・打順の画面。打順と野手・投手の能力を表で見せる。試合中なら、いまの打者・登板中の投手・今日の打席も出す。
-import { battingTeam, type GameState, type TeamIndex } from '../core/gameState.ts';
+// その下に、選手ごとのシーズン成績（ペナントの通算）を出す。
+import { battingTeam, type BattingLine, type GameState, type PitchingLine, type TeamIndex } from '../core/gameState.ts';
 import { PITCHES } from '../core/pitching.ts';
 import { roleOf, ROLE_LABEL, teamStyle, type Batter, type Pitcher, type TeamData } from '../core/teams.ts';
 import { conditionLevel } from '../core/condition.ts';
 import { POSITION_LABEL, type LineupPosition } from '../core/types.ts';
+import { formatAverage, formatEra, formatInnings } from './season.ts';
 
 /** 能力（0〜100）のランク。 */
 export function rank(v: number): string {
@@ -56,8 +58,47 @@ function pitcherRow(p: Pitcher, live: RosterLive | undefined, onMound: boolean, 
 
 export const RANK_NOTE = 'S 90〜 ／ A 80〜 ／ B 70〜 ／ C 60〜 ／ D 50〜 ／ E 40〜 ／ F 20〜 ／ G 〜19　能力は今日の調子を反映';
 
-/** 1チーム分の表。live があれば試合中の打順・投手を使う。 */
-export function rosterHtml(team: TeamData, live?: RosterLive): string {
+/** ペナントの通算成績（選手 id ごと）。 */
+export interface RosterSeason {
+  batting: Record<string, BattingLine>;
+  pitching: Record<string, PitchingLine>;
+}
+
+/**
+ * 選手ごとのシーズン成績の表。野手は打順の順に控えまで、投手は登録順に全員を並べ、まだ出場していない選手は「―」。
+ * 今日の試合の成績は、試合が終わってから加わる。
+ */
+export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
+  const order = [...team.lineup.map((id) => team.batters.find((b) => b.id === id)!), ...team.batters.filter((b) => !team.lineup.includes(b.id))];
+  const none = (cols: number) => `<td colspan="${cols}" class="empty">―</td>`;
+  // 試合数・四球・三振・盗塁・登板は後から記録し始めたので、以前の保存データには無い（0 と区別して「―」）。
+  const cell = (v: number | undefined) => `<td>${v ?? '―'}</td>`;
+  const batters = order
+    .map((b) => {
+      const l = season.batting[b.id];
+      const cells = l
+        ? [l.g, l.pa, l.ab, l.h, l.hr, l.rbi, l.bb, l.so, l.sb].map(cell).join('') + `<td class="value">${formatAverage(l)}</td>`
+        : none(10);
+      return `<tr><td class="pos">${POSITION_LABEL[b.position]}</td><td class="name">${esc(b.name)}<small>#${b.number}</small></td>${cells}</tr>`;
+    })
+    .join('');
+  const pitchers = team.pitchers
+    .map((p) => {
+      const l = season.pitching[p.id];
+      const cells = l
+        ? [l.g, l.w, l.l].map(cell).join('') + `<td>${formatInnings(l.outs)}</td>` + [l.h, l.so, l.bb, l.r].map(cell).join('') + `<td class="value">${formatEra(l)}</td>`
+        : none(9);
+      return `<tr><td class="role">${ROLE_LABEL[roleOf(p)]}</td><td class="name">${esc(p.name)}<small>#${p.number}</small></td>${cells}</tr>`;
+    })
+    .join('');
+  return `<h3>今季の打撃成績</h3>
+    <div class="roster-scroll"><table class="roster-table season-table"><tr><th>守</th><th class="name">名前</th><th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th><th>四球</th><th>三振</th><th>盗塁</th><th>打率</th></tr>${batters}</table></div>
+    <h3>今季の投手成績</h3>
+    <div class="roster-scroll"><table class="roster-table season-table"><tr><th>役割</th><th class="name">名前</th><th>登板</th><th>勝</th><th>敗</th><th>投球回</th><th>被安打</th><th>奪三振</th><th>与四球</th><th>失点</th><th>防御率</th></tr>${pitchers}</table></div>`;
+}
+
+/** 1チーム分の表。live があれば試合中の打順・投手を使う。season があれば、その下にシーズン成績を出す。 */
+export function rosterHtml(team: TeamData, live?: RosterLive, season?: RosterSeason): string {
   const t = live?.state.teams[live.index];
   const lineup = t?.lineup ?? team.lineup.map((id) => team.batters.find((b) => b.id === id)!);
   const positions = t?.positions ?? lineup.map((b) => b.position);
@@ -78,5 +119,6 @@ export function rosterHtml(team: TeamData, live?: RosterLive): string {
     <div class="roster-scroll"><table class="roster-table"><tr><th class="name">名前</th><th>役割</th><th>投</th><th>調子</th><th>球速</th><th>コントロール</th><th>スタミナ</th><th>変化球</th><th>球種</th>${todayHead}</tr>${team.pitchers
       .map((p) => pitcherRow(p, live, p.id === mound, t?.pitchCount ?? 0, removed.has(p.id)))
       .join('')}</table></div>
+    ${season ? seasonStatsHtml(team, season) : ''}
   </div>`;
 }

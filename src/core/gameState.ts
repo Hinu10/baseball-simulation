@@ -40,16 +40,22 @@ export interface BattingLine {
   h: number;
   hr: number;
   rbi: number;
+  /** 四球・三振・盗塁と、出場した試合数（ペナントの通算で数える）。以前の保存データには無いことがある。 */
+  bb?: number;
+  so?: number;
+  sb?: number;
+  g?: number;
 }
 
-export const emptyLine = (): BattingLine => ({ pa: 0, ab: 0, h: 0, hr: 0, rbi: 0 });
+export const emptyLine = (): BattingLine => ({ pa: 0, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, so: 0, sb: 0, g: 0 });
 
 /** 打率。打数 0 なら null。 */
 export const battingAverage = (l: BattingLine): number | null => (l.ab ? l.h / l.ab : null);
 
 /** 成績を足し合わせる。 */
 export function addLines(a: BattingLine, b: BattingLine): BattingLine {
-  return { pa: a.pa + b.pa, ab: a.ab + b.ab, h: a.h + b.h, hr: a.hr + b.hr, rbi: a.rbi + b.rbi };
+  const n = (k: 'bb' | 'so' | 'sb' | 'g') => (a[k] ?? 0) + (b[k] ?? 0);
+  return { pa: a.pa + b.pa, ab: a.ab + b.ab, h: a.h + b.h, hr: a.hr + b.hr, rbi: a.rbi + b.rbi, bb: n('bb'), so: n('so'), sb: n('sb'), g: n('g') };
 }
 
 /** 投手成績（アウト数・失点・被安打・奪三振・与四球・勝敗）。失点はすべて自責点として扱う。 */
@@ -61,13 +67,15 @@ export interface PitchingLine {
   bb: number;
   w: number;
   l: number;
+  /** 登板した試合数（ペナントの通算で数える）。以前の保存データには無いことがある。 */
+  g?: number;
 }
 
-export const emptyPitchingLine = (): PitchingLine => ({ outs: 0, r: 0, h: 0, so: 0, bb: 0, w: 0, l: 0 });
+export const emptyPitchingLine = (): PitchingLine => ({ outs: 0, r: 0, h: 0, so: 0, bb: 0, w: 0, l: 0, g: 0 });
 
 /** 投手成績を足し合わせる。 */
 export function addPitchingLines(a: PitchingLine, b: PitchingLine): PitchingLine {
-  return { outs: a.outs + b.outs, r: a.r + b.r, h: a.h + b.h, so: a.so + b.so, bb: a.bb + b.bb, w: a.w + b.w, l: a.l + b.l };
+  return { outs: a.outs + b.outs, r: a.r + b.r, h: a.h + b.h, so: a.so + b.so, bb: a.bb + b.bb, w: a.w + b.w, l: a.l + b.l, g: (a.g ?? 0) + (b.g ?? 0) };
 }
 
 /** 防御率（9回あたりの失点）。投球回 0 なら null。 */

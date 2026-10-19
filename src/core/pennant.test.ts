@@ -72,3 +72,17 @@ test('全球団が規定の試合数を終えたらシーズン終了。投球�
   assert.equal(formatInnings(10), '3.1');
   assert.equal(formatInnings(9), '3');
 });
+
+test('出場した試合数は、打席に立った野手・登板した投手ごとに1試合ずつ数える', () => {
+  const [away, home] = teams;
+  const s = createGameState(away, home, 3);
+  const [b, p] = [away.lineup[0], home.startingPitcher];
+  s.batting[b] = { pa: 2, ab: 2, h: 1, hr: 0, rbi: 0, bb: 0, so: 1, sb: 0, g: 0 };
+  s.pitching[p] = { outs: 9, r: 1, h: 3, so: 4, bb: 1, w: 0, l: 0, g: 0 };
+  let pennant = addGame(emptyPennant(), s);
+  pennant = addGame(pennant, s);
+  assert.equal(pennant.batting[b].g, 2);
+  assert.equal(pennant.batting[b].so, 2);
+  assert.equal(pennant.pitching[p].g, 2);
+  assert.equal(pennant.pitching[p].outs, 18);
+});

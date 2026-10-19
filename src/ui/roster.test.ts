@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { Match } from '../core/match.ts';
 import { parseTeams } from '../core/teams.ts';
-import { rank, rosterHtml } from './roster.ts';
+import { rank, rosterHtml, seasonStatsHtml } from './roster.ts';
 
 const [away, home] = parseTeams(raw);
 
@@ -30,4 +30,24 @@ test('試合中の選手・打順：いまの打者に印がつき、今日の�
   assert.ok(html.includes(first.text.replace(/　.*/, '')));
   assert.ok(html.includes('class="current"'), 'いまの打者');
   assert.match(rosterHtml(home, { state: m.state, index: 1 }), /登板中（\d+球）/);
+});
+
+test('シーズン成績：全選手が並び、記録のある選手は打率・防御率まで、まだの選手は「―」', () => {
+  const [b, idle] = [away.batters[0], away.batters.at(-1)!];
+  const p = away.pitchers[0];
+  const html = seasonStatsHtml(away, {
+    batting: { [b.id]: { pa: 12, ab: 10, h: 3, hr: 1, rbi: 2, bb: 2, so: 3, sb: 1, g: 3 } },
+    pitching: { [p.id]: { outs: 20, r: 3, h: 6, so: 8, bb: 2, w: 1, l: 0, g: 2 } }
+  });
+  for (const x of [...away.batters, ...away.pitchers]) assert.ok(html.includes(x.name), x.name);
+  assert.ok(html.includes('.300'), '打率');
+  assert.ok(html.includes('4.05') && html.includes('6回2/3'), '防御率と投球回');
+  const idleRow = html.slice(html.indexOf(idle.name));
+  assert.ok(idleRow.slice(0, idleRow.indexOf('</tr>')).includes('―'), 'まだ出場していない選手');
+  // 以前の保存データ（四球・三振・盗塁・試合数が無い）でも表示できる。
+  const old = seasonStatsHtml(away, { batting: { [b.id]: { pa: 1, ab: 1, h: 1, hr: 0, rbi: 0 } }, pitching: {} });
+  assert.ok(old.includes('1.000'));
+  const oldRow = old.slice(old.indexOf(b.name));
+  assert.ok(oldRow.slice(0, oldRow.indexOf('</tr>')).includes('<td>―</td>'), '記録の無い欄は 0 でなく「―」');
+  assert.ok(rosterHtml(away, undefined, { batting: {}, pitching: {} }).includes('今季の打撃成績'));
 });

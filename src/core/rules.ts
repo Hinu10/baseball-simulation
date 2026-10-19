@@ -133,6 +133,8 @@ export function applySteal(s: GameState, attempts: { from: 1 | 2; safe: boolean 
     s.bases[a.from] = null;
     if (a.safe) {
       s.bases[a.from + 1] = id;
+      const l = (s.batting[id] ??= emptyLine());
+      l.sb = (l.sb ?? 0) + 1;
       continue;
     }
     pitcherLine(s).outs += 1;
@@ -166,6 +168,8 @@ function recordPlateAppearance(s: GameState, line: Partial<BattingLine>) {
   l.h += line.h ?? 0;
   l.hr += line.hr ?? 0;
   l.rbi += line.rbi ?? 0;
+  l.bb = (l.bb ?? 0) + (line.bb ?? 0);
+  l.so = (l.so ?? 0) + (line.so ?? 0);
 }
 
 /** 投球数を数える。インプレー以外の判定（pitchCall）とインプレー（applyPlay）の両方から呼ぶ。 */
@@ -184,7 +188,7 @@ export function pitchCall(s: GameState, call: PitchCall): PlateAppearanceEnd {
     const runs = forceAdvanceBatter(s);
     pitcherLine(s).bb += 1;
     log(s, runs ? '四球（押し出し）' : '四球', runs);
-    recordPlateAppearance(s, { rbi: runs });
+    recordPlateAppearance(s, { rbi: runs, bb: 1 });
     addRuns(s, runs);
     if (!checkWalkoff(s)) nextBatter(s);
     return 'walk';
@@ -194,7 +198,7 @@ export function pitchCall(s: GameState, call: PitchCall): PlateAppearanceEnd {
   s.strikes += 1;
   if (s.strikes < 3) return null;
   log(s, call === 'foul-bunt' ? 'スリーバント失敗' : call === 'called-strike' ? '見逃し三振' : '空振り三振', 0);
-  recordPlateAppearance(s, { ab: 1 });
+  recordPlateAppearance(s, { ab: 1, so: 1 });
   const p = pitcherLine(s);
   p.so += 1;
   p.outs += 1;
