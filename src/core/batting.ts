@@ -87,18 +87,21 @@ export function evaluateSwing(b: Batter, pitch: Pitch, swing: SwingCommand, rng:
 
   const sweet = off < 0.3 && Math.abs(nt) < 0.3;
   const quality = clamp(1 - 0.5 * off * off - 0.35 * nt * nt, 0.15, 1) * (sweet ? 1.06 : 1);
-  const base = (27 + 17 * (b.power / 100)) * (swing.mode === 'power' ? 1.1 : 0.96);
+  const base = (33 + 15 * (b.power / 100)) * (swing.mode === 'power' ? 1.1 : 0.96);
   const exitSpeed = Math.max(4, base * quality + (pitch.speedKmh / 3.6) * 0.08 + rng.gauss(0, 1));
 
   // カーソルの中心より球が上なら、バットが球の下をたたいて打球が上がる。
   let launch = 11 + 40 * ny + (swing.mode === 'power' ? 4 : 0) + (b.power - 50) * 0.06 + rng.gauss(0, 4);
   // 早く振れば引っ張り、遅れれば流し方向。外角の球は流し方向に飛びやすい（右打者・左打者とも x の符号で同じ式になる）。
   const pull = b.bats === 'R' ? 1 : -1;
-  let spray = pull * nt * 48 + 14 * (pitch.plate.x / 0.25) + rng.gauss(0, 5);
+  let spray = pull * nt * 60 + 14 * (pitch.plate.x / 0.25) + rng.gauss(0, 6);
   // カーソルの端で当たると打球が散る（ファウルチップ・ファウルになりやすい）。
-  if (off > 0.85) {
-    launch += rng.gauss(0, 18);
-    spray += rng.gauss(0, 20);
+  if (off > 0.65 && rng.chance((off - 0.65) * 2.2)) {
+    // かすった当たりは後ろや横へ飛ぶファウルになる。
+    const back = rng.chance(0.6);
+    launch = rng.range(back ? 15 : 30, back ? 70 : 75);
+    spray = back ? 180 + rng.gauss(0, 35) : (rng.chance(0.5) ? 1 : -1) * rng.range(55, 100);
+    return contact(pitch, rng.range(12, 26), launch, spray, quality * 0.5, false);
   }
   launch = clamp(launch, -40, 80);
   return contact(pitch, exitSpeed, launch, spray, quality, sweet);

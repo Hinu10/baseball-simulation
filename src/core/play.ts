@@ -25,9 +25,13 @@ export const POSITION_NAME: Record<Position, string> = {
   RF: 'ライト'
 };
 
-const REACTION = 0.25;
+const REACTION = 0.35;
+/** ゴロは体勢を整えて捕るので、横への動きは全力疾走より遅い。 */
+const GROUND_BALL_PACE = 0.55;
+/** これより本塁から遠い場所（外野）では全力で追う。 */
+const INFIELD_EDGE = 42;
 const BATTER_START = 0.35;
-const CATCH_REACH = 0.85;
+const CATCH_REACH = 0.75;
 const DIVE_REACH = 1.9;
 const FORCE_RADIUS = 1.0;
 const TAG_RADIUS = 1.2;
@@ -285,8 +289,9 @@ export class PlaySim {
     for (const s of samples) {
       const t = this.pathStart + s.t;
       if (t < this.time) continue;
-      if (s.pos.y > 2.4) continue;
-      const need = Math.max(0, distXZ(f.pos, s.pos) - CATCH_REACH) / f.speed + reaction;
+      if (s.pos.y > 2.2) continue;
+      const pace = s.airborne || lenXZ(s.pos) > INFIELD_EDGE ? 1 : GROUND_BALL_PACE;
+      const need = Math.max(0, distXZ(f.pos, s.pos) - CATCH_REACH) / (f.speed * pace) + reaction;
       if (need <= t - this.time) return { t, point: v3(s.pos.x, 0, s.pos.z), air: s.airborne };
     }
     const last = samples[samples.length - 1];
@@ -310,7 +315,8 @@ export class PlaySim {
         }
       });
     }
-    this.flyCatchable = live && this.ball.bounces === 0 && this.fielders.some((f) => this.intercept(f).air);
+    // 一度「捕られそう」と読んだら、着地するまでその読みを変えない（境目で走者が飛び出さないように）。
+    if (live && this.ball.bounces === 0 && !this.flyCatchable) this.flyCatchable = this.fielders.some((f) => this.intercept(f).air);
     const taken = new Set<number>();
     if (chaser >= 0) taken.add(chaser);
     if (this.holder >= 0) taken.add(this.holder);
@@ -562,7 +568,7 @@ export class PlaySim {
     if (this.ballMode !== 'live') return;
     const b = this.ball;
     const air = b.bounces === 0 && !b.rolling;
-    if (b.pos.y > (air ? 2.6 : 1.2)) return;
+    if (b.pos.y > (air ? 2.3 : 1.2)) return;
     for (let i = 0; i < this.fielders.length; i++) {
       const f = this.fielders[i];
       if (f.recover > 0) continue;
@@ -754,7 +760,8 @@ export class PlaySim {
       const d = distXZ(f.pos, f.target);
       if (d > 0.05) {
         f.facing = Math.atan2(f.target.x - f.pos.x, f.target.z - f.pos.z);
-        moveTowardXZ(f.pos, f.target, f.speed * dt);
+        const pace = f.role === 'chase' && this.ballMode === 'live' && this.ball.bounces > 0 && lenXZ(f.target) < INFIELD_EDGE ? GROUND_BALL_PACE : 1;
+        moveTowardXZ(f.pos, f.target, f.speed * pace * dt);
         moving = d > 0.3;
       }
     }
@@ -956,11 +963,6 @@ export class PlaySim {
     if (this.runnerDecision <= 0) {
       this.runnerDecision = 0.1;
       for (const r of this.runners) this.decideRunner(r);
-    } else {
-      for (const r of this.runners) {
-        const f = this.forcedTo(r);
-        if (f !== null && !r.human) r.target = Math.max(r.target, f);
-      }
     }
     this.moveRunners(dt);
     this.checkOuts();

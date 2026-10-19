@@ -97,7 +97,7 @@ test('外野前ヒットで一塁走者は少なくとも二塁へ、打者は�
   const { result, state } = play({ speed: 38, launch: 12, spray: 14, bases: [1] });
   const runner = state.bases[1]!;
   assert.equal(result.outs.length, 0, result.text);
-  assert.ok(result.bases[1] === currentBatter(state).id || result.bases[2] === currentBatter(state).id);
+  assert.ok(result.bases.includes(currentBatter(state).id), result.text);
   assert.ok(result.bases[2] === runner || result.bases[3] === runner || result.runs.some((r) => r.playerId === runner));
 });
 
