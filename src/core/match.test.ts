@@ -1,0 +1,153 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import raw from '../data/teams.json' with { type: 'json' };
+import { battingTeam, fieldingTeam, score } from './gameState.ts';
+import { Match } from './match.ts';
+import { NO_INPUT, type PlayInput } from './play.ts';
+import { parseTeams } from './teams.ts';
+
+const [away, home] = parseTeams(raw);
+const press = (k: Partial<PlayInput>): PlayInput => ({ ...NO_INPUT, ...k });
+
+const snapshot = (m: Match) => {
+  const s = m.state;
+  return JSON.stringify({
+    inning: s.inning,
+    half: s.half,
+    outs: s.outs,
+    balls: s.balls,
+    strikes: s.strikes,
+    bases: s.bases,
+    runs: s.teams.map((t) => t.runsByInning),
+    order: s.teams.map((t) => t.battingIndex),
+    pitches: s.teams.map((t) => t.pitchCount),
+    log: s.log.length
+  });
+};
+
+const until = (m: Match, cond: () => boolean, input: PlayInput = NO_INPUT, max = 200000) => {
+  for (let i = 0; i < max && !cond(); i++) m.tick(1 / 60, input);
+};
+
+test('モード切替後も試合状態は変わらず、切替は次の投球前に反映される', () => {
+  const m = new Match({ away, home, mode: 'auto', seed: 5 });
+  // 2回まで自動で進める。
+  until(m, () => m.state.inning >= 2 && m.phase === 'pitch');
+  assert.equal(m.phase, 'pitch');
+  m.requestMode('manager');
+  assert.equal(m.mode, 'auto', '投球中はまだ切り替わらない');
+  assert.equal(m.nextMode, 'manager');
+  until(m, () => m.phase === 'pre-pitch');
+  assert.equal(m.mode, 'manager');
+  const before = snapshot(m);
+  // 投球前の切替はすぐ反映され、状態は変わらない。
+  m.requestMode('manual');
+  assert.equal(m.mode, 'manual');
+  assert.equal(snapshot(m), before);
+  m.requestMode('auto');
+  assert.equal(snapshot(m), before);
+  m.skipToEnd();
+  assert.equal(m.phase, 'over');
+  assert.ok(m.state.over);
+});
+
+test('手動モード：人の投手が J で投げるまで投球は始まらず、L で球種が変わる', () => {
+  const m = new Match({ away, home, mode: 'manual', humanTeam: 1, seed: 2 });
+  // 1回表は後攻（人）が守備。
+  assert.equal(fieldingTeam(m.state), 1);
+  assert.ok(m.humanPitching);
+  until(m, () => m.phase !== 'pre-pitch', NO_INPUT, 600);
+  assert.equal(m.phase, 'pre-pitch', '入力がなければ投げない');
+  m.tick(1 / 60, press({ switch: true }));
+  assert.equal(m.pitchType, home.pitchers[0].pitches[1]);
+  // 右下へコースを動かす。
+  for (let i = 0; i < 30; i++) m.tick(1 / 60, press({ move: { x: 1, y: -1 } }));
+  assert.ok(m.aim.x > 0.2 && m.aim.y < 0.6);
+  m.tick(1 / 60, press({ primary: true }));
+  assert.equal(m.phase, 'windup');
+  until(m, () => m.phase === 'pitch');
+  assert.equal(m.pitch!.type, home.pitchers[0].pitches[1]);
+  assert.ok(m.pitch!.target.x > 0.2);
+});
+
+test('手動モード：人の打者がタイミングよく J を押すとスイングし、押さなければ見送る', () => {
+  const m = new Match({ away, home, mode: 'manual', humanTeam: 0, seed: 4 });
+  assert.ok(m.humanBatting);
+  let swings = 0;
+  let contacts = 0;
+  let pitches = 0;
+  while (pitches < 40 && m.phase !== 'over') {
+    until(m, () => m.phase === 'pitch' || m.phase === 'over' || !m.humanBatting);
+    if (!m.humanBatting) {
+      // 攻守交代したら自動で守備を進める。
+      m.requestMode('auto');
+      until(m, () => m.phase === 'pre-pitch' && battingTeam(m.state) === 0);
+      m.requestMode('manual');
+      continue;
+    }
+    if (m.phase !== 'pitch') break;
+    pitches++;
+    const p = m.pitch!;
+    // 球の通過点にカーソルを合わせ、ちょうどよい時刻に振る。
+    m.batCursor = { ...p.plate };
+    const swing = pitches % 2 === 0;
+    until(m, () => m.phase !== 'pitch' || (swing && m.pitchTime >= p.flightTime - 0.16));
+    if (m.phase === 'pitch' && swing) {
+      m.tick(1 / 60, press({ primary: true }));
+      swings++;
+    }
+    until(m, () => m.phase !== 'pitch');
+    if ((m.phase as string) === 'play' || (swing && !m.lastSwingMissed)) contacts++;
+    until(m, () => m.phase === 'pre-pitch' || m.phase === 'over', NO_INPUT);
+  }
+  assert.ok(swings >= 10);
+  assert.ok(contacts >= swings * 0.6, `contacts=${contacts} swings=${swings}`);
+});
+
+test('監督モードの方針：積極的な攻撃は慎重な攻撃より多く振る', () => {
+  const swingRate = (offense: 'aggressive' | 'careful') => {
+    let swings = 0;
+    let pitches = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const m = new Match({ away, home, mode: 'manager', humanTeam: 0, seed });
+      m.setStrategy({ offense });
+      while (m.phase !== 'over' && m.state.inning <= 3) {
+        until(m, () => m.phase === 'pitch' || m.phase === 'over');
+        if ((m.phase as string) === 'over') break;
+        if (battingTeam(m.state) === 0) {
+          pitches++;
+          if (m.swing) swings++;
+        }
+        until(m, () => m.phase !== 'pitch');
+      }
+    }
+    return swings / pitches;
+  };
+  const aggressive = swingRate('aggressive');
+  const careful = swingRate('careful');
+  assert.ok(aggressive > careful + 0.1, `aggressive=${aggressive} careful=${careful}`);
+});
+
+test('自動モードは試合終了まで一気に進められ、結果が残る', () => {
+  const m = new Match({ away, home, mode: 'auto', seed: 77 });
+  m.skipToEnd();
+  assert.equal(m.phase, 'over');
+  const total = score(m.state, 0) + score(m.state, 1);
+  assert.equal(
+    total,
+    m.state.log.reduce((s, e) => s + e.runs, 0)
+  );
+});
+
+test('手動モードで操作しないまま守備になっても、プレーは止まらない', () => {
+  const m = new Match({ away, home, mode: 'manual', humanTeam: 1, seed: 11 });
+  // 人の投手が投げ続け、打球が飛んだら何も操作しない（3秒で AI が代わる）。攻撃中は見送り続ける。
+  let plays = 0;
+  for (let i = 0; i < 200000 && plays < 5 && m.phase !== 'over'; i++) {
+    const input = m.phase === 'pre-pitch' && m.humanPitching ? press({ primary: true }) : NO_INPUT;
+    const before = m.phase;
+    m.tick(1 / 60, input);
+    if (before === 'play' && m.phase === 'result') plays++;
+  }
+  assert.ok(plays >= 5, `plays=${plays}`);
+});

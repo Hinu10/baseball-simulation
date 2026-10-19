@@ -65,6 +65,9 @@ export class Match {
   strategy: Strategy = { ...DEFAULT_STRATEGY };
   readonly cpuStrategy: Strategy = { ...DEFAULT_STRATEGY };
 
+  /** 次の投球前に切り替えるモード。 */
+  pendingMode: MatchMode | null = null;
+
   private readonly rng: Rng;
   private aiDelay = 1;
   private resultTime = 0;
@@ -79,6 +82,37 @@ export class Match {
 
   get mode(): MatchMode {
     return this.state.mode;
+  }
+
+  /**
+   * モードを切り替える。投球前ならすぐ、投球が始まっていれば次の投球前に切り替わる。
+   * 試合状態はモードに関係なく共通なので、切り替えても変わらない。
+   */
+  requestMode(mode: MatchMode) {
+    if (this.phase === 'over') return;
+    if (this.phase === 'pre-pitch' && !this.pitchCmd) {
+      this.pendingMode = mode;
+      this.enterPrePitch();
+      return;
+    }
+    this.pendingMode = mode === this.state.mode ? null : mode;
+  }
+
+  /** 次に切り替わる予定のモード（予約がなければ今のモード）。 */
+  get nextMode(): MatchMode {
+    return this.pendingMode ?? this.state.mode;
+  }
+
+  /** 監督モードの方針（人のチームの AI が使う）。 */
+  setStrategy(s: Partial<Strategy>) {
+    this.strategy = { ...this.strategy, ...s };
+  }
+
+  /** 自動モードで、試合終了まで一気に進める。 */
+  skipToEnd(maxSeconds = 4 * 3600) {
+    if (this.state.mode !== 'auto') this.requestMode('auto');
+    const dt = 1 / 30;
+    for (let t = 0; t < maxSeconds && this.phase !== 'over'; t += dt) this.tick(dt);
   }
 
   /** そのチームを人が直接操作しているか（手動モードの人のチーム）。 */
@@ -108,6 +142,10 @@ export class Match {
   }
 
   protected enterPrePitch() {
+    if (this.pendingMode) {
+      this.state.mode = this.pendingMode;
+      this.pendingMode = null;
+    }
     this.setPhase(this.state.over ? 'over' : 'pre-pitch');
     this.pitch = null;
     this.pitchCmd = null;
