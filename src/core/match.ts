@@ -3,7 +3,7 @@
 
 import { choosePitch, DEFAULT_STRATEGY, DIFFICULTY_ERROR, planSwing, type Difficulty, type Strategy } from './ai.ts';
 import { EASY_TIMING_SCALE, evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingMode } from './batting.ts';
-import { battingTeam, benchPitchers, createGameState, currentBatter, currentPitcher, fieldingTeam, type GameState, type MatchMode, type TeamIndex } from './gameState.ts';
+import { battingTeam, benchPitchers, createGameState, currentBatter, currentPitcher, EXTRA_INNINGS, fieldingTeam, type GameState, type Innings, type MatchMode, type TeamIndex } from './gameState.ts';
 import { clamp } from './math.ts';
 import { NO_INPUT, PlaySim, type PlayInput } from './play.ts';
 import { AIM_RANGE, createPitch, DEFAULT_ZONE, fatigue, isStrike, WINDUP_TIME, type Pitch, type PitchCommand, type PlatePoint } from './pitching.ts';
@@ -23,6 +23,8 @@ export interface MatchConfig {
   away: TeamData;
   home: TeamData;
   innings?: number;
+  /** 延長の回数。省略すると規定イニングに応じた回数（EXTRA_INNINGS）。 */
+  extraInnings?: number;
   mode?: MatchMode;
   /** 人のチーム。手動モードで操作し、監督モードで方針を指示する。 */
   humanTeam?: TeamIndex;
@@ -94,7 +96,9 @@ export class Match {
   private resultTime = 0;
 
   constructor(c: MatchConfig) {
-    this.state = createGameState(c.away, c.home, c.innings ?? 3, c.mode ?? 'manual');
+    const innings = c.innings ?? 3;
+    const extra = c.extraInnings ?? EXTRA_INNINGS[innings as Innings] ?? 0;
+    this.state = createGameState(c.away, c.home, innings, c.mode ?? 'manual', extra);
     this.humanTeam = c.humanTeam ?? 1;
     this.difficulty = c.difficulty ?? 'normal';
     this.fielding = c.fielding ?? 'manual';
@@ -168,11 +172,12 @@ export class Match {
     this.notice = { text, clock: this.clock };
   }
 
-  /** CPU チームは、打席の合間に疲れた投手を代える。 */
+  /** CPU チーム（自動モードでは人のチームも）は、打席の合間に疲れた投手を代える。 */
   private cpuRelief() {
     const s = this.state;
     const team = fieldingTeam(s);
-    if (s.over || team === this.humanTeam || s.balls || s.strikes) return;
+    // 人のチームは自分で代える。自動モードは見ているだけなので AI が代える。
+    if (s.over || (team === this.humanTeam && s.mode !== 'auto') || s.balls || s.strikes) return;
     const t = s.teams[team];
     const bench = benchPitchers(t);
     if (!bench.length || fatigue(t.pitcher, t.pitchCount) < CPU_RELIEF_FATIGUE) return;
@@ -425,7 +430,7 @@ export class Match {
     const before = this.state.outs;
     applyPlay(this.state, r);
     const runs = this.state.log.at(-1)?.runs ?? 0;
-    const kind = runs ? 'run' : r.hit ? 'hit' : 'out';
+    const kind = runs ? 'run' : r.hit ? 'hit' : r.error ? 'info' : 'out';
     const extra = runs ? `　${runs}点！` : r.outs.length && before + r.outs.length >= 3 ? '　チェンジ' : '';
     this.showResult({ text: r.text + extra, kind }, RESULT_TIME.play);
   }

@@ -10,6 +10,34 @@ export interface TeamColors {
   cap: string;
 }
 
+/** 色の明るさ（相対輝度、0〜1）。 */
+export function luminance(hex: string): number {
+  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+
+/** チームカラーを背景にしたときの文字色（白か濃い色の、コントラストが高いほう）。 */
+export function inkOn(bg: string): string {
+  const l = luminance(bg);
+  // 白（輝度 1）と濃い色（#1b2433、輝度 約 0.016）とのコントラスト比を比べる。
+  return 1.05 / (l + 0.05) >= (l + 0.05) / 0.066 ? '#ffffff' : '#1b2433';
+}
+
+/** 白い背景で読めるチームの色（メインカラーが明るすぎればサブカラー、それも明るければ濃い色）。 */
+export function textColor(c: TeamColors): string {
+  for (const col of [c.primary, c.secondary]) if (luminance(col) < 0.3) return col;
+  return '#1b2433';
+}
+
+/** 暗い背景（スコアボード）で読めるチームの色。 */
+export function glowColor(c: TeamColors): string {
+  for (const col of [c.primary, c.secondary]) if (luminance(col) > 0.1) return col;
+  return '#ffffff';
+}
+
+/** CSS 変数（--team・--team-ink・--team-text）。 */
+export const teamStyle = (c: TeamColors) => `--team:${c.primary};--team-ink:${inkOn(c.primary)};--team-text:${textColor(c)}`;
+
 /** 野手。能力はすべて 0〜100。 */
 export interface Batter {
   id: string;

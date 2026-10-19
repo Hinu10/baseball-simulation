@@ -1,11 +1,12 @@
 // 試合中の HUD（DOM）。Match の状態を読んで表示するだけ。
 import { STRATEGY_LABEL } from '../core/ai.ts';
 import { basePos } from '../core/field.ts';
-import { battingTeam, currentBatter, currentBatterPosition, currentPitcher, fieldingTeam, score, type GameState } from '../core/gameState.ts';
+import { addLines, battingTeam, currentBatter, currentBatterPosition, currentPitcher, emptyLine, fieldingTeam, score, type GameState } from '../core/gameState.ts';
 import type { Match } from '../core/match.ts';
 import { fatigue, PITCHES } from '../core/pitching.ts';
 import { POSITION_LABEL } from '../core/types.ts';
 import type { MatchView } from '../render/view.ts';
+import { formatAverage, type SeasonStats } from './season.ts';
 
 export const MODE_LABEL = { manual: '手動', manager: '監督', auto: '自動' } as const;
 
@@ -20,6 +21,8 @@ export class Hud {
   private readonly parts: Record<string, HTMLElement> = {};
   private readonly cache = new Map<string, string>();
   private bannerKey = '';
+  /** これまでの試合の通算成績（この試合の分は含まない）。 */
+  season: SeasonStats = {};
 
   constructor() {
     this.el = document.createElement('div');
@@ -57,8 +60,17 @@ export class Hud {
     this.parts[part].innerHTML = html;
   }
 
+  /** 打率・本塁打・打点（通算＋この試合）と、この試合の打席結果。 */
+  private seasonLine(s: GameState, id: string): string {
+    const today = s.batting[id] ?? emptyLine();
+    const total = addLines(this.season[id] ?? emptyLine(), today);
+    const todayText = today.pa ? `今日 ${today.ab}打数${today.h}安打${today.hr ? ` ${today.hr}本塁打` : ''}${today.rbi ? ` ${today.rbi}打点` : ''}` : '今日 初打席';
+    return `<div class="season"><span>打率<b>${formatAverage(total)}</b></span><span>本塁打<b>${total.hr}</b></span><span>打点<b>${total.rbi}</b></span></div><div class="today">${todayText}</div>`;
+  }
+
   private lines(s: GameState): string {
-    const cols = Array.from({ length: s.innings }, (_, i) => i + 1);
+    // 延長に入ったら列を足す。
+    const cols = Array.from({ length: Math.max(s.innings, s.inning) }, (_, i) => i + 1);
     const head = `<tr><th></th>${cols.map((c) => `<th>${c}</th>`).join('')}<th>R</th><th>H</th></tr>`;
     const rows = s.teams
       .map((t, i) => {
@@ -107,6 +119,7 @@ export class Hud {
       'batter',
       `<div class="role" style="--team:${bt.team.colors.primary}">${bt.battingIndex + 1}番 ${POSITION_LABEL[currentBatterPosition(s)]}　${batter.bats === 'R' ? '右打' : '左打'}</div>
        <div class="name">${esc(batter.name)}</div>
+       ${this.seasonLine(s, batter.id)}
        <div class="stats"><span>ミート</span>${bar(batter.meet)}<span>パワー</span>${bar(batter.power, 'pow')}<span>走力</span>${bar(batter.speed, 'spd')}</div>`
     );
     const stamina = Math.round((1 - fatigue(pitcher, ft.pitchCount)) * 100);

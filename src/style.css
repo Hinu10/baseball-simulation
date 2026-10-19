@@ -331,6 +331,22 @@ button {
   align-items: center;
   font-size: 12px;
 }
+.card .season {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  margin: 2px 0 1px;
+}
+.card .season b {
+  font-size: 16px;
+  font-weight: 900;
+  margin-left: 3px;
+}
+.card .today {
+  font-size: 11px;
+  color: #5b6475;
+  margin-bottom: 4px;
+}
 .card em {
   font-style: normal;
   font-weight: 700;
@@ -558,7 +574,8 @@ button {
 }
 .roster-tabs button {
   flex: 1;
-  padding: 8px;
+  padding: 8px 4px;
+  white-space: nowrap;
   border: 2px solid var(--team);
   border-radius: 10px;
   background: #fff;
@@ -568,7 +585,7 @@ button {
 }
 .roster-tabs button.selected {
   background: var(--team);
-  color: #fff;
+  color: var(--team-ink, #fff);
 }
 .roster-tabs small {
   margin-left: 6px;
@@ -618,13 +635,13 @@ button {
   padding: 0 6px;
   border-radius: 6px;
   background: var(--team);
-  color: #fff;
+  color: var(--team-ink, #fff);
   font-style: normal;
   font-size: 11px;
 }
 .roster-table .order {
   font-weight: 900;
-  color: var(--team);
+  color: var(--team-text, var(--team));
 }
 .roster-table tr.current td {
   background: #fff4d6;

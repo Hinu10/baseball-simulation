@@ -1,7 +1,7 @@
 // 選手・打順の画面。打順と野手・投手の能力を表で見せる。試合中なら、いまの打者・登板中の投手・今日の打席も出す。
 import { battingTeam, type GameState, type TeamIndex } from '../core/gameState.ts';
 import { PITCHES } from '../core/pitching.ts';
-import type { Batter, Pitcher, TeamData } from '../core/teams.ts';
+import { teamStyle, type Batter, type Pitcher, type TeamData } from '../core/teams.ts';
 import { POSITION_LABEL, type LineupPosition } from '../core/types.ts';
 
 /** 能力（0〜100）のランク。 */
@@ -60,7 +60,7 @@ export function rosterHtml(team: TeamData, live?: RosterLive): string {
   const mound = t?.pitcher.id ?? team.startingPitcher;
   const todayHead = live ? '<th>今日</th>' : '';
   const batterHead = `<tr><th></th><th>守</th><th class="name">名前</th><th>打</th><th>ミート</th><th>パワー</th><th>走力</th><th>肩</th><th>守備</th>${todayHead}</tr>`;
-  return `<div class="roster-team" style="--team:${team.colors.primary}">
+  return `<div class="roster-team" style="${teamStyle(team.colors)}">
     <h3>打順</h3>
     <div class="roster-scroll"><table class="roster-table">${batterHead}${lineup.map((b, i) => batterRow(b, String(i + 1), positions[i], live, i === atBat)).join('')}${
       bench.length ? `<tr class="bench-head"><td colspan="${live ? 10 : 9}">控え</td></tr>${bench.map((b) => batterRow(b, '', removed.has(b.id) ? null : b.position, live, false, removed.has(b.id))).join('')}` : ''

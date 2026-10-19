@@ -12,6 +12,7 @@ import { CameraRig } from './cameraRig.ts';
 import { basic, mat, mesh } from './materials.ts';
 import { Overlays } from './overlays.ts';
 import { PlayerFigure, type PoseName } from './player.ts';
+import type { Crowd } from './crowd.ts';
 import { buildStadium, Scoreboard } from './stadium.ts';
 
 const SKY = '#8fd3ff';
@@ -32,6 +33,7 @@ export class MatchView {
   readonly root = new THREE.Group();
   readonly scoreboard = new Scoreboard();
   readonly overlays = new Overlays();
+  readonly crowd: Crowd;
   private time = 0;
 
   private readonly fielders: [Actor[], Actor[]];
@@ -50,7 +52,7 @@ export class MatchView {
     const sun = new THREE.DirectionalLight('#fff6e0', 1.6);
     sun.position.set(-40, 80, -30);
     this.scene.add(sun);
-    buildStadium(this.root);
+    this.crowd = buildStadium(this.root);
 
     const shadowGeo = new THREE.CircleGeometry(0.6, 20);
     const shadowMat = basic('#000000', 0.25);
@@ -78,10 +80,11 @@ export class MatchView {
     this.match = m;
     for (const t of [0, 1] as TeamIndex[]) {
       for (const a of [...this.fielders[t], ...this.offense[t]]) this.root.remove(a.figure.root, a.shadow);
-      const look = m.state.teams[t].team.colors;
-      this.fielders[t] = FIELD_POSITIONS.map(() => this.actor(new PlayerFigure(look)));
-      this.offense[t] = [0, 1, 2, 3].map(() => this.actor(new PlayerFigure(look)));
+      const team = m.state.teams[t].team;
+      this.fielders[t] = FIELD_POSITIONS.map(() => this.actor(new PlayerFigure(team.colors, team.abbr[0])));
+      this.offense[t] = [0, 1, 2, 3].map(() => this.actor(new PlayerFigure(team.colors, team.abbr[0])));
     }
+    this.crowd.setTeams([m.state.teams[0].team.colors, m.state.teams[1].team.colors]);
     this.rig.setMode('A');
     this.rig.snap({ ball: v3(0, 1, 18), ballAirborne: false });
   }
@@ -110,6 +113,7 @@ export class MatchView {
   idle(dt: number) {
     this.time += dt;
     this.match = null;
+    this.crowd.update(dt);
     for (const a of [...this.fielders[0], ...this.fielders[1], ...this.offense[0], ...this.offense[1]]) this.place(a, HOME, 0, 'idle', 0, false);
     this.ball.visible = false;
     this.ballShadow.visible = false;
@@ -131,6 +135,7 @@ export class MatchView {
     const m = this.match;
     if (!m) return;
     this.time += dt;
+    this.crowd.update(dt);
     this.overlays.group.visible = true;
     this.overlays.update(m, this.time);
     const s = m.state;

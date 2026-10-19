@@ -202,6 +202,39 @@ test('3回裏が終われば試合終了。同点なら引き分け', () => {
   assert.equal(s.winner, null);
 });
 
+test('同点なら延長に入り、延長の上限まで同点なら引き分け', () => {
+  const s = createGameState(away, home, 3, 'manual', 1);
+  playTo(s, 3, 'bottom');
+  threeOuts(s);
+  assert.equal(s.over, false);
+  assert.equal(s.inning, 4);
+  assert.equal(s.half, 'top');
+  threeOuts(s);
+  threeOuts(s);
+  assert.equal(s.over, true);
+  assert.equal(s.endReason, 'regulation');
+  assert.equal(s.winner, null);
+  assert.equal(s.teams[1].runsByInning.length, 4);
+});
+
+test('延長の表に勝ち越して裏を抑えれば先攻の勝ち、裏に勝ち越せばサヨナラ', () => {
+  const a = createGameState(away, home, 7, 'manual', 2);
+  playTo(a, 8, 'top');
+  hit(a, 4);
+  threeOuts(a);
+  threeOuts(a);
+  assert.equal(a.over, true);
+  assert.equal(a.winner, 0);
+  assert.equal(a.inning, 8);
+
+  const b = createGameState(away, home, 9, 'manual', 3);
+  playTo(b, 12, 'bottom');
+  hit(b, 4);
+  assert.equal(b.over, true);
+  assert.equal(b.endReason, 'walkoff');
+  assert.equal(b.winner, 1);
+});
+
 test('3回裏終了時に先攻がリードしていれば先攻の勝ち', () => {
   const s = newGame();
   hit(s, 4);
@@ -305,4 +338,31 @@ test('投手交代：球数は 0 から、降板した投手は再登板でき�
   assert.equal(s.teams[1].pitchCount, 0);
   assert.ok(substitutionError(s, 1, { kind: 'pitcher', playerId: starter.id }));
   assert.throws(() => substitute(s, 1, { kind: 'pitcher', playerId: starter.id }));
+});
+
+test('打席ごとに打数・安打・本塁打・打点を記録する（四球・犠飛は打数に数えない）', () => {
+  const s = newGame();
+  const lineOf = (id: string) => s.batting[id];
+  const first = currentBatter(s).id;
+  strikeout(s);
+  assert.deepEqual(lineOf(first), { pa: 1, ab: 1, h: 0, hr: 0, rbi: 0 });
+
+  walk(s);
+  const third = currentBatter(s).id;
+  hit(s, 4); // 2点本塁打
+  assert.deepEqual(lineOf(third), { pa: 1, ab: 1, h: 1, hr: 1, rbi: 2 });
+
+  // 満塁で押し出し：打点1、打数0。
+  walk(s);
+  walk(s);
+  walk(s);
+  const loaded = currentBatter(s).id;
+  walk(s);
+  assert.deepEqual(lineOf(loaded), { pa: 1, ab: 0, h: 0, hr: 0, rbi: 1 });
+
+  // 犠飛：三塁走者が生還、打者はフライでアウト。
+  const fly = currentBatter(s).id;
+  const runner = s.bases[3]!;
+  applyPlay(s, { outs: [{ playerId: fly, kind: 'fly', time: 1 }], runs: [{ playerId: runner, time: 3 }], bases: [null, s.bases[1], s.bases[2], null], hit: 0, text: 'センターフライ' });
+  assert.deepEqual(lineOf(fly), { pa: 1, ab: 0, h: 0, hr: 0, rbi: 1 });
 });

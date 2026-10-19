@@ -16,7 +16,7 @@ const runToEnd = (m: Match) => {
   return m;
 };
 
-test('CPU 同士の試合は3イニングを最後まで進み、正しい形で終わる', () => {
+test('CPU 同士の試合は3イニング（延長1回まで）を最後まで進み、正しい形で終わる', () => {
   for (let seed = 1; seed <= 25; seed++) {
     const m = runToEnd(new Match({ away, home, mode: 'auto', seed }));
     const s = m.state;
@@ -26,15 +26,18 @@ test('CPU 同士の試合は3イニングを最後まで進み、正しい形で
     const h = score(s, 1);
     if (s.endReason === 'skip-bottom') {
       assert.ok(h > a);
-      assert.equal(s.teams[1].runsByInning.length, 2);
+      assert.equal(s.teams[1].runsByInning.length, s.inning - 1);
     } else if (s.endReason === 'walkoff') {
-      assert.ok(h > a && s.half === 'bottom' && s.inning === 3);
+      assert.ok(h > a && s.half === 'bottom' && s.inning >= 3);
     } else {
       assert.equal(s.endReason, 'regulation');
-      assert.equal(s.teams[1].runsByInning.length, 3);
+      assert.equal(s.teams[1].runsByInning.length, s.inning);
+      // 3回で同点なら延長に入り、延長は1回まで。
+      assert.ok(s.inning === 3 ? a !== h : s.inning === 4);
     }
+    assert.ok(s.inning <= 4);
     assert.equal(s.winner, a === h ? null : a > h ? 0 : 1);
-    assert.equal(s.teams[0].runsByInning.length, 3);
+    assert.equal(s.teams[0].runsByInning.length, s.inning);
     assert.ok(s.teams[0].pitchCount > 0 && s.teams[1].pitchCount > 0);
   }
 });

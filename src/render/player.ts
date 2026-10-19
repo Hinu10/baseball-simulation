@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { SWING_DURATION } from '../core/batting.ts';
 import { WINDUP_TIME } from '../core/pitching.ts';
+import { textColor } from '../core/teams.ts';
 import { mat, mesh } from './materials.ts';
 
 export type PoseName = 'idle' | 'run' | 'catch' | 'throw' | 'dive' | 'pitch' | 'bat' | 'swing' | 'bunt' | 'crouch';
@@ -26,6 +27,28 @@ const SKIN = '#f1c27d';
 const GLOVE = '#8d5524';
 const WOOD = '#d9a35f';
 const SHOE = '#222222';
+
+/** 胸マーク（球団の頭文字）のテクスチャ。球団・色ごとに使い回す。 */
+const marks = new Map<string, THREE.MeshBasicMaterial>();
+function markMaterial(letter: string, color: string): THREE.MeshBasicMaterial {
+  const key = `${letter}|${color}`;
+  let m = marks.get(key);
+  if (!m) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    g.font = 'italic 900 54px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillStyle = color;
+    g.fillText(letter, 32, 35);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    m = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false });
+    marks.set(key, m);
+  }
+  return m;
+}
 
 const smooth = (x: number) => {
   const t = Math.min(1, Math.max(0, x));
@@ -55,7 +78,8 @@ export class PlayerFigure {
   private readonly batTilt = new THREE.Group();
   private readonly glove: THREE.Mesh;
 
-  constructor(look: TeamLook) {
+  /** mark は胸の文字（球団の頭文字）。 */
+  constructor(look: TeamLook, mark = '') {
     const uniform = mat(look.uniform);
     const team = mat(look.primary);
     const accent = mat(look.secondary);
@@ -80,8 +104,12 @@ export class PlayerFigure {
     torso.scale.set(1.1, 1, 0.82);
     this.upper.add(torso);
     this.upper.add(mesh(new THREE.CylinderGeometry(0.235, 0.235, 0.06, 16), accent, 0, 0.1, 0));
-    this.upper.add(mesh(new THREE.BoxGeometry(0.06, 0.32, 0.03), team, 0, 0.33, 0.19));
-    this.upper.add(mesh(new THREE.BoxGeometry(0.2, 0.08, 0.03), team, 0, 0.45, 0.185));
+    if (mark) {
+      const chest = mesh(new THREE.PlaneGeometry(0.26, 0.26), markMaterial(mark, textColor(look)), 0, 0.36, 0.196);
+      // 球場は x を反転して表示するので、文字が裏返らないよう戻す。
+      chest.scale.x = -1;
+      this.upper.add(chest);
+    }
 
     this.head.position.y = 0.82;
     this.upper.add(this.head);

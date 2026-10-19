@@ -83,6 +83,8 @@ export interface Pitch {
   late: number;
   /** リリースから本塁上までの時間（ゲーム内の秒）。 */
   flightTime: number;
+  /** 制球が乱れた（狙いから大きく外れた）球。 */
+  missed: boolean;
 }
 
 /** 投球数とスタミナから疲労（0〜1）。スタミナ 50 でおよそ 50 球から疲れ始める。 */
@@ -96,13 +98,22 @@ export function controlError(p: Pitcher, tired: number): number {
   return (0.14 - 0.105 * (p.control / 100)) * (1 + 0.7 * tired);
 }
 
+/** 制球が大きく乱れる確率。コントロールが低いほど、疲れているほど高い。 */
+export function missChance(p: Pitcher, tired: number): number {
+  return 0.012 + 0.06 * (1 - p.control / 100) + 0.05 * tired;
+}
+
 export function createPitch(p: Pitcher, cmd: PitchCommand, tired: number, rng: Rng): Pitch {
   const info = PITCHES[cmd.type];
   const speedKmh = p.velocity * info.speed * (1 - 0.06 * tired) * rng.range(0.97, 1.0);
   const sd = controlError(p, tired) * (cmd.type === 'fastball' ? 1 : 1.15);
+  // たまに指にかからず、狙いから大きく外れる（すっぽ抜け・引っかけ・甘く入る）。
+  const missed = rng.chance(missChance(p, tired));
+  const angle = rng.range(0, Math.PI * 2);
+  const off = missed ? rng.range(0.22, 0.45) : 0;
   const plate = {
-    x: clamp(cmd.target.x + rng.gauss(0, sd), -1.2, 1.2),
-    y: clamp(cmd.target.y + rng.gauss(0, sd), 0.05, 2.2)
+    x: clamp(cmd.target.x + rng.gauss(0, sd) + Math.cos(angle) * off, -1.2, 1.2),
+    y: clamp(cmd.target.y + rng.gauss(0, sd) + Math.sin(angle) * off, 0.05, 2.2)
   };
   const amount = 0.45 + 0.55 * (p.breaking / 100);
   const hand = p.throws === 'R' ? 1 : -1;
@@ -117,7 +128,8 @@ export function createPitch(p: Pitcher, cmd: PitchCommand, tired: number, rng: R
     breakX: info.breakX * amount * hand,
     breakY: info.breakY * amount,
     late: info.late,
-    flightTime
+    flightTime,
+    missed
   };
 }
 

@@ -2,16 +2,19 @@
 import './style.css';
 import * as THREE from 'three';
 import raw from './data/teams.json' with { type: 'json' };
+import { Sound } from './audio/sound.ts';
 import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
-import { score, type MatchMode } from './core/gameState.ts';
-import { Match, type BattingControl, type FieldingControl } from './core/match.ts';
-import { parseTeams, type TeamData } from './core/teams.ts';
+import { battingTeam, EXTRA_INNINGS, INNINGS_OPTIONS, score, type Innings, type MatchMode, type TeamIndex } from './core/gameState.ts';
+import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
+import type { PlaySim } from './core/play.ts';
+import { parseTeams, teamStyle, type TeamData } from './core/teams.ts';
 import { InputMap, type InputFrame } from './input/actions.ts';
 import { MatchView } from './render/view.ts';
 import { HELP_HTML } from './ui/help.ts';
 import { Hud, MODE_LABEL } from './ui/hud.ts';
 import { MenuList, type MenuItem } from './ui/menuList.ts';
 import { RANK_NOTE, rosterHtml } from './ui/roster.ts';
+import { addGameToSeason, loadSeason } from './ui/season.ts';
 import { loadSettings, saveSettings, type Settings } from './ui/settings.ts';
 import { SubstitutionPanel } from './ui/substitution.ts';
 
@@ -46,6 +49,13 @@ class App {
   private readonly renderer: THREE.WebGLRenderer;
   readonly view = new MatchView();
   private readonly input = new InputMap(window);
+  private readonly sound = new Sound();
+  private heardPlay: PlaySim | null = null;
+  private heardEvents = 0;
+  /** いまのプレーで攻撃しているチーム（そのファンが沸く）。 */
+  private heardTeam: TeamIndex = 0;
+  /** 通算の打撃成績。試合が終わるたびに足して保存する。 */
+  private season = loadSeason();
   private readonly hud = new Hud();
   private readonly ui = document.getElementById('ui')!;
   private readonly menuEl = document.createElement('div');
@@ -61,12 +71,31 @@ class App {
   private last = performance.now();
 
   constructor(canvas: HTMLCanvasElement) {
+    this.sound.enabled = this.settings.sound;
+    window.addEventListener('pointerdown', () => this.sound.unlock());
+    window.addEventListener('keydown', () => this.sound.unlock());
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 
     const teamOptions = teams.map((t) => ({ value: t.id, label: t.nameJa }));
     const mainItems: MenuItem[] = [
       { kind: 'choice', label: 'あなたのチーム', options: teamOptions, get: () => this.settings.team, set: (v) => this.set({ team: v }) },
+      {
+        kind: 'choice',
+        label: '相手',
+        options: teamOptions,
+        get: () => this.opponent().id,
+        set: (v) => {
+          // 自分のチームは選べないので、送った向きにもう1つ進める。
+          if (v === this.settings.team) {
+            const n = teams.length;
+            const from = teams.indexOf(this.opponent());
+            const at = teams.findIndex((t) => t.id === v);
+            v = teams[(at + ((at - from + n) % n === 1 ? 1 : -1) + n) % n].id;
+          }
+          this.set({ opponent: v });
+        }
+      },
       {
         kind: 'choice',
         label: '先攻・後攻',
@@ -101,13 +130,21 @@ class App {
         get: () => this.settings.difficulty,
         set: (v) => this.set({ difficulty: v as Settings['difficulty'] })
       },
+      {
+        kind: 'choice',
+        label: 'イニング',
+        options: INNINGS_OPTIONS.map((n) => ({ value: String(n), label: `${n}回（延長${EXTRA_INNINGS[n]}回まで）` })),
+        get: () => String(this.settings.innings),
+        set: (v) => this.set({ innings: Number(v) as Innings })
+      },
+      { kind: 'choice', label: '効果音', options: [{ value: 'on', label: 'オン' }, { value: 'off', label: 'オフ' }], get: () => this.settings.sound ? 'on' : 'off', set: (v) => this.setSound(v === 'on') },
       { kind: 'button', label: 'プレイボール！', primary: true, action: () => this.start() },
       { kind: 'button', label: '選手・打順', action: () => this.showRoster(true) },
       { kind: 'button', label: '操作説明', action: () => this.showHelp(true) }
     ];
     this.menu = new MenuList(mainItems);
     this.menuEl.className = 'screen title-screen';
-    this.menuEl.innerHTML = `<div class="title-card"><div class="logo">Baseball<br><span>Simulation</span></div><div class="sub">3イニング勝負 ／ Sky Park Stadium</div></div>`;
+    this.menuEl.innerHTML = `<div class="title-card"><div class="logo">Baseball<br><span>Simulation</span></div><div class="sub">3・7・9回の CPU 戦 ／ Sky Park Stadium</div></div>`;
     this.menuEl.querySelector('.title-card')!.append(this.menu.el);
 
     const strategyItem = (key: keyof Strategy, label: string): MenuItem => ({
@@ -143,6 +180,7 @@ class App {
         },
         hidden: () => this.match?.nextMode !== 'manual'
       },
+      { kind: 'choice', label: '効果音', options: [{ value: 'on', label: 'オン' }, { value: 'off', label: 'オフ' }], get: () => this.settings.sound ? 'on' : 'off', set: (v) => this.setSound(v === 'on') },
       strategyItem('offense', '攻撃方針'),
       strategyItem('pitching', '投球方針'),
       strategyItem('running', '走塁方針'),
@@ -186,6 +224,31 @@ class App {
   private set(p: Partial<Settings>) {
     this.settings = { ...this.settings, ...p };
     saveSettings(this.settings);
+    if (('team' in p || 'opponent' in p || 'side' in p) && !this.match) this.dressCrowd();
+  }
+
+  /** 設定のチームと先攻・後攻から [先攻, 後攻]。 */
+  private matchup(st: Settings): [TeamData, TeamData] {
+    const mine = teams.find((t) => t.id === st.team) ?? teams[0];
+    const other = teams.find((t) => t.id === st.opponent && t !== mine) ?? teams.find((t) => t !== mine)!;
+    return st.side === 'home' ? [other, mine] : [mine, other];
+  }
+
+  private opponent(): TeamData {
+    const [away, home] = this.matchup(this.settings);
+    return this.settings.side === 'home' ? away : home;
+  }
+
+  /** メニューの背景の観客を、次の試合の2チームのファンにする。 */
+  private dressCrowd() {
+    const [away, home] = this.matchup(this.settings);
+    this.view.crowd.setTeams([away.colors, home.colors]);
+  }
+
+  private setSound(enabled: boolean) {
+    this.sound.enabled = enabled;
+    this.set({ sound: enabled });
+    if (enabled) this.sound.unlock();
   }
 
   private resize() {
@@ -199,7 +262,10 @@ class App {
     this.resultEl.style.display = s === 'result' ? '' : 'none';
     this.hud.el.style.display = s === 'match' ? '' : 'none';
     this.pauseEl.style.display = 'none';
-    if (s === 'menu') this.menu.render();
+    if (s === 'menu') {
+      this.menu.render();
+      this.dressCrowd();
+    }
   }
 
   private showHelp(open: boolean) {
@@ -207,11 +273,12 @@ class App {
     this.helpEl.style.display = open ? '' : 'none';
   }
 
-  /** 選手・打順の画面に出すチーム。試合中は先攻・後攻、試合前はあなたのチームと相手。 */
+  /** 選手・打順の画面に出すチーム。試合中は先攻・後攻、試合前はあなたのチーム・相手・ほかの球団の順。 */
   private rosterTeams(): TeamData[] {
     if (this.match) return this.match.state.teams.map((t) => t.team);
     const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
-    return [mine, ...teams.filter((t) => t !== mine)];
+    const other = this.opponent();
+    return [mine, other, ...teams.filter((t) => t !== mine && t !== other)];
   }
 
   private showRoster(open: boolean) {
@@ -230,7 +297,7 @@ class App {
     const live = m ? { state: m.state, index: this.rosterIndex as 0 | 1 } : undefined;
     const you = m ? m.state.teams[m.humanTeam].team : list[0];
     const tabs = list
-      .map((t, i) => `<button class="${i === this.rosterIndex ? 'selected' : ''}" data-i="${i}" style="--team:${t.colors.primary}">${t.nameJa}${t === you ? '<small>あなた</small>' : ''}</button>`)
+      .map((t, i) => `<button class="${i === this.rosterIndex ? 'selected' : ''}" data-i="${i}" style="${teamStyle(t.colors)}">${t.shortName}${t === you ? '<small>あなた</small>' : ''}</button>`)
       .join('');
     this.rosterEl.innerHTML = `<div class="panel help-card roster-card"><h2>選手・打順</h2><div class="roster-tabs">${tabs}</div>${rosterHtml(team, live)}<p class="note">${RANK_NOTE}　A/D でチーム切り替え</p><button class="close">とじる（Esc）</button></div>`;
     this.rosterEl.querySelectorAll<HTMLButtonElement>('.roster-tabs button').forEach((b) =>
@@ -283,11 +350,12 @@ class App {
   /** メニューの設定で試合を始める。 */
   start(overrides: Partial<Settings> & { seed?: number } = {}) {
     const st = { ...this.settings, ...overrides };
-    const mine = teams.find((t) => t.id === st.team) ?? teams[0];
-    const other = teams.find((t) => t !== mine)!;
     const humanTeam = st.side === 'home' ? 1 : 0;
-    const [away, home] = humanTeam === 1 ? [other, mine] : [mine, other];
-    this.match = new Match({ away, home, mode: st.mode, fielding: st.fielding, batting: st.batting, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
+    const [away, home] = this.matchup(st);
+    this.match = new Match({ away, home, innings: st.innings, mode: st.mode, fielding: st.fielding, batting: st.batting, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
+    this.heardPlay = null;
+    this.heardEvents = 0;
+    this.hud.season = this.season;
     this.view.attach(this.match);
     this.speed = 1;
     this.overTime = 0;
@@ -306,19 +374,23 @@ class App {
     this.setPaused(false);
     this.showSubs(false);
     this.match = null;
+    this.heardPlay = null;
     this.showScreen('menu');
   }
 
   private showResult() {
     const m = this.match!;
     const s = m.state;
+    // 最後まで終わった試合だけ通算成績に足す（途中でメニューに戻った試合は数えない）。
+    this.season = addGameToSeason(this.season, s);
     const a = score(s, 0);
     const h = score(s, 1);
     const winner = s.winner === null ? null : s.teams[s.winner].team;
     const you = s.teams[m.humanTeam].team;
     const headline = winner === null ? '引き分け' : `${winner.nameJa}の勝ち！`;
-    const sub = winner === null ? '3回終了で同点（MVP では延長なし）' : winner === you ? 'あなたの勝ちです！' : 'あなたの負けです…';
-    const reason = s.endReason === 'walkoff' ? '（サヨナラ）' : s.endReason === 'skip-bottom' ? '（3回裏は行いません）' : '';
+    const extra = s.inning > s.innings ? `延長${s.inning}回` : `${s.inning}回`;
+    const sub = winner === null ? `${extra}終了で同点` : winner === you ? 'あなたの勝ちです！' : 'あなたの負けです…';
+    const reason = s.endReason === 'walkoff' ? `（${extra}サヨナラ）` : s.endReason === 'skip-bottom' ? `（${s.inning}回裏は行いません）` : s.inning > s.innings ? `（${extra}）` : '';
     const lines = this.hudLines();
     this.resultEl.innerHTML = `<div class="panel result-card"><div class="result-head">試合終了${reason}</div><div class="result-title">${headline}</div><div class="result-sub">${sub}</div>
       <div class="result-score"><span style="--team:${s.teams[0].team.colors.primary}">${s.teams[0].team.nameJa}</span><b>${a} - ${h}</b><span style="--team:${s.teams[1].team.colors.primary}">${s.teams[1].team.nameJa}</span></div>
@@ -346,6 +418,53 @@ class App {
     if (f.pressed.tactic1) m.setStrategy({ offense: cycle(['normal', 'aggressive', 'careful'] as const, m.strategy.offense) });
     if (f.pressed.tactic2) m.setStrategy({ pitching: cycle(['normal', 'strike', 'corner'] as const, m.strategy.pitching) });
     if (f.pressed.tactic3) m.setStrategy({ running: cycle(['normal', 'aggressive', 'careful'] as const, m.strategy.running) });
+  }
+
+  /** 観客が沸く（歓声と、観客席の動き）。 */
+  private cheer(strength: number) {
+    this.sound.cheer(strength);
+    this.view.crowd.cheer(strength, this.heardTeam);
+  }
+
+  private hearTick(before: Phase) {
+    const m = this.match!;
+    const play = m.play;
+    if (before === 'windup' && m.phase === 'pitch') this.sound.play('pitch');
+    if (before === 'pitch' && m.phase === 'play' && play) {
+      this.heardTeam = battingTeam(m.state);
+      const speed = Math.hypot(play.ball.vel.x, play.ball.vel.y, play.ball.vel.z);
+      this.sound.play(m.swing?.bunt ? 'bunt' : 'bat', speed / 34);
+    }
+    if (play !== this.heardPlay) {
+      this.heardPlay = play;
+      this.heardEvents = 0;
+    }
+    if (play) {
+      for (const event of play.events.slice(this.heardEvents)) {
+        switch (event.type) {
+          case 'catch': this.sound.play('glove'); break;
+          case 'drop':
+          case 'error': this.sound.play('glove', 0.55); break;
+          case 'bounce': this.sound.play('bounce'); break;
+          case 'throw': this.sound.play('throw'); break;
+          case 'fence': this.sound.play('fence'); break;
+          case 'out': this.sound.play('out'); break;
+          case 'safe': this.sound.play('safe'); break;
+          case 'score': this.sound.play('score'); break;
+          case 'homerun':
+            this.sound.play('homerun');
+            this.cheer(1.2);
+            break;
+        }
+      }
+      this.heardEvents = play.events.length;
+    }
+    if (before === 'pitch' && m.phase === 'result') this.sound.play(m.swingDone && m.lastSwingMissed ? 'miss' : 'call');
+    // 本塁打はボールがスタンドに入ったときに沸くので、結果ではもう一度沸かせない。
+    if (before === 'play' && m.phase === 'result' && !play?.events.some((e) => e.type === 'homerun')) {
+      if (m.message?.kind === 'run') this.cheer(0.85);
+      else if (m.message?.kind === 'hit') this.cheer(0.5);
+    }
   }
 
   private loop(now: number) {
@@ -376,7 +495,11 @@ class App {
         this.handleMatchKeys(f);
         const scale = this.match.mode === 'auto' ? this.speed : 1;
         // 早送りでも 1 回の更新は小さく刻む。
-        for (let i = 0; i < scale; i++) this.match.tick(dt, { move: f.move, primary: f.pressed.primary && i === 0, secondary: f.pressed.secondary && i === 0, switch: f.pressed.switch && i === 0 });
+        for (let i = 0; i < scale; i++) {
+          const before = this.match.phase;
+          this.match.tick(dt, { move: f.move, primary: f.pressed.primary && i === 0, secondary: f.pressed.secondary && i === 0, switch: f.pressed.switch && i === 0 });
+          this.hearTick(before);
+        }
         if (this.match.phase === 'over') {
           this.overTime += dt;
           if (this.overTime > 1.6) this.showResult();
@@ -384,6 +507,8 @@ class App {
       }
     }
 
+    // 歓声は試合を見ている間だけ。ポーズ・交代・説明の画面、結果、メニューでは絞る。
+    this.sound.setCrowd(this.screen === 'match' && !!this.match && !this.paused && !this.helpOpen && !this.rosterOpen && !this.subsOpen);
     if (this.match) {
       this.view.update(this.paused ? 0 : dt);
       if (this.screen === 'match') this.hud.update(this.match, this.view, w, h, this.speed);
