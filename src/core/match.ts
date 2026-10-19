@@ -12,6 +12,9 @@ import { applyPlay, pitchCall, type PitchCall } from './rules.ts';
 import type { TeamData } from './teams.ts';
 import type { PitchType } from './types.ts';
 
+/** 手動モードの守備を人が操作するか、CPU に任せるか。 */
+export type FieldingControl = 'manual' | 'auto';
+
 export type Phase = 'pre-pitch' | 'windup' | 'pitch' | 'play' | 'result' | 'over';
 
 export interface MatchConfig {
@@ -21,6 +24,8 @@ export interface MatchConfig {
   mode?: MatchMode;
   /** 人のチーム。手動モードで操作し、監督モードで方針を指示する。 */
   humanTeam?: TeamIndex;
+  /** 手動モードの守備の操作（既定は手動）。 */
+  fielding?: FieldingControl;
   difficulty?: Difficulty;
   seed?: number;
 }
@@ -65,6 +70,9 @@ export class Match {
   strategy: Strategy = { ...DEFAULT_STRATEGY };
   readonly cpuStrategy: Strategy = { ...DEFAULT_STRATEGY };
 
+  /** 手動モードの守備の操作。変えると次の打球から反映される。 */
+  fielding: FieldingControl;
+
   /** 次の投球前に切り替えるモード。 */
   pendingMode: MatchMode | null = null;
 
@@ -76,6 +84,7 @@ export class Match {
     this.state = createGameState(c.away, c.home, c.innings ?? 3, c.mode ?? 'manual');
     this.humanTeam = c.humanTeam ?? 1;
     this.difficulty = c.difficulty ?? 'normal';
+    this.fielding = c.fielding ?? 'manual';
     this.rng = new Rng(c.seed ?? Date.now() % 2 ** 31);
     this.enterPrePitch();
   }
@@ -126,6 +135,11 @@ export class Match {
 
   get humanBatting() {
     return this.isHuman(battingTeam(this.state));
+  }
+
+  /** 打球が飛んだあと、守備の選手を人が操作するか（守備オートなら CPU に任せる）。 */
+  get humanFielding() {
+    return this.humanPitching && this.fielding === 'manual';
   }
 
   strategyOf(team: TeamIndex): Strategy {
@@ -305,7 +319,7 @@ export class Match {
       launch: out.launch,
       bunt: !!sw.bunt,
       running: this.strategyOf(bt).running,
-      humanDefense: this.isHuman(fieldingTeam(s)),
+      humanDefense: this.humanFielding,
       humanOffense: this.isHuman(bt),
       rng: this.rng
     });

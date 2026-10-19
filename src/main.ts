@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import raw from './data/teams.json' with { type: 'json' };
 import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { score, type MatchMode } from './core/gameState.ts';
-import { Match } from './core/match.ts';
+import { Match, type FieldingControl } from './core/match.ts';
 import { parseTeams } from './core/teams.ts';
 import { InputMap, type InputFrame } from './input/actions.ts';
 import { MatchView } from './render/view.ts';
@@ -16,6 +16,10 @@ import { loadSettings, saveSettings, type Settings } from './ui/settings.ts';
 const teams = parseTeams(raw);
 const MODES: MatchMode[] = ['manual', 'manager', 'auto'];
 const SPEEDS = [1, 2, 4];
+const FIELDING_OPTIONS = [
+  { value: 'manual', label: '手動' },
+  { value: 'auto', label: 'オート' }
+];
 const cycle = <T,>(list: readonly T[], v: T) => list[(list.indexOf(v) + 1) % list.length];
 
 type Screen = 'menu' | 'match' | 'result';
@@ -63,6 +67,14 @@ class App {
       { kind: 'choice', label: 'モード', options: MODES.map((m) => ({ value: m, label: MODE_LABEL[m] })), get: () => this.settings.mode, set: (v) => this.set({ mode: v as MatchMode }) },
       {
         kind: 'choice',
+        label: '守備',
+        options: FIELDING_OPTIONS,
+        get: () => this.settings.fielding,
+        set: (v) => this.set({ fielding: v as FieldingControl }),
+        hidden: () => this.settings.mode !== 'manual'
+      },
+      {
+        kind: 'choice',
         label: 'CPU の強さ',
         options: (['easy', 'normal', 'hard'] as const).map((d) => ({ value: d, label: DIFFICULTY_LABEL[d] })),
         get: () => this.settings.difficulty,
@@ -87,6 +99,17 @@ class App {
     this.pauseMenu = new MenuList([
       { kind: 'button', label: '試合にもどる', primary: true, action: () => this.setPaused(false) },
       { kind: 'choice', label: 'モード', options: MODES.map((m) => ({ value: m, label: MODE_LABEL[m] })), get: () => this.match?.nextMode ?? 'manual', set: (v) => this.match?.requestMode(v as MatchMode) },
+      {
+        kind: 'choice',
+        label: '守備',
+        options: FIELDING_OPTIONS,
+        get: () => this.match?.fielding ?? 'manual',
+        set: (v) => {
+          if (this.match) this.match.fielding = v as FieldingControl;
+          this.set({ fielding: v as FieldingControl });
+        },
+        hidden: () => this.match?.nextMode !== 'manual'
+      },
       strategyItem('offense', '攻撃方針'),
       strategyItem('pitching', '投球方針'),
       strategyItem('running', '走塁方針'),
@@ -103,7 +126,7 @@ class App {
       { kind: 'button', label: 'メインメニューへ', action: () => this.toMenu() }
     ]);
     this.pauseEl.className = 'screen pause-screen';
-    this.pauseEl.innerHTML = '<div class="panel pause-card"><h2>ポーズ</h2><p class="note">モードの切り替えは次の投球から反映されます。</p></div>';
+    this.pauseEl.innerHTML = '<div class="panel pause-card"><h2>ポーズ</h2><p class="note">モードの切り替えは次の投球から、守備の切り替えは次の打球から反映されます。</p></div>';
     this.pauseEl.querySelector('.pause-card')!.append(this.pauseMenu.el);
 
     this.resultEl.className = 'screen result-screen';
@@ -156,7 +179,7 @@ class App {
     const other = teams.find((t) => t !== mine)!;
     const humanTeam = st.side === 'home' ? 1 : 0;
     const [away, home] = humanTeam === 1 ? [other, mine] : [mine, other];
-    this.match = new Match({ away, home, mode: st.mode, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
+    this.match = new Match({ away, home, mode: st.mode, fielding: st.fielding, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
     this.view.attach(this.match);
     this.speed = 1;
     this.overTime = 0;

@@ -107,7 +107,7 @@ const visible = (sel: string) => page.evaluate((q) => {
 }, sel);
 
 async function startFromMenu(side: 'away' | 'home', mode: 'manual' | 'manager' | 'auto') {
-  // メニュー：上から チーム・先攻後攻・モード・強さ・プレイボール。値は A/D で変える。
+  // メニュー：上から チーム・先攻後攻・モード・（手動のときだけ）守備・強さ・プレイボール。値は A/D で変える。
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForTimeout(800);
@@ -121,10 +121,10 @@ async function startFromMenu(side: 'away' | 'home', mode: 'manual' | 'manager' |
     await page.keyboard.press('KeyD');
     await page.waitForTimeout(250);
   }
-  await page.keyboard.press('KeyS');
-  await page.waitForTimeout(250);
-  await page.keyboard.press('KeyS');
-  await page.waitForTimeout(250);
+  for (let i = 0; i < (mode === 'manual' ? 3 : 2); i++) {
+    await page.keyboard.press('KeyS');
+    await page.waitForTimeout(250);
+  }
   await page.keyboard.press('KeyJ');
   await page.waitForTimeout(300);
 }

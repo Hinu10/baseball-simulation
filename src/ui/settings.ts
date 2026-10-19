@@ -1,17 +1,20 @@
 // 設定だけを端末に保存する（試合の途中経過は保存しない）。
 import type { Difficulty } from '../core/ai.ts';
 import type { MatchMode } from '../core/gameState.ts';
+import type { FieldingControl } from '../core/match.ts';
 
 export interface Settings {
   team: string;
   /** 'home' なら後攻。 */
   side: 'away' | 'home';
   mode: MatchMode;
+  /** 手動モードの守備。 */
+  fielding: FieldingControl;
   difficulty: Difficulty;
 }
 
 const KEY = 'baseball-simulation.settings';
-export const DEFAULT_SETTINGS: Settings = { team: 'comets', side: 'home', mode: 'manual', difficulty: 'normal' };
+export const DEFAULT_SETTINGS: Settings = { team: 'comets', side: 'home', mode: 'manual', fielding: 'manual', difficulty: 'normal' };
 
 export function loadSettings(): Settings {
   try {

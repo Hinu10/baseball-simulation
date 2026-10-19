@@ -151,3 +151,36 @@ test('手動モードで操作しないまま守備になっても、プレー�
   }
   assert.ok(plays >= 5, `plays=${plays}`);
 });
+
+test('守備オート：投球は人が操作し、打球が飛んだら野手は CPU が動かす', () => {
+  const run = (fielding: 'manual' | 'auto') => {
+    const m = new Match({ away, home, mode: 'manual', humanTeam: 1, fielding, seed: 11 });
+    let controlled = -1;
+    for (let i = 0; i < 200000 && m.phase !== 'play'; i++) {
+      // 投球は人が J を押すまで始まらない（守備オートでも同じ）。
+      m.tick(1 / 60, m.phase === 'pre-pitch' && m.humanPitching ? press({ primary: true }) : NO_INPUT);
+    }
+    assert.equal(m.phase, 'play');
+    assert.equal(fieldingTeam(m.state), 1);
+    controlled = m.play!.controlled;
+    until(m, () => m.phase !== 'play', press({ move: { x: 1, y: 0 } }));
+    return { controlled, phase: m.phase };
+  };
+  assert.ok(run('manual').controlled >= 0, '守備手動では操作する選手が決まる');
+  const auto = run('auto');
+  assert.equal(auto.controlled, -1, '守備オートでは操作する選手がいない');
+  assert.equal(auto.phase, 'result', '入力を送り続けてもプレーは CPU で終わる');
+});
+
+test('守備の切り替えは次の打球から反映される', () => {
+  const m = new Match({ away, home, mode: 'manual', humanTeam: 1, seed: 11 });
+  until(m, () => m.phase === 'play', press({ primary: true }));
+  assert.ok(m.play!.controlled >= 0);
+  m.fielding = 'auto';
+  assert.ok(m.play!.controlled >= 0, 'プレー中は変わらない');
+  until(m, () => m.phase === 'pre-pitch');
+  assert.ok(m.humanPitching, '投球はそのまま人が操作する');
+  until(m, () => m.phase === 'play' || (m.phase === 'pre-pitch' && fieldingTeam(m.state) !== 1), press({ primary: true }));
+  assert.equal(m.phase, 'play');
+  assert.equal(m.play!.controlled, -1);
+});
