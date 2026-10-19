@@ -2,7 +2,7 @@
 // どのモードでも同じ流れを通り、違うのは「どちらのチームを人が操作するか」だけ。判定は rules.ts に任せる。
 
 import { choosePitch, DEFAULT_STRATEGY, DIFFICULTY_ERROR, planSwing, type Difficulty, type Strategy } from './ai.ts';
-import { evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingMode } from './batting.ts';
+import { EASY_TIMING_SCALE, evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingMode } from './batting.ts';
 import { battingTeam, benchPitchers, createGameState, currentBatter, currentPitcher, fieldingTeam, type GameState, type MatchMode, type TeamIndex } from './gameState.ts';
 import { clamp } from './math.ts';
 import { NO_INPUT, PlaySim, type PlayInput } from './play.ts';
@@ -14,6 +14,8 @@ import { POSITION_LABEL, type PitchType } from './types.ts';
 
 /** 手動モードの守備を人が操作するか、CPU に任せるか。 */
 export type FieldingControl = 'manual' | 'auto';
+/** 人が打つときの操作。標準はミートカーソル＋タイミング、かんたんはタイミングだけ。 */
+export type BattingControl = 'standard' | 'easy';
 
 export type Phase = 'pre-pitch' | 'windup' | 'pitch' | 'play' | 'result' | 'over';
 
@@ -26,6 +28,8 @@ export interface MatchConfig {
   humanTeam?: TeamIndex;
   /** 手動モードの守備の操作（既定は手動）。 */
   fielding?: FieldingControl;
+  /** 人が打つときの操作（既定は標準）。 */
+  batting?: BattingControl;
   difficulty?: Difficulty;
   seed?: number;
 }
@@ -74,6 +78,8 @@ export class Match {
 
   /** 手動モードの守備の操作。変えると次の打球から反映される。 */
   fielding: FieldingControl;
+  /** 人が打つときの操作。変えると次の投球から反映される。 */
+  batting: BattingControl;
 
   /** 次の投球前に切り替えるモード。 */
   pendingMode: MatchMode | null = null;
@@ -92,6 +98,7 @@ export class Match {
     this.humanTeam = c.humanTeam ?? 1;
     this.difficulty = c.difficulty ?? 'normal';
     this.fielding = c.fielding ?? 'manual';
+    this.batting = c.batting ?? 'standard';
     this.rng = new Rng(c.seed ?? Date.now() % 2 ** 31);
     this.enterPrePitch();
   }
@@ -199,6 +206,18 @@ export class Match {
     return this.humanPitching && this.fielding === 'manual';
   }
 
+  /** 人がかんたん打撃で打っているか。 */
+  get easyBatting() {
+    return this.humanBatting && this.batting === 'easy';
+  }
+
+  /** 人のスイング。かんたん打撃では上下の入力で打球の狙いを決める。 */
+  private humanSwing(time: number, input: PlayInput, bunt = false): SwingCommand {
+    const sw: SwingCommand = { mode: this.swingMode, cursor: this.batCursor, time, ...(bunt ? { bunt } : {}) };
+    if (this.easyBatting) sw.easy = { lift: Math.abs(input.move.y) > 0.5 ? Math.sign(input.move.y) : 0 };
+    return sw;
+  }
+
   strategyOf(team: TeamIndex): Strategy {
     return team === this.humanTeam ? this.strategy : this.cpuStrategy;
   }
@@ -267,7 +286,7 @@ export class Match {
 
   private updateBatterInput(dt: number, input: PlayInput) {
     if (!this.humanBatting || this.swing) return;
-    this.moveCursor(this.batCursor, input, dt);
+    if (!this.easyBatting) this.moveCursor(this.batCursor, input, dt);
     if (input.switch && this.phase !== 'pitch') this.swingMode = this.swingMode === 'meet' ? 'power' : 'meet';
     if (input.secondary) this.buntStance = !this.buntStance;
   }
@@ -328,7 +347,7 @@ export class Match {
         this.batCursor = { ...this.swing.cursor };
       }
     } else if (this.buntStance) {
-      this.swing = { mode: this.swingMode, cursor: this.batCursor, time: 0, bunt: true };
+      this.swing = this.humanSwing(0, NO_INPUT, true);
     }
   }
 
@@ -341,8 +360,8 @@ export class Match {
     const pitch = this.pitch!;
     this.pitchTime += dt;
     if (this.humanBatting && !this.swing) {
-      this.moveCursor(this.batCursor, input, dt);
-      if (input.primary) this.swing = { mode: this.swingMode, cursor: this.batCursor, time: this.pitchTime };
+      if (!this.easyBatting) this.moveCursor(this.batCursor, input, dt);
+      if (input.primary) this.swing = this.humanSwing(this.pitchTime, input);
     }
     const sw = this.swing;
     if (sw) {
@@ -352,7 +371,7 @@ export class Match {
       return;
     }
     // 見送り：遅れたスイングも受け付けるため、少し待ってから判定する。
-    if (this.pitchTime >= pitch.flightTime + timingWindow(currentBatter(this.state), 'meet')) {
+    if (this.pitchTime >= pitch.flightTime + timingWindow(currentBatter(this.state), 'meet') * (this.easyBatting ? EASY_TIMING_SCALE : 1)) {
       this.callPitch(isStrike(DEFAULT_ZONE, pitch.plate) ? 'called-strike' : 'ball');
     }
   }

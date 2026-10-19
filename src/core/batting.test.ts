@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { createBall, predictPath } from './ballPhysics.ts';
-import { battedBallType, cursorSize, evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingOutcome } from './batting.ts';
+import { battedBallType, cursorSize, EASY_TIMING_SCALE, evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingOutcome } from './batting.ts';
 import { isFair } from './field.ts';
 import { createPitch, type Pitch } from './pitching.ts';
 import { Rng } from './rng.ts';
@@ -90,4 +90,29 @@ test('ばらついたスイングからゴロ・ライナー・フライ・フ�
     else seen.add(battedBallType(o.launch));
   }
   for (const k of ['ground', 'liner', 'fly', 'foul', 'homerun']) assert.ok(seen.has(k), `${k} がない：${[...seen].join()}`);
+});
+
+test('かんたん打撃：カーソルがずれていてもタイミングが合えば当たり、幅も広い', () => {
+  const p = pitch(0.15, 0.6);
+  const far = { x: -0.4, y: 1.2 };
+  const easy = (dt: number, lift = 0): SwingCommand => ({ ...swingAt(p, dt, far), easy: { lift } });
+  assert.equal(evaluateSwing(slugger, p, swingAt(p, 0, far), new Rng(1)).kind, 'miss', '標準ではカーソルが外れると空振り');
+  assert.equal(evaluateSwing(slugger, p, easy(0), new Rng(1)).kind, 'contact');
+  const w = timingWindow(slugger, 'meet');
+  assert.equal(evaluateSwing(slugger, p, easy(w * 1.2), new Rng(1)).kind, 'contact', '標準の幅を少し超えても当たる');
+  assert.equal(evaluateSwing(slugger, p, easy(w * EASY_TIMING_SCALE + 0.01), new Rng(1)).kind, 'miss');
+});
+
+test('かんたん打撃：W でフライ、S でゴロ。大きく外れた球には届かない', () => {
+  const p = pitch();
+  const launch = (lift: number) => {
+    let sum = 0;
+    for (let i = 0; i < 20; i++) sum += contact(evaluateSwing(slugger, p, { ...swingAt(p), easy: { lift } }, new Rng(i + 1))).launch;
+    return sum / 20;
+  };
+  assert.equal(battedBallType(launch(-1)), 'ground');
+  assert.equal(battedBallType(launch(1)), 'fly');
+  assert.ok(launch(-1) < launch(0) && launch(0) < launch(1));
+  const wild = pitch(0.7, 0.8);
+  assert.equal(evaluateSwing(slugger, wild, { ...swingAt(wild), easy: { lift: 0 } }, new Rng(1)).kind, 'miss');
 });

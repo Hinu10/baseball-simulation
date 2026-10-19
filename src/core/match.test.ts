@@ -209,3 +209,26 @@ test('CPU チームは疲れた投手を打席の合間に代える', () => {
   assert.notEqual(m.state.teams[0].pitcher, starter);
   assert.equal(m.state.teams[0].removed.includes(starter.id), true);
 });
+
+test('かんたん打撃：人が打つとき、カーソルを動かさずタイミングよく J を押すだけで当たる', () => {
+  let hits = 0;
+  for (let seed = 1; seed <= 6; seed++) {
+    const m = new Match({ away, home, mode: 'manual', humanTeam: 0, batting: 'easy', difficulty: 'easy', seed });
+    for (let pa = 0; pa < 3 && !m.state.over; pa++) {
+      until(m, () => m.phase === 'pitch' && m.humanBatting);
+      if (!m.easyBatting) break;
+      const p = m.pitch!;
+      // ゾーンの近くに来る球だけ振る。
+      if (Math.abs(p.plate.x) > 0.3 || p.plate.y < 0.35 || p.plate.y > 1.2) {
+        until(m, () => m.phase === 'pre-pitch');
+        continue;
+      }
+      until(m, () => m.pitchTime >= p.flightTime - 0.16);
+      m.tick(1 / 60, press({ primary: true }));
+      until(m, () => m.phase !== 'pitch');
+      if (m.phase === 'play') hits++;
+      until(m, () => m.phase === 'pre-pitch');
+    }
+  }
+  assert.ok(hits >= 4, `当たり ${hits} 回`);
+});

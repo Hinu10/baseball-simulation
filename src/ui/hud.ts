@@ -127,7 +127,7 @@ export class Hud {
       select = `<div class="title">球種（L）</div>${pitcher.pitches.map((t) => `<div class="opt ${t === m.pitchType ? 'on' : ''}">${PITCHES[t].label}</div>`).join('')}`;
     } else if (m.humanBatting && m.phase !== 'play' && m.phase !== 'result') {
       const cur = m.buntStance ? 'bunt' : m.swingMode;
-      select = `<div class="title">打撃（L / K）</div>${[
+      select = `<div class="title">${m.easyBatting ? 'かんたん打撃' : '打撃'}（L / K）</div>${[
         ['meet', 'ミート'],
         ['power', '強振'],
         ['bunt', 'バント']
@@ -160,7 +160,8 @@ export class Hud {
     } else if (m.humanPitching && m.phase === 'pre-pitch') {
       g.push('WASD コース', 'L 球種', 'J 投球');
     } else if (m.humanBatting && (m.phase === 'pre-pitch' || m.phase === 'windup' || m.phase === 'pitch')) {
-      g.push('WASD カーソル', 'J スイング', 'L ミート/強振', 'K バント');
+      if (m.easyBatting) g.push('J スイング（タイミングだけ）', 'W＋J フライ', 'S＋J ゴロ', 'L ミート/強振', 'K バント');
+      else g.push('WASD カーソル', 'J スイング', 'L ミート/強振', 'K バント');
     }
     if (m.mode === 'auto') g.push('F 早送り');
     if (m.timeoutRequested) g.push('タイム要求中（次の投球前に選手交代）');

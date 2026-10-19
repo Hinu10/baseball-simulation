@@ -2,7 +2,7 @@
 // ヒットかアウトかはここでは決めない。打球物理（ballPhysics.ts）と守備・走塁（play.ts）の結果で決まる。
 
 import { clamp, rad, v3, type Vec3 } from './math.ts';
-import type { Pitch, PlatePoint } from './pitching.ts';
+import { DEFAULT_ZONE, type Pitch, type PlatePoint } from './pitching.ts';
 import type { Rng } from './rng.ts';
 import type { Batter } from './teams.ts';
 
@@ -14,6 +14,8 @@ export interface SwingCommand {
   /** スイングを始めた時刻（リリースからの秒）。バントでは使わない。 */
   time: number;
   bunt?: boolean;
+  /** かんたん打撃：カーソルは球に自動で合い、タイミングだけで打つ。lift は +1 でフライ、-1 でゴロを狙う。 */
+  easy?: { lift: number };
 }
 
 /** スイングを始めてからバットが本塁上に来るまで（ゲーム内の秒）。 */
@@ -29,6 +31,21 @@ export function cursorSize(b: Batter, mode: SwingMode): { halfW: number; halfH: 
 /** 当たるタイミングの幅（±秒）。 */
 export function timingWindow(b: Batter, mode: SwingMode): number {
   return (0.07 + 0.05 * (b.meet / 100)) * (mode === 'power' ? 0.78 : 1);
+}
+
+/** かんたん打撃では、当たるタイミングの幅を広げる。 */
+export const EASY_TIMING_SCALE = 1.35;
+/** かんたん打撃でバットが届く範囲（ストライクゾーンの外側への余裕 m）。 */
+const EASY_REACH = 0.2;
+
+/** かんたん打撃のカーソル。球に合わせ、狙い（lift）の分だけ上下にずらす。届かない球なら null。 */
+export function easyCursor(b: Batter, pitch: Pitch, mode: SwingMode, lift: number): PlatePoint | null {
+  const { x, y } = pitch.plate;
+  const z = DEFAULT_ZONE;
+  if (Math.abs(x) > z.halfWidth + EASY_REACH || y < z.bottom - EASY_REACH || y > z.top + EASY_REACH) return null;
+  // カーソルの中心より球が上ならフライ、下ならゴロになる（evaluateSwing の打球角度の式）。
+  const shift = lift > 0 ? 0.5 : lift < 0 ? -0.4 : 0;
+  return { x, y: y - shift * (cursorSize(b, mode).halfH + BALL_R) };
 }
 
 export type SwingOutcome =
@@ -74,8 +91,13 @@ function bunt(b: Batter, pitch: Pitch, swing: SwingCommand, rng: Rng): SwingOutc
 }
 
 export function evaluateSwing(b: Batter, pitch: Pitch, swing: SwingCommand, rng: Rng): SwingOutcome {
+  if (swing.easy) {
+    const cursor = easyCursor(b, pitch, swing.mode, swing.bunt ? 0 : swing.easy.lift);
+    if (!cursor) return { kind: 'miss' };
+    swing = { ...swing, cursor };
+  }
   if (swing.bunt) return bunt(b, pitch, swing, rng);
-  const window = timingWindow(b, swing.mode);
+  const window = timingWindow(b, swing.mode) * (swing.easy ? EASY_TIMING_SCALE : 1);
   const timing = swing.time + SWING_DURATION - pitch.flightTime;
   if (Math.abs(timing) > window) return { kind: 'miss' };
   const size = cursorSize(b, swing.mode);

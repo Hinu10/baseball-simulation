@@ -11,7 +11,8 @@ export const HELP_HTML = `
     <p><kbd>J</kbd> スイング（球が本塁に来る瞬間に）</p>
     <p><kbd>L</kbd> ミート ⇔ 強振（強振はカーソルが小さく、当たれば遠くへ飛ぶ）</p>
     <p><kbd>K</kbd> バントの構え</p>
-    <p class="note">カーソルの中心より球が上ならフライ、下ならゴロになりやすい。早く振ると引っ張り、遅れると流し打ち。</p></section>
+    <p class="note">カーソルの中心より球が上ならフライ、下ならゴロになりやすい。早く振ると引っ張り、遅れると流し打ち。</p>
+    <p class="note"><b>打撃：かんたん</b>（メニュー・ポーズで切り替え）：カーソルは自動で球に合うので、<kbd>J</kbd> のタイミングだけ合わせればOK。<kbd>W</kbd>＋<kbd>J</kbd> でフライ、<kbd>S</kbd>＋<kbd>J</kbd> でゴロを狙えます。ゾーンから大きく外れた球には届きません。</p></section>
   <section><h3>守備（打球が飛んだら）</h3>
     <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 黄色い輪の選手を動かす（赤い印が落下点）</p>
     <p><kbd>J</kbd>＋<kbd>W</kbd> 二塁 ／ <kbd>J</kbd>＋<kbd>D</kbd> 一塁 ／ <kbd>J</kbd>＋<kbd>A</kbd> 三塁 ／ <kbd>J</kbd>＋<kbd>S</kbd> 本塁 へ送球（<kbd>J</kbd> だけでおすすめの塁）</p>

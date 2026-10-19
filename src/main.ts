@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import raw from './data/teams.json' with { type: 'json' };
 import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { score, type MatchMode } from './core/gameState.ts';
-import { Match, type FieldingControl } from './core/match.ts';
+import { Match, type BattingControl, type FieldingControl } from './core/match.ts';
 import { parseTeams, type TeamData } from './core/teams.ts';
 import { InputMap, type InputFrame } from './input/actions.ts';
 import { MatchView } from './render/view.ts';
@@ -21,6 +21,10 @@ const SPEEDS = [1, 2, 4];
 const FIELDING_OPTIONS = [
   { value: 'manual', label: '手動' },
   { value: 'auto', label: 'オート' }
+];
+const BATTING_OPTIONS = [
+  { value: 'standard', label: '標準' },
+  { value: 'easy', label: 'かんたん' }
 ];
 const cycle = <T,>(list: readonly T[], v: T) => list[(list.indexOf(v) + 1) % list.length];
 
@@ -84,6 +88,14 @@ class App {
       },
       {
         kind: 'choice',
+        label: '打撃',
+        options: BATTING_OPTIONS,
+        get: () => this.settings.batting,
+        set: (v) => this.set({ batting: v as BattingControl }),
+        hidden: () => this.settings.mode !== 'manual'
+      },
+      {
+        kind: 'choice',
         label: 'CPU の強さ',
         options: (['easy', 'normal', 'hard'] as const).map((d) => ({ value: d, label: DIFFICULTY_LABEL[d] })),
         get: () => this.settings.difficulty,
@@ -117,6 +129,17 @@ class App {
         set: (v) => {
           if (this.match) this.match.fielding = v as FieldingControl;
           this.set({ fielding: v as FieldingControl });
+        },
+        hidden: () => this.match?.nextMode !== 'manual'
+      },
+      {
+        kind: 'choice',
+        label: '打撃',
+        options: BATTING_OPTIONS,
+        get: () => this.match?.batting ?? 'easy',
+        set: (v) => {
+          if (this.match) this.match.batting = v as BattingControl;
+          this.set({ batting: v as BattingControl });
         },
         hidden: () => this.match?.nextMode !== 'manual'
       },
@@ -264,7 +287,7 @@ class App {
     const other = teams.find((t) => t !== mine)!;
     const humanTeam = st.side === 'home' ? 1 : 0;
     const [away, home] = humanTeam === 1 ? [other, mine] : [mine, other];
-    this.match = new Match({ away, home, mode: st.mode, fielding: st.fielding, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
+    this.match = new Match({ away, home, mode: st.mode, fielding: st.fielding, batting: st.batting, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
     this.view.attach(this.match);
     this.speed = 1;
     this.overTime = 0;

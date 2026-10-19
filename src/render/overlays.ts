@@ -95,7 +95,8 @@ export class Overlays {
     this.zone.visible = pitchPhase && (humanBat || humanPitch);
 
     // ミートカーソル（人が打つときだけ）。
-    this.meet.visible = pitchPhase && humanBat;
+    // かんたん打撃ではカーソルを出さない（タイミングだけで打つ）。
+    this.meet.visible = pitchPhase && humanBat && !m.easyBatting;
     if (this.meet.visible) {
       const mode = m.buntStance ? 'bunt' : m.swingMode;
       const size = m.buntStance ? { halfW: 0.3, halfH: 0.18 } : cursorSize(currentBatter(m.state), m.swingMode);
