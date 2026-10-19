@@ -6,11 +6,11 @@ import { POSITION_LABEL, type LineupPosition } from '../core/types.ts';
 
 /** 能力（0〜100）のランク。 */
 export function rank(v: number): string {
-  if (v >= 90) return 'S';
-  if (v >= 80) return 'A';
-  if (v >= 70) return 'B';
-  if (v >= 60) return 'C';
-  if (v >= 50) return 'D';
+  if (v >= 95) return 'S';
+  if (v >= 85) return 'A';
+  if (v >= 75) return 'B';
+  if (v >= 65) return 'C';
+  if (v >= 55) return 'D';
   if (v >= 40) return 'E';
   if (v >= 20) return 'F';
   return 'G';

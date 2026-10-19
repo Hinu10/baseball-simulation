@@ -7,8 +7,8 @@ import { rank, rosterHtml } from './roster.ts';
 
 const [away, home] = parseTeams(raw);
 
-test('能力のランクは 90 以上が S、19 以下が G', () => {
-  assert.deepEqual([95, 90, 89, 70, 50, 40, 20, 19, 0].map(rank), ['S', 'S', 'A', 'B', 'D', 'E', 'F', 'G', 'G']);
+test('能力のランクは 95 以上が S、85 以上が A、19 以下が G', () => {
+  assert.deepEqual([100, 95, 94, 85, 84, 75, 65, 55, 54, 40, 20, 19, 0].map(rank), ['S', 'S', 'A', 'A', 'B', 'B', 'C', 'D', 'E', 'E', 'F', 'G', 'G']);
 });
 
 test('試合前の選手・打順：打順の9人・控え・投手と先発が出る', () => {
