@@ -50,6 +50,8 @@ export interface Batter {
   speed: number;
   arm: number;
   fielding: number;
+  /** 今日の調子（-1〜1）。調子を反映した選手だけが持つ（core/condition.ts）。 */
+  condition?: number;
 }
 
 /** 投手。velocity は最高球速（km/h）、ほかは 0〜100。DH 制なので打席には立たない。 */
@@ -66,6 +68,8 @@ export interface Pitcher {
   arm: number;
   fielding: number;
   speed: number;
+  /** 今日の調子（-1〜1）。調子を反映した選手だけが持つ（core/condition.ts）。 */
+  condition?: number;
 }
 
 export interface TeamData {

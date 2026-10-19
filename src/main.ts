@@ -5,7 +5,8 @@ import raw from './data/teams.json' with { type: 'json' };
 import { Sound } from './audio/sound.ts';
 import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { battingTeam, EXTRA_INNINGS, INNINGS_OPTIONS, score, type Innings, type MatchMode, type TeamIndex } from './core/gameState.ts';
-import { addGame, emptyPennant, pairOthers, seasonOver, standings, type GameResult } from './core/pennant.ts';
+import { conditionedTeam, initialConditions } from './core/condition.ts';
+import { addGame, advanceConditions, emptyPennant, pairOthers, seasonOver, standings, type GameResult, type Pennant } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
 import { parseTeams, teamStyle, type TeamData } from './core/teams.ts';
@@ -21,6 +22,9 @@ import { loadSettings, saveSettings, type Settings } from './ui/settings.ts';
 import { SubstitutionPanel } from './ui/substitution.ts';
 
 const teams = parseTeams(raw);
+
+/** 調子がまだなければ（開幕前・以前の保存データ）、開幕時の調子を決める。 */
+const withConditions = (p: Pennant): Pennant => (Object.keys(p.condition).length ? p : { ...p, condition: initialConditions(teams) });
 const MODES: MatchMode[] = ['manual', 'manager', 'auto'];
 const SPEEDS = [1, 2, 4];
 const FIELDING_OPTIONS = [
@@ -62,7 +66,7 @@ class App {
   /** いまのプレーで攻撃しているチーム（そのファンが沸く）。 */
   private heardTeam: TeamIndex = 0;
   /** ペナントレースの経過。試合が終わるたびに、他球場の試合も行って足して保存する。 */
-  private pennant = loadPennant();
+  private pennant = withConditions(loadPennant());
   private readonly hud = new Hud();
   private readonly ui = document.getElementById('ui')!;
   private readonly menuEl = document.createElement('div');
@@ -287,12 +291,17 @@ class App {
     this.helpEl.style.display = open ? '' : 'none';
   }
 
+  /** 選手の今日の調子を反映した球団。 */
+  private today(t: TeamData): TeamData {
+    return conditionedTeam(t, this.pennant.condition);
+  }
+
   /** 選手・打順の画面に出すチーム。試合中は先攻・後攻、試合前はあなたのチーム・相手・ほかの球団の順。 */
   private rosterTeams(): TeamData[] {
     if (this.match) return this.match.state.teams.map((t) => t.team);
     const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
     const other = this.opponent();
-    return [mine, other, ...teams.filter((t) => t !== mine && t !== other)];
+    return [mine, other, ...teams.filter((t) => t !== mine && t !== other)].map((t) => this.today(t));
   }
 
   private showRoster(open: boolean) {
@@ -375,9 +384,10 @@ class App {
       this.renderPennant();
       return;
     }
-    this.pennant = emptyPennant();
+    this.pennant = withConditions(emptyPennant());
     savePennant(this.pennant);
     this.hud.season = this.pennant.batting;
+    this.hud.seasonPitching = this.pennant.pitching;
     this.resetArmed = false;
     this.renderPennant();
   }
@@ -407,13 +417,16 @@ class App {
     const result = (g: typeof s): GameResult => ({ away: g.teams[0].team.id, home: g.teams[1].team.id, awayRuns: score(g, 0), homeRuns: score(g, 1) });
     let p = addGame(this.pennant, s);
     const round = [result(s)];
+    const games = [s];
     for (const [away, home] of pairOthers(this.pennant, teams, [round[0].away, round[0].home])) {
-      const other = new Match({ away, home, innings: s.innings, mode: 'auto', difficulty: 'normal' });
+      const other = new Match({ away: this.today(away), home: this.today(home), innings: s.innings, mode: 'auto', difficulty: 'normal' });
       other.skipToEnd();
       p = addGame(p, other.state);
       round.push(result(other.state));
+      games.push(other.state);
     }
-    this.pennant = { ...p, lastRound: round };
+    // 1日が終わったら、その日の出来も踏まえて全選手の調子が変わる。
+    this.pennant = advanceConditions({ ...p, lastRound: round }, teams, games);
     savePennant(this.pennant);
     return true;
   }
@@ -446,11 +459,12 @@ class App {
   start(overrides: Partial<Settings> & { seed?: number } = {}) {
     const st = { ...this.settings, ...overrides };
     const humanTeam = st.side === 'home' ? 1 : 0;
-    const [away, home] = this.matchup(st);
+    const [away, home] = this.matchup(st).map((t) => this.today(t));
     this.match = new Match({ away, home, innings: st.innings, mode: st.mode, fielding: st.fielding, batting: st.batting, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
     this.heardPlay = null;
     this.heardEvents = 0;
     this.hud.season = this.pennant.batting;
+    this.hud.seasonPitching = this.pennant.pitching;
     this.view.attach(this.match);
     this.speed = 1;
     this.overTime = 0;

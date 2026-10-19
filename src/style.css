@@ -891,3 +891,25 @@ button {
 .pennant-summary .others span {
   margin-right: 12px;
 }
+
+/* ---- 調子 ---- */
+.condition {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.6;
+  vertical-align: middle;
+  white-space: nowrap;
+  color: #fff;
+}
+.roster-table .condition {
+  margin-left: 0;
+}
+.c-best { background: #e5383b; }
+.c-good { background: #ff7a1a; }
+.c-normal { background: #8a93a6; }
+.c-bad { background: #2a8bd6; }
+.c-worst { background: #3a3f8f; }

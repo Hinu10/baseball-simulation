@@ -6,7 +6,7 @@ import type { Substitution } from '../core/rules.ts';
 import type { Batter, Pitcher } from '../core/teams.ts';
 import { POSITION_LABEL } from '../core/types.ts';
 import type { InputFrame } from '../input/actions.ts';
-import { rank } from './roster.ts';
+import { conditionBadge, rank } from './roster.ts';
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 const stat = (label: string, v: number) => `<span class="sub-stat r-${rank(v)}">${label}<b>${rank(v)}</b></span>`;
@@ -166,9 +166,9 @@ export class SubstitutionPanel {
 }
 
 function batterStats(b: Batter) {
-  return `<span class="sub-stats">${stat('ミ', b.meet)}${stat('パ', b.power)}${stat('走', b.speed)}${stat('肩', b.arm)}${stat('守', b.fielding)}</span>`;
+  return `<span class="sub-stats">${conditionBadge(b.condition)}${stat('ミ', b.meet)}${stat('パ', b.power)}${stat('走', b.speed)}${stat('肩', b.arm)}${stat('守', b.fielding)}</span>`;
 }
 
 function pitcherStats(p: Pitcher) {
-  return `<span class="sub-stats"><span class="sub-stat">${p.velocity}km/h</span>${stat('制', p.control)}${stat('ス', p.stamina)}${stat('変', p.breaking)}</span>`;
+  return `<span class="sub-stats">${conditionBadge(p.condition)}<span class="sub-stat">${p.velocity}km/h</span>${stat('制', p.control)}${stat('ス', p.stamina)}${stat('変', p.breaking)}</span>`;
 }
