@@ -357,7 +357,7 @@ class App {
     const tabs = list
       .map((t, i) => `<button class="${i === this.rosterIndex ? 'selected' : ''}" data-i="${i}" style="${teamStyle(t.colors)}">${t.shortName}${t === you ? '<small>あなた</small>' : ''}</button>`)
       .join('');
-    this.rosterEl.innerHTML = `<div class="panel help-card roster-card"><h2>選手・打順</h2><div class="roster-tabs">${tabs}</div>${rosterHtml(team, live)}<p class="note">${RANK_NOTE}　A/D でチーム切り替え</p><button class="close">とじる（Esc）</button></div>`;
+    this.rosterEl.innerHTML = `<div class="panel help-card roster-card"><h2>選手・打順</h2><div class="roster-tabs">${tabs}</div>${rosterHtml(team, live, this.pennant)}<p class="note">${RANK_NOTE}　成績はペナントの通算（今日の試合は終わってから加わる）　A/D でチーム切り替え</p><button class="close">とじる（Esc）</button></div>`;
     this.rosterEl.querySelectorAll<HTMLButtonElement>('.roster-tabs button').forEach((b) =>
       b.addEventListener('click', () => {
         this.rosterIndex = Number(b.dataset.i);

@@ -340,17 +340,17 @@ test('投手交代：球数は 0 から、降板した投手は再登板でき�
   assert.throws(() => substitute(s, 1, { kind: 'pitcher', playerId: starter.id }));
 });
 
-test('打席ごとに打数・安打・本塁打・打点を記録する（四球・犠飛は打数に数えない）', () => {
+test('打席ごとに打数・安打・本塁打・打点・四球・三振を記録する（四球・犠飛は打数に数えない）', () => {
   const s = newGame();
   const lineOf = (id: string) => s.batting[id];
   const first = currentBatter(s).id;
   strikeout(s);
-  assert.deepEqual(lineOf(first), { pa: 1, ab: 1, h: 0, hr: 0, rbi: 0 });
+  assert.deepEqual(lineOf(first), { pa: 1, ab: 1, h: 0, hr: 0, rbi: 0, bb: 0, so: 1, sb: 0, g: 0 });
 
   walk(s);
   const third = currentBatter(s).id;
   hit(s, 4); // 2点本塁打
-  assert.deepEqual(lineOf(third), { pa: 1, ab: 1, h: 1, hr: 1, rbi: 2 });
+  assert.deepEqual(lineOf(third), { pa: 1, ab: 1, h: 1, hr: 1, rbi: 2, bb: 0, so: 0, sb: 0, g: 0 });
 
   // 満塁で押し出し：打点1、打数0。
   walk(s);
@@ -358,13 +358,13 @@ test('打席ごとに打数・安打・本塁打・打点を記録する（四�
   walk(s);
   const loaded = currentBatter(s).id;
   walk(s);
-  assert.deepEqual(lineOf(loaded), { pa: 1, ab: 0, h: 0, hr: 0, rbi: 1 });
+  assert.deepEqual(lineOf(loaded), { pa: 1, ab: 0, h: 0, hr: 0, rbi: 1, bb: 1, so: 0, sb: 0, g: 0 });
 
   // 犠飛：三塁走者が生還、打者はフライでアウト。
   const fly = currentBatter(s).id;
   const runner = s.bases[3]!;
   applyPlay(s, { outs: [{ playerId: fly, kind: 'fly', time: 1 }], runs: [{ playerId: runner, time: 3 }], bases: [null, s.bases[1], s.bases[2], null], hit: 0, text: 'センターフライ' });
-  assert.deepEqual(lineOf(fly), { pa: 1, ab: 0, h: 0, hr: 0, rbi: 1 });
+  assert.deepEqual(lineOf(fly), { pa: 1, ab: 0, h: 0, hr: 0, rbi: 1, bb: 0, so: 0, sb: 0, g: 0 });
 });
 
 test('投手成績：アウト・奪三振・与四球・被安打・失点を記録し、試合終了で勝敗をつける', () => {
@@ -375,7 +375,7 @@ test('投手成績：アウト・奪三振・与四球・被安打・失点を�
   walk(s);
   hit(s, 4);
   threeOuts(s);
-  assert.deepEqual(s.pitching[homeStarter], { outs: 3, r: 2, h: 1, so: 3, bb: 1, w: 0, l: 0 });
+  assert.deepEqual(s.pitching[homeStarter], { outs: 3, r: 2, h: 1, so: 3, bb: 1, w: 0, l: 0, g: 0 });
   // 1回裏：後攻が3点本塁打で逆転し、そのまま逃げ切る。
   const awayStarter = s.teams[0].pitcher.id;
   walk(s);

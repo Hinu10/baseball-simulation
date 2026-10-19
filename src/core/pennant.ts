@@ -78,8 +78,9 @@ export function addGame(p: Pennant, s: GameState): Pennant {
   });
   const key = pairKey(away, home);
   next.meetings[key] = (next.meetings[key] ?? 0) + 1;
-  for (const [id, line] of Object.entries(s.batting)) next.batting[id] = addLines(next.batting[id] ?? emptyLine(), line);
-  for (const [id, line] of Object.entries(s.pitching)) next.pitching[id] = addPitchingLines(next.pitching[id] ?? emptyPitchingLine(), line);
+  // 打席に立つか盗塁した野手、マウンドに上がった投手は、その試合に出場したと数える。
+  for (const [id, line] of Object.entries(s.batting)) next.batting[id] = addLines(next.batting[id] ?? emptyLine(), { ...line, g: 1 });
+  for (const [id, line] of Object.entries(s.pitching)) next.pitching[id] = addPitchingLines(next.pitching[id] ?? emptyPitchingLine(), { ...line, g: 1 });
   return next;
 }
 
