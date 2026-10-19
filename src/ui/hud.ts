@@ -6,6 +6,7 @@ import type { Match } from '../core/match.ts';
 import { fatigue, PITCHES } from '../core/pitching.ts';
 import { POSITION_LABEL } from '../core/types.ts';
 import type { MatchView } from '../render/view.ts';
+import { conditionBadge } from './roster.ts';
 import { formatAverage, type SeasonStats } from './season.ts';
 
 export const MODE_LABEL = { manual: '手動', manager: '監督', auto: '自動' } as const;
@@ -118,7 +119,7 @@ export class Hud {
     this.html(
       'batter',
       `<div class="role" style="--team:${bt.team.colors.primary}">${bt.battingIndex + 1}番 ${POSITION_LABEL[currentBatterPosition(s)]}　${batter.bats === 'R' ? '右打' : '左打'}</div>
-       <div class="name">${esc(batter.name)}</div>
+       <div class="name">${esc(batter.name)}${conditionBadge(batter.condition)}</div>
        ${this.seasonLine(s, batter.id)}
        <div class="stats"><span>ミート</span>${bar(batter.meet)}<span>パワー</span>${bar(batter.power, 'pow')}<span>走力</span>${bar(batter.speed, 'spd')}</div>`
     );
@@ -126,7 +127,7 @@ export class Hud {
     this.html(
       'pitcher',
       `<div class="role" style="--team:${ft.team.colors.primary}">投手　${pitcher.throws === 'R' ? '右投' : '左投'}</div>
-       <div class="name">${esc(pitcher.name)}</div>
+       <div class="name">${esc(pitcher.name)}${conditionBadge(pitcher.condition)}</div>
        <div class="stats"><span>球数</span><em>${ft.pitchCount}</em><span>スタミナ</span>${bar(stamina, stamina < 40 ? 'low' : 'sta')}<span>最速</span><em>${pitcher.velocity}km/h</em></div>`
     );
 

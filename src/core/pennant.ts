@@ -2,6 +2,7 @@
 // 保存は ui/season.ts。ここは計算だけ。
 
 import { addLines, addPitchingLines, battingAverage, earnedRunAverage, emptyLine, emptyPitchingLine, score, type BattingLine, type GameState, type PitchingLine } from './gameState.ts';
+import { nextConditions, type Conditions } from './condition.ts';
 import type { TeamData } from './teams.ts';
 
 /** 1シーズンの試合数（各球団）。 */
@@ -34,9 +35,11 @@ export interface Pennant {
   meetings: Record<string, number>;
   /** 直近の節の結果。 */
   lastRound: GameResult[];
+  /** 選手の調子（選手 id ごと、-1〜1）。1節ごとに変わる。 */
+  condition: Conditions;
 }
 
-export const emptyPennant = (): Pennant => ({ teams: {}, batting: {}, pitching: {}, meetings: {}, lastRound: [] });
+export const emptyPennant = (): Pennant => ({ teams: {}, batting: {}, pitching: {}, meetings: {}, lastRound: [], condition: {} });
 export const emptyRecord = (): TeamRecord => ({ w: 0, l: 0, t: 0, rs: 0, ra: 0, innings: 0 });
 
 const pairKey = (a: string, b: string) => [a, b].sort().join('|');
@@ -56,7 +59,8 @@ export function addGame(p: Pennant, s: GameState): Pennant {
     batting: { ...p.batting },
     pitching: { ...p.pitching },
     meetings: { ...p.meetings },
-    lastRound: p.lastRound
+    lastRound: p.lastRound,
+    condition: p.condition
   };
   const [away, home] = s.teams.map((t) => t.team.id);
   const runs = [score(s, 0), score(s, 1)];
@@ -77,6 +81,13 @@ export function addGame(p: Pennant, s: GameState): Pennant {
   for (const [id, line] of Object.entries(s.batting)) next.batting[id] = addLines(next.batting[id] ?? emptyLine(), line);
   for (const [id, line] of Object.entries(s.pitching)) next.pitching[id] = addPitchingLines(next.pitching[id] ?? emptyPitchingLine(), line);
   return next;
+}
+
+/** 1節（1日）の試合を終えたあと、その日の成績も踏まえて全選手の調子を進める。 */
+export function advanceConditions(p: Pennant, teams: TeamData[], games: GameState[], random: () => number = Math.random): Pennant {
+  const batting = Object.assign({}, ...games.map((g) => g.batting));
+  const pitching = Object.assign({}, ...games.map((g) => g.pitching));
+  return { ...p, condition: nextConditions(p.condition, teams, batting, pitching, random) };
 }
 
 /**
