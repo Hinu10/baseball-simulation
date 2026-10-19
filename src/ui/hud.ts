@@ -1,13 +1,13 @@
 // 試合中の HUD（DOM）。Match の状態を読んで表示するだけ。
 import { STRATEGY_LABEL } from '../core/ai.ts';
 import { basePos } from '../core/field.ts';
-import { addLines, battingTeam, currentBatter, currentBatterPosition, currentPitcher, emptyLine, fieldingTeam, score, type GameState } from '../core/gameState.ts';
+import { addLines, addPitchingLines, battingTeam, currentBatter, currentBatterPosition, currentPitcher, emptyLine, emptyPitchingLine, fieldingTeam, score, type GameState } from '../core/gameState.ts';
 import type { Match } from '../core/match.ts';
 import { fatigue, PITCHES } from '../core/pitching.ts';
 import { POSITION_LABEL } from '../core/types.ts';
 import type { MatchView } from '../render/view.ts';
 import { conditionBadge } from './roster.ts';
-import { formatAverage, type SeasonStats } from './season.ts';
+import { formatAverage, formatEra, formatInnings, type SeasonPitching, type SeasonStats } from './season.ts';
 
 export const MODE_LABEL = { manual: '手動', manager: '監督', auto: '自動' } as const;
 
@@ -24,6 +24,8 @@ export class Hud {
   private bannerKey = '';
   /** これまでの試合の通算成績（この試合の分は含まない）。 */
   season: SeasonStats = {};
+  /** これまでの試合の投手成績（この試合の分は含まない）。 */
+  seasonPitching: SeasonPitching = {};
 
   constructor() {
     this.el = document.createElement('div');
@@ -67,6 +69,14 @@ export class Hud {
     const total = addLines(this.season[id] ?? emptyLine(), today);
     const todayText = today.pa ? `今日 ${today.ab}打数${today.h}安打${today.hr ? ` ${today.hr}本塁打` : ''}${today.rbi ? ` ${today.rbi}打点` : ''}` : '今日 初打席';
     return `<div class="season"><span>打率<b>${formatAverage(total)}</b></span><span>本塁打<b>${total.hr}</b></span><span>打点<b>${total.rbi}</b></span></div><div class="today">${todayText}</div>`;
+  }
+
+  /** 防御率・勝敗・奪三振（通算＋この試合）と、この試合の投球内容。 */
+  private pitchingLine(s: GameState, id: string): string {
+    const today = s.pitching[id] ?? emptyPitchingLine();
+    const total = addPitchingLines(this.seasonPitching[id] ?? emptyPitchingLine(), today);
+    const todayText = today.outs || today.h || today.bb || today.r ? `今日 ${formatInnings(today.outs)} ${today.h}安打 ${today.so}奪三振${today.bb ? ` ${today.bb}四球` : ''} ${today.r}失点` : '今日 初登板';
+    return `<div class="season"><span>防御率<b>${formatEra(total)}</b></span><span>勝敗<b>${total.w}-${total.l}</b></span><span>奪三振<b>${total.so}</b></span></div><div class="today">${todayText}</div>`;
   }
 
   private lines(s: GameState): string {
@@ -128,6 +138,7 @@ export class Hud {
       'pitcher',
       `<div class="role" style="--team:${ft.team.colors.primary}">投手　${pitcher.throws === 'R' ? '右投' : '左投'}</div>
        <div class="name">${esc(pitcher.name)}${conditionBadge(pitcher.condition)}</div>
+       ${this.pitchingLine(s, pitcher.id)}
        <div class="stats"><span>球数</span><em>${ft.pitchCount}</em><span>スタミナ</span>${bar(stamina, stamina < 40 ? 'low' : 'sta')}<span>最速</span><em>${pitcher.velocity}km/h</em></div>`
     );
 

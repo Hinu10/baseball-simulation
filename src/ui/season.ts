@@ -1,9 +1,10 @@
 // ペナントレースの経過（順位・通算成績）を端末に保存する。計算は core/pennant.ts。
-import type { BattingLine } from '../core/gameState.ts';
+import { earnedRunAverage, type BattingLine, type PitchingLine } from '../core/gameState.ts';
 import { emptyPennant, type Pennant } from '../core/pennant.ts';
 
 const KEY = 'baseball-simulation.pennant';
 export type SeasonStats = Record<string, BattingLine>;
+export type SeasonPitching = Record<string, PitchingLine>;
 
 export function loadPennant(): Pennant {
   try {
@@ -27,4 +28,17 @@ export function savePennant(p: Pennant) {
 export function formatAverage(l: BattingLine): string {
   if (!l.ab) return '-.---';
   return (l.h / l.ab).toFixed(3).replace(/^0/, '');
+}
+
+/** 防御率の表記（3.25）。投球回 0 は「-.--」。 */
+export function formatEra(l: PitchingLine): string {
+  const era = earnedRunAverage(l);
+  return era === null ? '-.--' : era.toFixed(2);
+}
+
+/** 投球回の表記（5回1/3）。 */
+export function formatInnings(outs: number): string {
+  const whole = Math.floor(outs / 3);
+  const rest = outs % 3;
+  return rest ? `${whole}回${rest}/3` : `${whole}回`;
 }

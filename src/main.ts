@@ -387,6 +387,7 @@ class App {
     this.pennant = withConditions(emptyPennant());
     savePennant(this.pennant);
     this.hud.season = this.pennant.batting;
+    this.hud.seasonPitching = this.pennant.pitching;
     this.resetArmed = false;
     this.renderPennant();
   }
@@ -463,6 +464,7 @@ class App {
     this.heardPlay = null;
     this.heardEvents = 0;
     this.hud.season = this.pennant.batting;
+    this.hud.seasonPitching = this.pennant.pitching;
     this.view.attach(this.match);
     this.speed = 1;
     this.overTime = 0;
