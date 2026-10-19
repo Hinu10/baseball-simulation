@@ -1,16 +1,22 @@
 // 試合中のガイド表示（3D）：ストライクゾーン、ミートカーソル、コースカーソル、操作選手のマーカー、落下点ガイド。
 import * as THREE from 'three';
-import { cursorSize } from '../core/batting.ts';
-import { currentBatter } from '../core/gameState.ts';
+import { BAT_HALF_LENGTH, BAT_SWEET_REACH, batterX, cursorSize } from '../core/batting.ts';
+import { currentBatter, currentPitcher } from '../core/gameState.ts';
 import type { Match } from '../core/match.ts';
 import { PlaySim } from '../core/play.ts';
-import { DEFAULT_ZONE } from '../core/pitching.ts';
+import { DEFAULT_ZONE, previewPath } from '../core/pitching.ts';
+import type { PitchType } from '../core/types.ts';
 import { mesh } from './materials.ts';
 
 const overlay = (color: string, opacity = 1) =>
   new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthTest: false, depthWrite: false, side: THREE.DoubleSide });
 
 const CURSOR_COLOR = { meet: '#ffe14d', power: '#ff4d4d', bunt: '#4dd9ff' };
+/** 投げる前に見せる軌道の色（球種ごと）。 */
+const PATH_COLOR: Record<PitchType, string> = { fastball: '#ffffff', curve: '#4dd9ff', slider: '#ffe14d', fork: '#ff7ad9' };
+const SWEET_COLOR = '#5dff8a';
+/** バットの目安の、芯の幅と全体の長さ（batSpot の値）。 */
+const BAT_GUIDE = { sweet: 0.35, end: 1.6 };
 
 function flatRing(inner: number, outer: number, color: string, opacity = 0.9): THREE.Mesh {
   const m = mesh(new THREE.RingGeometry(inner, outer, 40), overlay(color, opacity));
@@ -27,6 +33,9 @@ export class Overlays {
   private readonly meetFill: THREE.Mesh;
   private readonly aim: THREE.Group;
   private readonly crossing: THREE.Mesh;
+  private readonly bat = new THREE.Group();
+  private readonly path: THREE.Mesh;
+  private pathKey = '';
   private readonly controlled: THREE.Mesh;
   private readonly landing: THREE.Mesh;
   private readonly runnerRings: THREE.Mesh[];
@@ -82,6 +91,23 @@ export class Overlays {
     this.crossing.renderOrder = 7;
     this.group.add(this.crossing);
 
+    // バットの芯の目安（打者側）：ゾーンの下にバット、芯の幅を縦の帯で見せる。立ち位置で左右に動く。
+    const sweetW = BAT_GUIDE.sweet * 2 * BAT_HALF_LENGTH;
+    const batW = BAT_GUIDE.end * 2 * BAT_HALF_LENGTH;
+    const bandH = z.top - z.bottom + 0.3;
+    const band = mesh(new THREE.PlaneGeometry(sweetW, bandH), overlay(SWEET_COLOR, 0.13), 0, (z.bottom + z.top) / 2, 0);
+    const body = mesh(new THREE.PlaneGeometry(batW, 0.035), overlay('#c9a26b', 0.85), 0, z.bottom - 0.2, 0);
+    const sweet = mesh(new THREE.PlaneGeometry(sweetW, 0.05), overlay(SWEET_COLOR, 0.95), 0, z.bottom - 0.2, 0);
+    for (const m of [band, body, sweet]) m.renderOrder = 5;
+    sweet.renderOrder = 6;
+    this.bat.add(band, body, sweet);
+    this.group.add(this.bat);
+
+    // 投げる前の軌道の予告（投手側）。
+    this.path = mesh(new THREE.BufferGeometry(), overlay('#ffffff', 0.75));
+    this.path.renderOrder = 6;
+    this.group.add(this.path);
+
     this.controlled = flatRing(0.75, 1.0, '#ffe14d');
     this.landing = flatRing(0.4, 0.65, '#ff4d4d', 0.85);
     this.runnerRings = [0, 1, 2, 3].map(() => flatRing(0.7, 0.9, '#4dd9ff'));
@@ -108,10 +134,32 @@ export class Overlays {
       (this.meetFill.material as THREE.MeshBasicMaterial).opacity = m.swing ? 0.45 : 0.22;
     }
 
+    // バットの芯の目安（人が打つとき）。芯の位置は打者の立ち位置で決まる。
+    this.bat.visible = pitchPhase && humanBat && !m.buntStance;
+    if (this.bat.visible) {
+      const bats = currentBatter(m.state).bats;
+      const bx = batterX(bats, m.batterStance);
+      this.bat.position.x = bx + (bats === 'R' ? BAT_SWEET_REACH : -BAT_SWEET_REACH);
+    }
+
     // コースカーソル（人が投げるとき、投げるまで）。
     this.aim.visible = humanPitch && (m.phase === 'pre-pitch' || m.phase === 'windup');
     this.aim.position.set(m.aim.x, m.aim.y, 0);
     this.aim.rotation.z = time * 1.5;
+
+    // 軌道の予告：狙いどおりに投げたときの通り道を、球種の色で描く（実際の球は制球の誤差でずれる）。
+    this.path.visible = this.aim.visible;
+    if (this.path.visible) {
+      const pitcher = currentPitcher(m.state);
+      const key = `${pitcher.id}|${m.pitchType}|${m.aim.x.toFixed(3)}|${m.aim.y.toFixed(3)}|${m.pitcherShift.toFixed(3)}`;
+      if (key !== this.pathKey) {
+        this.pathKey = key;
+        const pts = previewPath(pitcher, { type: m.pitchType, target: m.aim, shift: m.pitcherShift }).map((p) => new THREE.Vector3(p.x, p.y, p.z));
+        this.path.geometry.dispose();
+        this.path.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.035, 6, false);
+        (this.path.material as THREE.MeshBasicMaterial).color.set(PATH_COLOR[m.pitchType]);
+      }
+    }
 
     this.crossing.visible = humanBat && m.difficulty === 'easy' && m.phase === 'pitch' && !!m.pitch;
     if (this.crossing.visible) this.crossing.position.set(m.pitch!.plate.x, m.pitch!.plate.y, 0);

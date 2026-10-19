@@ -121,6 +121,26 @@ function recordOut(s: GameState, n: number) {
   if (s.outs >= 3) endHalfInning(s);
 }
 
+/**
+ * 盗塁の結果を反映する。safe なら次の塁へ、アウトなら走者を消してアウトを1つ増やす（3アウトなら攻守交代）。
+ * 打席の結果ではないので、ログ（打席の記録）には残さない。
+ */
+export function applySteal(s: GameState, attempts: { from: 1 | 2; safe: boolean }[]) {
+  if (s.over) return;
+  for (const a of [...attempts].sort((x, y) => y.from - x.from)) {
+    const id = s.bases[a.from];
+    if (!id) continue;
+    s.bases[a.from] = null;
+    if (a.safe) {
+      s.bases[a.from + 1] = id;
+      continue;
+    }
+    pitcherLine(s).outs += 1;
+    recordOut(s, 1);
+    if (s.outs === 0) return;
+  }
+}
+
 /** 四球・死球：打者が一塁へ。押し出しで詰まった走者だけが進む。 */
 function forceAdvanceBatter(s: GameState): number {
   const b = s.bases;

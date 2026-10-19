@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { benchBatters, benchPitchers, createGameState, currentBatter, currentBatterPosition, score, type GameState } from './gameState.ts';
-import { applyPlay, pitchCall, substitute, substitutionError, type PlayResult } from './rules.ts';
+import { applyPlay, applySteal, pitchCall, substitute, substitutionError, type PlayResult } from './rules.ts';
 import { parseTeams } from './teams.ts';
 
 const [away, home] = parseTeams(raw);
@@ -387,4 +387,20 @@ test('投手成績：アウト・奪三振・与四球・被安打・失点を�
   assert.equal(s.pitching[homeStarter].w, 1);
   assert.equal(s.pitching[awayStarter].l, 1);
   assert.equal(s.pitching[awayStarter].r, 3);
+});
+
+test('盗塁：成功なら次の塁へ、失敗ならアウト。3つ目のアウトで攻守交代', () => {
+  const s = newGame();
+  walk(s);
+  applySteal(s, [{ from: 1, safe: true }]);
+  assert.deepEqual([s.bases[1], s.bases[2]], [null, away.lineup[0]]);
+  walk(s);
+  // ダブルスチールで先の走者だけアウト。
+  applySteal(s, [{ from: 2, safe: false }, { from: 1, safe: true }]);
+  assert.equal(s.outs, 1);
+  assert.equal(s.bases[2], away.lineup[1]);
+  strikeout(s);
+  applySteal(s, [{ from: 2, safe: false }]);
+  assert.equal(s.half, 'bottom');
+  assert.deepEqual(s.bases, [null, null, null, null]);
 });

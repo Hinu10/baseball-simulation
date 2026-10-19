@@ -54,6 +54,9 @@ export interface Batter {
   condition?: number;
 }
 
+export type PitcherRole = 'starter' | 'reliever' | 'closer';
+export const ROLE_LABEL: Record<PitcherRole, string> = { starter: '先発', reliever: '中継ぎ', closer: '抑え' };
+
 /** 投手。velocity は最高球速（km/h）、ほかは 0〜100。DH 制なので打席には立たない。 */
 export interface Pitcher {
   id: string;
@@ -68,6 +71,8 @@ export interface Pitcher {
   arm: number;
   fielding: number;
   speed: number;
+  /** 役割（先発・中継ぎ・抑え）。省略は先発。 */
+  role?: PitcherRole;
   /** 今日の調子（-1〜1）。調子を反映した選手だけが持つ（core/condition.ts）。 */
   condition?: number;
 }
@@ -131,6 +136,7 @@ export function parseTeams(raw: unknown): TeamData[] {
       for (const k of PITCHER_RATINGS) checkRating(name, p.name, k, p[k]);
       if (!Array.isArray(p.pitches) || !p.pitches.includes('fastball')) fail(name, `${p.name} はストレート（fastball）を投げられる必要があります`);
       for (const pt of p.pitches) if (!PITCH_TYPES.includes(pt)) fail(name, `${p.name} の球種 ${pt} が不正です`);
+      if (p.role !== undefined && !(p.role in ROLE_LABEL)) fail(name, `${p.name} の role は starter・reliever・closer のどれかです`);
     }
     if (!Array.isArray(t.lineup) || t.lineup.length !== 9) fail(name, '打順は9人です');
     if (new Set(t.lineup).size !== 9) fail(name, '打順に同じ選手が2回入っています');
@@ -148,4 +154,14 @@ export function lineupOf(team: TeamData): Batter[] {
 
 export function pitcherOf(team: TeamData, id: string): Pitcher {
   return team.pitchers.find((p) => p.id === id)!;
+}
+
+export const roleOf = (p: Pitcher): PitcherRole => p.role ?? 'starter';
+
+/** 先発ローテーション。startingPitcher から順に、n 試合目（0 から）の先発を返す。 */
+export function rotationStarter(team: TeamData, n: number): string {
+  const starters = team.pitchers.filter((p) => roleOf(p) === 'starter');
+  if (!starters.length) return team.startingPitcher;
+  const first = Math.max(0, starters.findIndex((p) => p.id === team.startingPitcher));
+  return starters[(first + n) % starters.length].id;
 }

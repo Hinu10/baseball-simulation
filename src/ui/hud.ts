@@ -11,6 +11,7 @@ import { formatAverage, formatEra, formatInnings, type SeasonPitching, type Seas
 
 export const MODE_LABEL = { manual: '手動', manager: '監督', auto: '自動' } as const;
 
+const CONTACT_LABEL = { sweet: '芯！', handle: '詰まった', tip: '先っぽ' } as const;
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 function bar(v: number, cls = '') {
@@ -144,7 +145,12 @@ export class Hud {
 
     // 投球の球種と球速。
     const p = m.pitch;
-    this.html('pitchInfo', p && (m.phase === 'pitch' || m.phase === 'result') ? `${Math.round(p.speedKmh)}<small>km/h</small> ${PITCHES[p.type].label}` : '');
+    // 打ったあとは、バットのどこに当たったかも出す。
+    const spot = m.lastContact && m.lastContact !== 'normal' ? `<small>　${CONTACT_LABEL[m.lastContact]}</small>` : '';
+    this.html(
+      'pitchInfo',
+      p && (m.phase === 'pitch' || m.phase === 'play' || m.phase === 'result') ? `${Math.round(p.speedKmh)}<small>km/h</small> ${PITCHES[p.type].label}${spot}` : ''
+    );
 
     // 人が投げる・打つときの選択。
     let select = '';
@@ -186,10 +192,13 @@ export class Hud {
       const sel = play.selectedRunner < 0 ? '全員' : play.runners[play.selectedRunner]?.name ?? '全員';
       g.push(`J 進塁`, `K 帰塁`, `L 走者切替（いま：${esc(sel)}）`);
     } else if (m.humanPitching && m.phase === 'pre-pitch') {
-      g.push('WASD コース', 'L 球種', 'J 投球');
+      g.push('WASD コース', 'Q/E プレートの位置', 'L 球種', 'J 投球');
     } else if (m.humanBatting && (m.phase === 'pre-pitch' || m.phase === 'windup' || m.phase === 'pitch')) {
       if (m.easyBatting) g.push('J スイング（タイミングだけ）', 'W＋J フライ', 'S＋J ゴロ', 'L ミート/強振', 'K バント');
       else g.push('WASD カーソル', 'J スイング', 'L ミート/強振', 'K バント');
+      if (m.phase !== 'pitch') g.push('Q/E 立ち位置（緑の帯がバットの芯）');
+      if (m.stealers.length) g.push(m.phase === 'pre-pitch' ? '盗塁のサイン中（R で取り消し）' : '盗塁！');
+      else if (m.phase !== 'pitch' && m.stealCandidates().length) g.push('R 盗塁');
     }
     if (m.mode === 'auto') g.push('F 早送り');
     if (m.timeoutRequested) g.push('タイム要求中（次の投球前に選手交代）');

@@ -45,7 +45,7 @@ const TAG_RADIUS = 1.2;
 const OUTFIELD = new Set<Position>(['LF', 'CF', 'RF']);
 const RUN_MARGIN: Record<RunningStrategy, number> = { aggressive: -0.1, normal: 0.35, careful: 0.8 };
 /** 塁上の走者のリード（塁間に対する割合、約3.3m）。 */
-const LEAD = 0.12;
+export const LEAD = 0.12;
 /** ベースカバーの候補（先頭から、打球を追っていない選手を選ぶ）。 */
 const COVER: Record<number, Position[]> = { 1: ['1B', 'P', '2B'], 2: ['SS', '2B', 'CF'], 3: ['3B', 'SS', 'LF'], 4: ['C', 'P'] };
 
@@ -122,6 +122,10 @@ export interface PlayInput {
   primary: boolean;
   secondary: boolean;
   switch: boolean;
+  /** 投手・打者の左右の立ち位置（Q が -1、E が +1）。省略は 0。 */
+  shift?: number;
+  /** 盗塁（攻撃側が投球前・投球動作中に押す）。 */
+  steal?: boolean;
 }
 export const NO_INPUT: PlayInput = { move: { x: 0, y: 0 }, primary: false, secondary: false, switch: false };
 
@@ -134,12 +138,26 @@ export interface PlayOptions {
   launch: number;
   bunt: boolean;
   running: RunningStrategy;
+  /** 盗塁・エンドランでスタートを切っていた走者（元の塁 → 打った瞬間の位置 u）。 */
+  stealing?: Partial<Record<1 | 2, number>>;
   humanDefense: boolean;
   humanOffense: boolean;
   rng: Rng;
 }
 
-const runnerSpeed = (speed: number) => 6.0 + 2.8 * (speed / 100);
+export const runnerSpeed = (speed: number) => 6.0 + 2.8 * (speed / 100);
+
+/**
+ * 盗塁の余裕（秒）。正ならセーフ。守備側の時間（投手のクイック＋捕手の送球）から、走者が塁に着くまでの時間を引く。
+ * jump はスタートの遅れ（秒）。三盗はリードが大きく、捕手の送球も短い。
+ */
+export function stealMargin(o: { speed: number; catcherArm: number; from: 1 | 2; breaking: boolean; jump: number }): number {
+  const lead = o.from === 2 ? LEAD * 1.6 : LEAD;
+  const run = (BASE_DISTANCE * (1 - lead)) / runnerSpeed(o.speed) + 0.25 + o.jump;
+  const delivery = 1.3 + (o.breaking ? 0.1 : 0);
+  const pop = 2.1 - 0.4 * (o.catcherArm / 100) - (o.from === 2 ? 0.15 : 0);
+  return delivery + pop - run;
+}
 const fielderSpeed = (speed: number) => 5.6 + 2.6 * (speed / 100);
 const throwSpeed = (arm: number) => 24 + 14 * (arm / 100);
 const ON_BASE = 0.02;
@@ -256,12 +274,13 @@ export class PlaySim {
       const id = o.state.bases[b];
       if (!id) continue;
       const data = o.state.teams.flatMap((t) => t.team.batters).find((x) => x.id === id)!;
+      const running = b < 3 ? o.stealing?.[b as 1 | 2] : undefined;
       this.runners.push({
         playerId: id,
         name: data.name,
         origin: b,
-        u: b + LEAD,
-        target: b + LEAD,
+        u: running ?? b + LEAD,
+        target: running !== undefined ? b + 1 : b + LEAD,
         speed: runnerSpeed(data.speed),
         state: 'active',
         startDelay: 0,
@@ -456,36 +475,58 @@ export class PlaySim {
     if (flyInAir && this.flyCatchable && this.outCount() < 2 && !r.isBatter) {
       // 捕られそうな飛球は塁で待ち、捕球後にタッチアップを考える（2アウトなら打った瞬間に走る）。
       // 落ちる打球だと読めたら、ふつうの打球と同じく走る。
-      r.target = r.origin;
+      r.target = r.origin + this.halfway(r);
       return;
     }
     if (forced !== null) {
       r.target = Math.max(r.target, forced);
       return;
     }
-    const margin = RUN_MARGIN[this.running];
+    // 2アウトなら走者がアウトになっても失うものが少ないので、積極的に走る。
+    const margin = RUN_MARGIN[this.running] - (this.outCount() >= 2 && !r.isBatter ? 0.35 : 0);
+    const safety = (base: number) => this.ballEtaTo(base) - this.runnerEta(r, base);
     if (Math.abs(r.u - r.target) < ON_BASE) {
       // 止まっている（塁上かリードの位置）：次の塁へ行けるなら行き、行けないならリードから塁へ戻る。
       const last = Math.floor(r.u + ON_BASE);
       const next = last + 1;
-      if (next <= 4 && !this.baseTaken(r, next) && this.ballEtaTo(next) - this.runnerEta(r, next) > margin) r.target = next;
+      if (next <= 4 && !this.baseTaken(r, next) && safety(next) > margin) r.target = next;
       else if (!this.onBase(r)) r.target = Math.max(last, r.isBatter ? 1 : r.origin);
       return;
     }
     if (r.target > r.u && r.target < 4 && r.target - r.u < 0.3 && Number.isInteger(r.target)) {
       // 塁の手前（約8m）で、止まらずに次の塁を狙うか決める。
       const next = r.target + 1;
-      if (!this.baseTaken(r, next) && this.ballEtaTo(next) - this.runnerEta(r, next) > margin + 0.2) {
+      if (!this.baseTaken(r, next) && safety(next) > margin + 0.2) {
         r.target = next;
         return;
       }
     }
     if (r.target > r.u) {
-      // 次の塁が間に合わないなら、半分より手前なら戻る。
       const back = Math.floor(r.u + 1e-9);
-      const progress = r.u - back;
-      if (back >= Math.max(1, r.origin) && progress < 0.5 && this.ballEtaTo(r.target) < this.runnerEta(r, r.target) - 0.15) r.target = back;
+      if (back < Math.max(1, r.origin)) return;
+      // 先の走者が戻ってきて、向かっている塁がふさがったら引き返す。
+      if (this.baseTaken(r, Math.round(r.target))) {
+        r.target = back;
+        return;
+      }
+      // 次の塁が間に合わないなら、戻る塁のほうが余裕をもって着けるときだけ引き返す（挟まれたら近いほうへ）。
+      const ahead = safety(r.target);
+      if (ahead < -0.15 && safety(back) > ahead + 0.3) r.target = back;
     }
+  }
+
+  /**
+   * 捕られるかもしれない飛球での、一塁走者のハーフウェイ（塁間に対する割合）。
+   * 捕られても戻れる所まで出ておき、落ちたらすぐ次の塁へ向かう。二・三塁の走者はタッチアップに備えて塁で待つ。
+   */
+  private halfway(r: PlayRunner): number {
+    if (r.origin !== 1 || this.forcedTo(r) === null) return 0;
+    const land = this.path.landing;
+    if (!land || Math.hypot(land.pos.x, land.pos.z) < INFIELD_EDGE) return 0;
+    // 捕球までの時間＋外野から一塁への送球で戻れる距離。
+    const catcher = this.fielders.reduce((a, f) => (distXZ(f.pos, land.pos) < distXZ(a.pos, land.pos) ? f : a));
+    const spare = Math.max(0, this.pathStart + land.t - this.time) + throwTime(catcher, distXZ(land.pos, basePos(1))) - 0.5;
+    return clamp(((spare * r.speed) / BASE_DISTANCE) * 0.5, 0, 0.45);
   }
 
   private moveRunners(dt: number) {

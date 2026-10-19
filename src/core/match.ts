@@ -2,14 +2,15 @@
 // どのモードでも同じ流れを通り、違うのは「どちらのチームを人が操作するか」だけ。判定は rules.ts に任せる。
 
 import { choosePitch, DEFAULT_STRATEGY, DIFFICULTY_ERROR, planSwing, type Difficulty, type Strategy } from './ai.ts';
-import { EASY_TIMING_SCALE, evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingMode } from './batting.ts';
-import { battingTeam, benchPitchers, createGameState, currentBatter, currentPitcher, EXTRA_INNINGS, fieldingTeam, type GameState, type Innings, type MatchMode, type TeamIndex } from './gameState.ts';
+import { batContact, EASY_TIMING_SCALE, evaluateSwing, STANCE_RANGE, SWING_DURATION, timingWindow, type BatContact, type SwingCommand, type SwingMode } from './batting.ts';
+import { BASE_DISTANCE } from './field.ts';
+import { battingTeam, benchPitchers, createGameState, score, currentBatter, currentPitcher, EXTRA_INNINGS, fieldingTeam, type GameState, type Innings, type MatchMode, type TeamIndex } from './gameState.ts';
 import { clamp } from './math.ts';
-import { NO_INPUT, PlaySim, type PlayInput } from './play.ts';
-import { AIM_RANGE, createPitch, DEFAULT_ZONE, fatigue, isStrike, WINDUP_TIME, type Pitch, type PitchCommand, type PlatePoint } from './pitching.ts';
+import { LEAD, NO_INPUT, PlaySim, runnerSpeed, stealMargin, type PlayInput } from './play.ts';
+import { AIM_RANGE, createPitch, PITCH_TIME_SCALE, PITCHER_SHIFT_RANGE, DEFAULT_ZONE, fatigue, isStrike, WINDUP_TIME, type Pitch, type PitchCommand, type PlatePoint } from './pitching.ts';
 import { Rng } from './rng.ts';
-import { applyPlay, pitchCall, substitute, substitutionError, type PitchCall, type Substitution } from './rules.ts';
-import type { TeamData } from './teams.ts';
+import { applyPlay, applySteal, pitchCall, substitute, substitutionError, type PitchCall, type Substitution } from './rules.ts';
+import { roleOf, type Pitcher, type TeamData } from './teams.ts';
 import { POSITION_LABEL, type PitchType } from './types.ts';
 
 /** 手動モードの守備を人が操作するか、CPU に任せるか。 */
@@ -43,9 +44,13 @@ export interface MatchMessage {
 }
 
 const CURSOR_SPEED = 0.95;
+/** 立ち位置を動かす速さ（m/秒）。 */
+const SHIFT_SPEED = 0.6;
 const START = { x: 0, y: (DEFAULT_ZONE.bottom + DEFAULT_ZONE.top) / 2 };
 /** 判定の表示時間（秒）。自動モードでは短くする。 */
 const RESULT_TIME = { call: 0.9, play: 1.8 };
+/** 救援投手の力の目安（球速・制球・変化球）。 */
+const power = (p: Pitcher) => (p.velocity - 130) * 2 + p.control + p.breaking;
 /** CPU チームが投手を代える疲れ（fatigue）の目安。 */
 const CPU_RELIEF_FATIGUE = 0.85;
 
@@ -73,6 +78,15 @@ export class Match {
   batCursor: PlatePoint = { ...START };
   swingMode: SwingMode = 'meet';
   buntStance = false;
+  /** 投手のプレート上の位置と、打者の打席での立ち位置（m、一塁側が +）。投手・打者が代わるまで保つ。 */
+  pitcherShift = 0;
+  batterStance = 0;
+  /** 盗塁のスタート（投球動作に入ってからの秒、まだなら null）と、走る走者の元の塁。 */
+  stealStart: number | null = null;
+  stealers: (1 | 2)[] = [];
+  /** 直前の打球がバットのどこに当たったか（表示用）。 */
+  lastContact: BatContact | null = null;
+  private shiftOwner = { pitcher: '', batter: '' };
 
   /** 人のチームの方針（監督モード・自動モードで AI が使う）。CPU チームは通常。 */
   strategy: Strategy = { ...DEFAULT_STRATEGY };
@@ -180,8 +194,19 @@ export class Match {
     if (s.over || (team === this.humanTeam && s.mode !== 'auto') || s.balls || s.strikes) return;
     const t = s.teams[team];
     const bench = benchPitchers(t);
-    if (!bench.length || fatigue(t.pitcher, t.pitchCount) < CPU_RELIEF_FATIGUE) return;
-    const next = bench.reduce((a, b) => (b.stamina > a.stamina ? b : a));
+    if (!bench.length) return;
+    // 最終回に1〜3点リードしていれば、回の頭から抑えを出す。
+    const lead = score(s, team) - score(s, (1 - team) as TeamIndex);
+    const closer = bench.find((p) => roleOf(p) === 'closer');
+    if (closer && roleOf(t.pitcher) !== 'closer' && s.inning >= s.innings && lead >= 1 && lead <= 3 && s.outs === 0 && !s.bases.some((b) => b)) {
+      this.applySubstitution(team, { kind: 'pitcher', playerId: closer.id });
+      return;
+    }
+    if (fatigue(t.pitcher, t.pitchCount) < CPU_RELIEF_FATIGUE) return;
+    // 疲れたら中継ぎから、力のある投手を出す。中継ぎがいなければ抑え、最後に先発。
+    const pick = (role: string) => bench.filter((p) => roleOf(p) === role);
+    const pool = [pick('reliever'), pick('closer'), bench].find((x) => x.length)!;
+    const next = pool.reduce((a, b) => (power(b) > power(a) ? b : a));
     this.applySubstitution(team, { kind: 'pitcher', playerId: next.id });
   }
 
@@ -218,7 +243,7 @@ export class Match {
 
   /** 人のスイング。かんたん打撃では上下の入力で打球の狙いを決める。 */
   private humanSwing(time: number, input: PlayInput, bunt = false): SwingCommand {
-    const sw: SwingCommand = { mode: this.swingMode, cursor: this.batCursor, time, ...(bunt ? { bunt } : {}) };
+    const sw: SwingCommand = { mode: this.swingMode, cursor: this.batCursor, time, stance: this.batterStance, ...(bunt ? { bunt } : {}) };
     if (this.easyBatting) sw.easy = { lift: Math.abs(input.move.y) > 0.5 ? Math.sign(input.move.y) : 0 };
     return sw;
   }
@@ -252,7 +277,18 @@ export class Match {
     this.pitchType = 'fastball';
     this.batCursor = { ...START };
     this.buntStance = false;
+    this.lastContact = null;
+    this.stealStart = null;
+    this.stealers = [];
     if (!this.humanBatting) this.swingMode = 'meet';
+    // 投手・打者が代わったら、立ち位置を標準に戻す。
+    if (!this.state.over) {
+      const pid = currentPitcher(this.state).id;
+      const bid = currentBatter(this.state).id + ':' + this.state.log.length;
+      if (pid !== this.shiftOwner.pitcher) this.pitcherShift = 0;
+      if (bid !== this.shiftOwner.batter) this.batterStance = 0;
+      this.shiftOwner = { pitcher: pid, batter: bid };
+    }
     this.aiDelay = this.state.mode === 'auto' ? 0.45 : 1.0;
   }
 
@@ -292,8 +328,61 @@ export class Match {
   private updateBatterInput(dt: number, input: PlayInput) {
     if (!this.humanBatting || this.swing) return;
     if (!this.easyBatting) this.moveCursor(this.batCursor, input, dt);
+    this.batterStance = clamp(this.batterStance + (input.shift ?? 0) * SHIFT_SPEED * dt, -STANCE_RANGE, STANCE_RANGE);
     if (input.switch && this.phase !== 'pitch') this.swingMode = this.swingMode === 'meet' ? 'power' : 'meet';
     if (input.secondary) this.buntStance = !this.buntStance;
+    if (input.steal && this.phase !== 'pitch') this.orderSteal();
+  }
+
+  /** 盗塁できる走者（元の塁）。先の塁が空いているか、その塁の走者も走るとき。本盗はしない。 */
+  stealCandidates(): (1 | 2)[] {
+    const b = this.state.bases;
+    const out: (1 | 2)[] = [];
+    if (b[2] && !b[3]) out.push(2);
+    if (b[1] && (!b[2] || out.includes(2))) out.push(1);
+    return out;
+  }
+
+  /** 盗塁のサイン。投球前に出せば投球動作と同時に、投球動作中なら押した時点でスタートする。投球前ならもう一度で取り消し。 */
+  private orderSteal() {
+    if (this.stealers.length) {
+      if (this.phase === 'pre-pitch') this.stealers = [];
+      return;
+    }
+    this.stealers = this.stealCandidates();
+    this.stealStart = this.stealers.length && this.phase === 'windup' ? this.phaseTime : null;
+  }
+
+  /** 盗塁中の走者の位置（塁間の割合 u）。走っていなければ null。 */
+  stealPosition(from: 1 | 2): number | null {
+    if (!this.stealers.includes(from) || (this.phase !== 'windup' && this.phase !== 'pitch')) return null;
+    const start = this.stealStart ?? 0;
+    const t = (this.phase === 'windup' ? this.phaseTime : WINDUP_TIME + this.pitchTime) - start;
+    if (t < 0) return null;
+    const id = this.state.bases[from]!;
+    const speed = runnerSpeed(this.state.teams[battingTeam(this.state)].team.batters.find((b) => b.id === id)!.speed);
+    const lead = from === 2 ? LEAD * 1.6 : LEAD;
+    // 画面の投球はゆっくり進めているので、走者もそれに合わせて進める（打ったときの位置にも使う）。
+    return from + Math.min(0.92, lead + (t * PITCH_TIME_SCALE * speed) / BASE_DISTANCE);
+  }
+
+  /** 見送り・空振りで盗塁を判定する。捕手は先の走者に投げ、後ろの走者はセーフ。 */
+  private resolveSteal(): string {
+    const s = this.state;
+    const team = s.teams[fieldingTeam(s)];
+    const catcher = team.lineup[team.positions.indexOf('C')];
+    const lead = Math.max(...this.stealers) as 1 | 2;
+    const id = s.bases[lead]!;
+    const runner = s.teams[battingTeam(s)].team.batters.find((b) => b.id === id)!;
+    const jump = this.stealStart === null ? 0 : this.stealStart * 0.6;
+    const margin = stealMargin({ speed: runner.speed, catcherArm: catcher.arm, from: lead, breaking: this.pitch?.type !== 'fastball', jump }) + this.rng.gauss(0, 0.18);
+    const safe = margin > 0;
+    applySteal(
+      s,
+      this.stealers.map((from) => ({ from, safe: from !== lead || safe }))
+    );
+    const what = this.stealers.length > 1 ? 'ダブルスチール' : lead === 2 ? '三盗' : '二盗';
+    return safe ? `${what}成功！` : `${what}失敗（${runner.name}）`;
   }
 
   private updatePrePitch(dt: number, input: PlayInput) {
@@ -301,11 +390,12 @@ export class Match {
     const pitcher = currentPitcher(this.state);
     if (this.humanPitching) {
       this.moveCursor(this.aim, input, dt);
+      this.pitcherShift = clamp(this.pitcherShift + (input.shift ?? 0) * SHIFT_SPEED * dt, -PITCHER_SHIFT_RANGE, PITCHER_SHIFT_RANGE);
       if (input.switch) {
         const list = pitcher.pitches;
         this.pitchType = list[(list.indexOf(this.pitchType) + 1) % list.length];
       }
-      if (input.primary) this.startWindup({ type: this.pitchType, target: { ...this.aim } });
+      if (input.primary) this.startWindup({ type: this.pitchType, target: { ...this.aim }, shift: this.pitcherShift });
       return;
     }
     if (this.phaseTime >= this.aiDelay) {
@@ -313,7 +403,7 @@ export class Match {
       const cmd = choosePitch(pitcher, s, this.strategyOf(fieldingTeam(s)).pitching, this.rng);
       this.pitchType = cmd.type;
       this.aim = { ...cmd.target };
-      this.startWindup(cmd);
+      this.startWindup({ ...cmd, shift: this.pitcherShift });
     }
   }
 
@@ -347,6 +437,7 @@ export class Match {
         this.rng
       );
       if (this.swing) {
+        this.swing.stance = this.batterStance;
         this.swingMode = this.swing.mode;
         this.buntStance = !!this.swing.bunt;
         this.batCursor = { ...this.swing.cursor };
@@ -391,6 +482,7 @@ export class Match {
       return;
     }
     this.lastSwingMissed = false;
+    if (!sw.bunt) this.lastContact = batContact(out.spot);
     const bt = battingTeam(s);
     this.play = new PlaySim({
       state: s,
@@ -401,6 +493,7 @@ export class Match {
       launch: out.launch,
       bunt: !!sw.bunt,
       running: this.strategyOf(bt).running,
+      stealing: Object.fromEntries(this.stealers.map((b) => [b, this.stealPosition(b) ?? b + LEAD])),
       humanDefense: this.humanFielding,
       humanOffense: this.isHuman(bt),
       rng: this.rng
@@ -410,11 +503,16 @@ export class Match {
 
   private callPitch(call: PitchCall) {
     const s = this.state;
+    const half = `${s.inning}${s.half}`;
     const end = pitchCall(s, call);
     const text =
       end === 'strikeout' ? '三振！' : end === 'walk' ? 'フォアボール' : call === 'ball' ? 'ボール' : call === 'swinging-strike' ? '空振り' : 'ストライク';
     const runs = s.log.at(-1)?.runs ?? 0;
-    this.showResult({ text: end === 'walk' && runs ? '押し出し！' : text, kind: end === 'strikeout' ? 'out' : end === 'walk' ? 'hit' : 'call' }, RESULT_TIME.call);
+    // 盗塁：四球なら走者は押し出されるだけ、3アウトでチェンジなら判定しない。
+    const steal = this.stealers.length && end !== 'walk' && !s.over && `${s.inning}${s.half}` === half ? this.resolveSteal() : '';
+    const main = end === 'walk' && runs ? '押し出し！' : text;
+    const kind = end === 'strikeout' ? 'out' : end === 'walk' ? 'hit' : 'call';
+    this.showResult({ text: steal ? `${main}　${steal}` : main, kind: steal ? (steal.includes('成功') ? 'hit' : 'out') : kind }, steal ? RESULT_TIME.play : RESULT_TIME.call);
   }
 
   private updatePlay(dt: number, input: PlayInput) {

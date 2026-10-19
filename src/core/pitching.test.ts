@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { createPitch, DEFAULT_ZONE, fatigue, isStrike, missChance, pitchPosition, PITCHES } from './pitching.ts';
+import { createPitch, DEFAULT_ZONE, previewPath, fatigue, isStrike, missChance, pitchPosition, PITCHES } from './pitching.ts';
 import { Rng } from './rng.ts';
 import { parseTeams, type Pitcher } from './teams.ts';
 import { PITCH_TYPES } from './types.ts';
@@ -81,4 +81,19 @@ test('制球の乱れはたまに起こり、コントロールが低いほど�
   const poor = rate(30);
   assert.ok(good > 0.005 && good < 0.04, `コントロール90で ${good}`);
   assert.ok(poor > good && poor < 0.1, `コントロール30で ${poor}`);
+});
+
+test('軌道の予告は、プレートの位置からのリリースで始まり、狙ったコースに着く', () => {
+  const target = { x: 0.15, y: 0.7 };
+  const base = previewPath(ace, { type: 'slider', target });
+  const shifted = previewPath(ace, { type: 'slider', target, shift: 0.2 });
+  assert.ok(Math.abs(shifted[0].x - base[0].x - 0.2) < 1e-9);
+  for (const path of [base, shifted]) {
+    const end = path.at(-1)!;
+    assert.ok(Math.abs(end.x - target.x) < 1e-9 && Math.abs(end.y - target.y) < 1e-9 && Math.abs(end.z) < 1e-9);
+  }
+  // 変化球は途中で曲がるので、まっすぐの線からずれる。
+  const mid = base[16];
+  const straightX = base[0].x + (target.x - base[0].x) * 0.5;
+  assert.ok(Math.abs(mid.x - straightX) > 0.05);
 });

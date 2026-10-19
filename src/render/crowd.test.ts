@@ -18,7 +18,11 @@ test('観客はほとんどがユニフォーム姿で、席の場所でホー�
     assert.ok(home + visitor >= 0.9, `${name} は私服が多すぎる`);
   }
   assert.ok(fanShare(areas.rightField)[0] > 0.9);
-  assert.ok(fanShare(areas.leftPole)[1] > 0.8);
+  assert.ok(fanShare(areas.leftPole)[1] > 0.9);
+  // 外野の応援席には、相手チームのファンが混ざらない。
+  for (const seat of [areas.rightField, areas.leftPole, areas.leftCenter]) assert.ok(Math.min(...fanShare(seat)) === 0);
+  assert.equal(fanShare(areas.rightField)[1], 0);
+  assert.equal(fanShare(areas.leftCenter)[0], 0);
   assert.ok(fanShare(areas.firstBase)[0] > fanShare(areas.thirdBase)[0]);
   assert.ok(fanShare(areas.thirdBase)[1] > fanShare(areas.firstBase)[1]);
   // 全体ではホームのファンが多い。
