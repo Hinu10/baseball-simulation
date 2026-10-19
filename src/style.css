@@ -46,3 +46,513 @@ body {
   justify-content: center;
   pointer-events: auto;
 }
+
+/* ---- 共通 ---- */
+.panel {
+  background: var(--panel);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(20, 40, 80, 0.25);
+}
+.note {
+  font-size: 13px;
+  color: #556;
+}
+kbd {
+  display: inline-block;
+  min-width: 1.7em;
+  padding: 1px 6px;
+  margin: 0 2px;
+  border-radius: 6px;
+  background: #1d2433;
+  color: #fff;
+  font: bold 13px/1.5 inherit;
+  text-align: center;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---- メニュー ---- */
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+  min-width: min(440px, 86vw);
+}
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+}
+.menu-row.focused {
+  border-color: var(--accent);
+  background: #fff4ea;
+}
+.menu-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.menu-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.menu-options button {
+  border: 2px solid #c9d3e6;
+  background: #fff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 14px;
+}
+.menu-options button.selected {
+  background: #1b3a8c;
+  border-color: #1b3a8c;
+  color: #fff;
+}
+.menu-row.button {
+  padding: 0;
+}
+.menu-row.button button {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #e8eef9;
+  font-weight: 700;
+  font-size: 16px;
+}
+.menu-row.button.primary button {
+  background: linear-gradient(#ff9a3d, var(--accent-dark));
+  color: #fff;
+  font-size: 20px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* ---- タイトル ---- */
+.title-screen {
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.15), rgba(10, 40, 90, 0.35));
+}
+.title-card {
+  background: var(--panel);
+  border-radius: 22px;
+  padding: 26px 30px 22px;
+  box-shadow: 0 10px 30px rgba(0, 20, 60, 0.35);
+  text-align: center;
+  max-width: 92vw;
+}
+.logo {
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1;
+  color: #1b3a8c;
+  letter-spacing: 1px;
+  font-style: italic;
+}
+.logo span {
+  color: var(--accent);
+  font-size: 34px;
+}
+.sub {
+  margin-top: 8px;
+  color: #556;
+  font-weight: 700;
+}
+
+/* ---- HUD ---- */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.scorebox {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 8px 10px;
+}
+.scorebox .inning {
+  font-weight: 900;
+  font-size: 18px;
+  color: #1b3a8c;
+}
+.scorebox table {
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-top: 2px;
+}
+.scorebox th,
+.scorebox td,
+.result-lines th,
+.result-lines td {
+  padding: 1px 6px;
+  text-align: center;
+}
+.scorebox tr th:first-child,
+.result-lines tr th:first-child {
+  text-align: left;
+  border-left: 5px solid var(--team, transparent);
+  padding-left: 6px;
+}
+.scorebox td.now {
+  background: #ffe14d;
+  border-radius: 4px;
+}
+.scorebox tr.batting th:first-child::after {
+  content: ' ●';
+  color: var(--accent);
+  font-size: 10px;
+}
+.scorebox td.r,
+.result-lines td:nth-last-child(2) {
+  font-weight: 900;
+}
+.count-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.bso div {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+}
+.bso b {
+  width: 14px;
+}
+.bso i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #cfd6e2;
+  display: inline-block;
+}
+.bso i.g {
+  background: #1fa85a;
+}
+.bso i.y {
+  background: #f5c400;
+}
+.bso i.r {
+  background: #e5383b;
+}
+.diamond {
+  width: 52px;
+  height: 52px;
+}
+.diamond .base {
+  fill: #cfd6e2;
+  stroke: #8a95a8;
+}
+.diamond .base.on {
+  fill: var(--accent);
+  stroke: var(--accent-dark);
+}
+.diamond .home {
+  fill: #fff;
+  stroke: #8a95a8;
+}
+.mode {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 8px 12px;
+  text-align: right;
+  max-width: 46vw;
+}
+.mode-name {
+  font-weight: 900;
+  color: #1b3a8c;
+}
+.mode .ff {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 0 6px;
+}
+.mode .you {
+  font-size: 13px;
+}
+.mode .strat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+  font-size: 12px;
+  margin-top: 3px;
+}
+.mode .strat span {
+  background: #e8eef9;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+.mode .next {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #fff;
+  background: #1b3a8c;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.card {
+  position: absolute;
+  bottom: 44px;
+  width: min(250px, 42vw);
+  padding: 8px 12px;
+}
+.card.batter {
+  left: 12px;
+}
+.card.pitcher {
+  right: 12px;
+}
+.card .role {
+  font-size: 12px;
+  font-weight: 700;
+  border-left: 5px solid var(--team);
+  padding-left: 6px;
+}
+.card .name {
+  font-size: 18px;
+  font-weight: 900;
+}
+.card .stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.card em {
+  font-style: normal;
+  font-weight: 700;
+}
+.bar {
+  display: block;
+  height: 8px;
+  background: #e1e6ef;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar span {
+  display: block;
+  height: 100%;
+  background: #f5c400;
+}
+.bar.pow span {
+  background: #e5383b;
+}
+.bar.spd span {
+  background: #1fa85a;
+}
+.bar.sta span {
+  background: #2f80ed;
+}
+.bar.low span {
+  background: #e5383b;
+}
+.select {
+  position: absolute;
+  right: 12px;
+  bottom: 170px;
+  padding: 8px 10px;
+  min-width: 130px;
+}
+.select .title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #556;
+}
+.select .opt {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: #889;
+}
+.select .opt.on {
+  background: #1b3a8c;
+  color: #fff;
+}
+.select .opt.on.power {
+  background: #e5383b;
+}
+.select .opt.on.bunt {
+  background: #0aa3c2;
+}
+.pitch-info {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.pitch-info small {
+  font-size: 14px;
+}
+.banner {
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  opacity: 0;
+  font-size: clamp(28px, 6vw, 56px);
+  font-weight: 900;
+  color: #fff;
+  -webkit-text-stroke: 2px #1d2433;
+  text-shadow: 0 4px 0 #1d2433;
+  white-space: nowrap;
+  transition:
+    transform 0.15s,
+    opacity 0.15s;
+}
+.banner.show {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.banner.run,
+.banner.hit {
+  color: #ffe14d;
+}
+.banner.out {
+  color: #ff8a80;
+}
+.guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  font-size: 13px;
+  padding: 0 8px;
+}
+.guide span {
+  background: rgba(29, 36, 51, 0.78);
+  color: #fff;
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+.throw-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 900;
+  border-radius: 8px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- ポーズ・結果・説明 ---- */
+.pause-screen,
+.result-screen,
+.help-screen {
+  background: rgba(10, 30, 60, 0.45);
+}
+.pause-card,
+.result-card {
+  padding: 20px 24px;
+  max-width: 94vw;
+  max-height: 92vh;
+  overflow: auto;
+}
+.pause-card h2 {
+  margin: 0;
+}
+.result-card {
+  text-align: center;
+  min-width: min(520px, 92vw);
+}
+.result-head {
+  font-weight: 700;
+  color: #556;
+}
+.result-title {
+  font-size: 40px;
+  font-weight: 900;
+  color: var(--accent-dark);
+}
+.result-score {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 10px 0;
+  font-weight: 700;
+}
+.result-score span {
+  border-bottom: 5px solid var(--team);
+}
+.result-score b {
+  font-size: 40px;
+}
+.result-lines {
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+.result-log {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #445;
+}
+.help-card {
+  padding: 18px 22px;
+  max-width: min(940px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
+}
+.help-card h2 {
+  margin: 0 0 8px;
+}
+.help-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 6px 18px;
+}
+.help-grid h3 {
+  margin: 8px 0 4px;
+  color: #1b3a8c;
+}
+.help-grid p {
+  margin: 4px 0;
+}
+.help-card .close {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #1b3a8c;
+  color: #fff;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .card {
+    display: none;
+  }
+  .select {
+    bottom: 60px;
+  }
+  .logo {
+    font-size: 34px;
+  }
+}
+.throw-label.edge {
+  opacity: 0.8;
+  border: 2px dashed #fff;
+}

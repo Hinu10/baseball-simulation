@@ -10,6 +10,7 @@ import type { Position } from '../core/types.ts';
 import { FIELD_POSITIONS } from '../core/types.ts';
 import { CameraRig } from './cameraRig.ts';
 import { basic, mat, mesh } from './materials.ts';
+import { Overlays } from './overlays.ts';
 import { PlayerFigure, type PoseName } from './player.ts';
 import { buildStadium, Scoreboard } from './stadium.ts';
 
@@ -30,6 +31,8 @@ export class MatchView {
   /** core の座標系（+x が一塁側）。画面で一塁側が右に来るよう x を反転して表示する。 */
   readonly root = new THREE.Group();
   readonly scoreboard = new Scoreboard();
+  readonly overlays = new Overlays();
+  private time = 0;
 
   private readonly fielders: [Actor[], Actor[]];
   private readonly offense: [Actor[], Actor[]];
@@ -64,7 +67,7 @@ export class MatchView {
     this.ball = mesh(new THREE.SphereGeometry(0.14, 16, 12), mat('#ffffff', { emissive: '#666666' }));
     this.ballShadow = mesh(new THREE.CircleGeometry(0.16, 16), basic('#000000', 0.35));
     this.ballShadow.rotation.x = -Math.PI / 2;
-    this.root.add(this.ball, this.ballShadow);
+    this.root.add(this.ball, this.ballShadow, this.overlays.group);
     this.actor = actor;
   }
 
@@ -86,7 +89,8 @@ export class MatchView {
   resize(w: number, h: number) {
     this.camera.aspect = w / h;
     // 縦長の画面でも球場が入るよう、狭いときは画角を広げる。
-    this.camera.fov = w / h < 1.2 ? 62 : 48;
+    this.rig.baseFov = w / h < 1.2 ? 62 : 48;
+    this.camera.fov = this.rig.baseFov;
     this.camera.updateProjectionMatrix();
   }
 
@@ -102,9 +106,33 @@ export class MatchView {
     a.figure.pose({ name: pose, t, bats });
   }
 
+  /** メニュー表示中：球場の上をゆっくり回る。 */
+  idle(dt: number) {
+    this.time += dt;
+    this.match = null;
+    for (const a of [...this.fielders[0], ...this.fielders[1], ...this.offense[0], ...this.offense[1]]) this.place(a, HOME, 0, 'idle', 0, false);
+    this.ball.visible = false;
+    this.ballShadow.visible = false;
+    this.overlays.group.visible = false;
+    const a = this.time * 0.06;
+    this.camera.position.set(-Math.sin(a) * 70, 38, 45 - Math.cos(a) * 70);
+    this.camera.lookAt(0, 0, 45);
+    this.scoreboard.update(null);
+  }
+
+  /** core の座標を画面上の位置（CSS ピクセル）にする。カメラの後ろなら null。 */
+  project(p: Vec3, width: number, height: number): { x: number; y: number } | null {
+    const v = new THREE.Vector3(-p.x, p.y, p.z).project(this.camera);
+    if (v.z > 1) return null;
+    return { x: ((v.x + 1) / 2) * width, y: ((1 - v.y) / 2) * height };
+  }
+
   update(dt: number) {
     const m = this.match;
     if (!m) return;
+    this.time += dt;
+    this.overlays.group.visible = true;
+    this.overlays.update(m, this.time);
     const s = m.state;
     this.scoreboard.update(s);
     const def = fieldingTeam(s);
@@ -144,7 +172,8 @@ export class MatchView {
           const t = m.phase === 'windup' ? m.phaseTime : m.phase === 'pitch' ? WINDUP_TIME + m.pitchTime : 0;
           this.place(a, v3(p.x, 0.25, p.z), Math.PI, pitching ? 'pitch' : 'idle', t);
         } else if (pos === 'C') {
-          this.place(a, p, 0, 'crouch', m.clock);
+          // 人が投げる・打つときの近い視点では、ゾーンが隠れないよう捕手を描かない。
+          this.place(a, p, 0, 'crouch', m.clock, !(m.humanBatting || m.humanPitching));
         } else {
           this.place(a, p, facingTo(p, HOME), 'idle', m.clock);
         }
@@ -155,6 +184,8 @@ export class MatchView {
       const pose: PoseName = m.buntStance ? 'bunt' : swinging ? 'swing' : 'bat';
       const swingT = swinging && m.swing ? m.pitchTime - m.swing.time : 0;
       this.place(this.offense[off][0], box, batter.bats === 'R' ? Math.PI / 2 : -Math.PI / 2, pose, swingT, true, batter.bats);
+      // 近い視点では打者が画面をふさがないよう、少し小さく描く。
+      if (m.humanBatting || m.humanPitching) this.offense[off][0].figure.root.scale.setScalar(1.1);
       for (const b of [1, 2, 3] as const) {
         const a = this.offense[off][b];
         const id = s.bases[b];
@@ -187,6 +218,6 @@ export class MatchView {
     }
     const controlled = play && play.controlled >= 0 ? play.fielders[play.controlled].pos : null;
     const bats = s.teams[off].lineup[s.teams[off].battingIndex].bats;
-    this.rig.update(dt, { ball: ballPos, ballAirborne: ballAir, player: controlled, batterSide: bats });
+    this.rig.update(dt, { ball: ballPos, ballAirborne: ballAir, player: controlled, batterSide: bats, close: m.humanBatting || m.humanPitching });
   }
 }

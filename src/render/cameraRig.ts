@@ -15,6 +15,8 @@ export interface CameraFocus {
   player?: Vec3 | null;
   /** 打者の立つ側（右打者は三塁側）。カメラ A を少し打者側に寄せる。 */
   batterSide?: 'R' | 'L';
+  /** 人が投げる・打つとき：ゾーンとカーソルが大きく見えるよう、打者の後ろに近づく。 */
+  close?: boolean;
 }
 
 const toView = (x: number, y: number, z: number) => new THREE.Vector3(-x, y, z);
@@ -22,6 +24,8 @@ const DIAMOND_CENTER = { x: 0, y: 0, z: BASES[2].z / 2 };
 
 export class CameraRig {
   mode: CameraMode = 'A';
+  /** 画面の縦横比から決まる基本の画角。近い視点ではこれより絞る。 */
+  baseFov = 48;
   private readonly pos = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
   private initialized = false;
@@ -38,7 +42,11 @@ export class CameraRig {
 
   /** 仮想カメラ A：打者の後ろ斜め上。投手とストライクゾーンが入る。 */
   private shotA(f: CameraFocus): [THREE.Vector3, THREE.Vector3] {
-    // 高めに置き、捕手の頭越しに本塁上が見えるようにする。打者側へ少しだけ寄せる。
+    if (f.close) {
+      const side = f.batterSide === 'L' ? -0.35 : 0.35;
+      return [toView(side, 2.25, -4.9), toView(side * 0.3, 0.55, 8)];
+    }
+    // 観戦時は高めに置き、捕手の頭越しに本塁上が見えるようにする。打者側へ少しだけ寄せる。
     const x = f.batterSide === 'L' ? 0.5 : -0.5;
     return [toView(x, 8.6, -13), toView(0, 0.2, 12)];
   }
@@ -79,6 +87,11 @@ export class CameraRig {
     this.look.lerp(l, Math.min(1, k * 1.6));
     this.camera.position.copy(this.pos);
     this.camera.lookAt(this.look);
+    const fov = this.mode === 'A' && f.close ? this.baseFov * 0.75 : this.baseFov;
+    if (Math.abs(this.camera.fov - fov) > 0.01) {
+      this.camera.fov += (fov - this.camera.fov) * (dt > 0 ? k : 1);
+      this.camera.updateProjectionMatrix();
+    }
   }
 
   /** すぐにその視点へ（試合開始時など）。 */

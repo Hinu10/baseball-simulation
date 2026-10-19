@@ -1,7 +1,7 @@
 // 入力のアクションマップ。ゲーム側はキー名ではなくアクション名で入力を読む。
 // キーボードを優先し、Gamepad API（標準マッピング）でゲームパッドも同じアクションに割り当てる。
 
-export type Action = 'primary' | 'secondary' | 'switch' | 'pause' | 'mode' | 'fast';
+export type Action = 'primary' | 'secondary' | 'switch' | 'pause' | 'mode' | 'fast' | 'tactic1' | 'tactic2' | 'tactic3';
 
 /** アクションごとのキー（KeyboardEvent.code）。 */
 export const KEY_BINDINGS: Record<Action, string[]> = {
@@ -10,7 +10,10 @@ export const KEY_BINDINGS: Record<Action, string[]> = {
   switch: ['KeyL'],
   pause: ['Escape', 'KeyP'],
   mode: ['Tab'],
-  fast: ['KeyF']
+  fast: ['KeyF'],
+  tactic1: ['Digit1'],
+  tactic2: ['Digit2'],
+  tactic3: ['Digit3']
 };
 
 const MOVE_KEYS = {
@@ -27,7 +30,10 @@ const PAD_BUTTONS: Record<Action, number[]> = {
   switch: [2],
   pause: [9],
   mode: [8],
-  fast: [3]
+  fast: [3],
+  tactic1: [],
+  tactic2: [],
+  tactic3: []
 };
 const PAD_DPAD = { up: 12, down: 13, left: 14, right: 15 };
 const STICK_DEADZONE = 0.25;
