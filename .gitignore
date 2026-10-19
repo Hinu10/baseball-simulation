@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# Vite のキャッシュ・スモークテストの出力
+node_modules/.vite*
+test-results/
+.DS_Store
