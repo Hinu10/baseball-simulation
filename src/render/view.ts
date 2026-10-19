@@ -16,7 +16,7 @@ import { buildStadium, Scoreboard } from './stadium.ts';
 const SKY = '#8fd3ff';
 const facingTo = (from: Vec3, to: Vec3) => Math.atan2(to.x - from.x, to.z - from.z);
 const HOME = v3(0, 0, 0);
-const FIGURE_SCALE = 1.5;
+const FIGURE_SCALE = 1.4;
 
 interface Actor {
   figure: PlayerFigure;
@@ -90,7 +90,7 @@ export class MatchView {
     this.camera.updateProjectionMatrix();
   }
 
-  private place(a: Actor, p: Vec3, facing: number, pose: PoseName, t: number, visible = true) {
+  private place(a: Actor, p: Vec3, facing: number, pose: PoseName, t: number, visible = true, bats?: 'R' | 'L') {
     a.figure.root.visible = visible;
     a.shadow.visible = visible;
     if (!visible) return;
@@ -99,7 +99,7 @@ export class MatchView {
     a.figure.root.scale.setScalar(FIGURE_SCALE);
     a.figure.root.rotation.y = facing;
     a.shadow.position.set(p.x, 0.05, p.z);
-    a.figure.pose({ name: pose, t });
+    a.figure.pose({ name: pose, t, bats });
   }
 
   update(dt: number) {
@@ -154,7 +154,7 @@ export class MatchView {
       const swinging = m.phase === 'pitch' && m.swingStarted();
       const pose: PoseName = m.buntStance ? 'bunt' : swinging ? 'swing' : 'bat';
       const swingT = swinging && m.swing ? m.pitchTime - m.swing.time : 0;
-      this.place(this.offense[off][0], box, batter.bats === 'R' ? Math.PI / 2 : -Math.PI / 2, pose, swingT);
+      this.place(this.offense[off][0], box, batter.bats === 'R' ? Math.PI / 2 : -Math.PI / 2, pose, swingT, true, batter.bats);
       for (const b of [1, 2, 3] as const) {
         const a = this.offense[off][b];
         const id = s.bases[b];
@@ -186,6 +186,7 @@ export class MatchView {
       this.rig.setMode('A');
     }
     const controlled = play && play.controlled >= 0 ? play.fielders[play.controlled].pos : null;
-    this.rig.update(dt, { ball: ballPos, ballAirborne: ballAir, player: controlled });
+    const bats = s.teams[off].lineup[s.teams[off].battingIndex].bats;
+    this.rig.update(dt, { ball: ballPos, ballAirborne: ballAir, player: controlled, batterSide: bats });
   }
 }

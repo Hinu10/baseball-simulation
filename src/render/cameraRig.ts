@@ -13,6 +13,8 @@ export interface CameraFocus {
   ballAirborne: boolean;
   /** 人が操作している選手（俯瞰で画面に入れる）。 */
   player?: Vec3 | null;
+  /** 打者の立つ側（右打者は三塁側）。カメラ A を少し打者側に寄せる。 */
+  batterSide?: 'R' | 'L';
 }
 
 const toView = (x: number, y: number, z: number) => new THREE.Vector3(-x, y, z);
@@ -35,8 +37,10 @@ export class CameraRig {
   }
 
   /** 仮想カメラ A：打者の後ろ斜め上。投手とストライクゾーンが入る。 */
-  private shotA(): [THREE.Vector3, THREE.Vector3] {
-    return [toView(0, 6.2, -11.5), toView(0, 0.4, 11)];
+  private shotA(f: CameraFocus): [THREE.Vector3, THREE.Vector3] {
+    // 高めに置き、捕手の頭越しに本塁上が見えるようにする。打者側へ少しだけ寄せる。
+    const x = f.batterSide === 'L' ? 0.5 : -0.5;
+    return [toView(x, 8.6, -13), toView(0, 0.2, 12)];
   }
 
   /** 仮想カメラ B：打球の方向へ寄り、ボールを追う。フライは高く引き、ゴロは低く。 */
@@ -62,7 +66,7 @@ export class CameraRig {
   }
 
   update(dt: number, f: CameraFocus) {
-    const [p, l] = this.mode === 'A' ? this.shotA() : this.mode === 'B' ? this.shotB(f) : this.shotC(f);
+    const [p, l] = this.mode === 'A' ? this.shotA(f) : this.mode === 'B' ? this.shotB(f) : this.shotC(f);
     if (!this.initialized) {
       this.pos.copy(p);
       this.look.copy(l);
