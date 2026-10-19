@@ -29,7 +29,7 @@ class App {
   settings: Settings = loadSettings();
 
   private readonly renderer: THREE.WebGLRenderer;
-  private readonly view = new MatchView();
+  readonly view = new MatchView();
   private readonly input = new InputMap(window);
   private readonly hud = new Hud();
   private readonly ui = document.getElementById('ui')!;
@@ -260,5 +260,8 @@ const app = new App(document.getElementById('view') as HTMLCanvasElement);
   app,
   get match() {
     return app.match;
+  },
+  get camera() {
+    return app.view.rig.mode;
   }
 };

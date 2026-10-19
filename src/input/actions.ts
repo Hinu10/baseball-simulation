@@ -78,12 +78,14 @@ export class InputMap {
     const pressed = emptyRecord();
     const held = emptyRecord();
     const any = (codes: string[]) => codes.some((c) => this.down.has(c));
+    // 移動キーは、フレームの間に押して離した短い押下も 1 フレーム分の入力として数える。
+    const anyMove = (codes: string[]) => codes.some((c) => this.down.has(c) || this.tapped.has(c));
     for (const a of ACTIONS) {
       held[a] = any(KEY_BINDINGS[a]);
       pressed[a] = KEY_BINDINGS[a].some((c) => this.tapped.has(c));
     }
-    let x = (any(MOVE_KEYS.right) ? 1 : 0) - (any(MOVE_KEYS.left) ? 1 : 0);
-    let y = (any(MOVE_KEYS.up) ? 1 : 0) - (any(MOVE_KEYS.down) ? 1 : 0);
+    let x = (anyMove(MOVE_KEYS.right) ? 1 : 0) - (anyMove(MOVE_KEYS.left) ? 1 : 0);
+    let y = (anyMove(MOVE_KEYS.up) ? 1 : 0) - (anyMove(MOVE_KEYS.down) ? 1 : 0);
 
     const pad = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads().find((p) => p) : null;
     const padHeld = emptyRecord();
