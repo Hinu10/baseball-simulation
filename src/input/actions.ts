@@ -1,13 +1,14 @@
 // 入力のアクションマップ。ゲーム側はキー名ではなくアクション名で入力を読む。
 // キーボードを優先し、Gamepad API（標準マッピング）でゲームパッドも同じアクションに割り当てる。
 
-export type Action = 'primary' | 'secondary' | 'switch' | 'pause' | 'mode' | 'fast' | 'tactic1' | 'tactic2' | 'tactic3';
+export type Action = 'primary' | 'secondary' | 'switch' | 'steal' | 'pause' | 'mode' | 'fast' | 'tactic1' | 'tactic2' | 'tactic3';
 
 /** アクションごとのキー（KeyboardEvent.code）。 */
 export const KEY_BINDINGS: Record<Action, string[]> = {
   primary: ['KeyJ'],
   secondary: ['KeyK'],
   switch: ['KeyL'],
+  steal: ['KeyR'],
   pause: ['Escape', 'KeyP'],
   mode: ['Tab'],
   fast: ['KeyF'],
@@ -22,12 +23,17 @@ const MOVE_KEYS = {
   left: ['KeyA', 'ArrowLeft'],
   right: ['KeyD', 'ArrowRight']
 };
+/** 投手・打者の左右の立ち位置。 */
+const SHIFT_KEYS = { left: ['KeyQ'], right: ['KeyE'] };
+/** ゲームパッドの LB・RB。 */
+const PAD_SHIFT = { left: 4, right: 5 };
 
 /** ゲームパッドのボタン番号（標準マッピング）。 */
 const PAD_BUTTONS: Record<Action, number[]> = {
   primary: [0],
   secondary: [1],
   switch: [2],
+  steal: [3],
   pause: [9],
   mode: [8],
   fast: [3],
@@ -43,6 +49,8 @@ const ACTIONS = Object.keys(KEY_BINDINGS) as Action[];
 export interface InputFrame {
   /** 移動・カーソル。x は右が +、y は上（W）が +。長さは 1 以下。 */
   move: { x: number; y: number };
+  /** 立ち位置の左右。左（Q）が -1、右（E）が +1。 */
+  shift: number;
   /** このフレームで押されたアクション。 */
   pressed: Record<Action, boolean>;
   /** 押し続けているアクション。 */
@@ -71,7 +79,7 @@ export class InputMap {
   }
 
   private isBound(code: string): boolean {
-    return ACTIONS.some((a) => KEY_BINDINGS[a].includes(code)) || Object.values(MOVE_KEYS).some((k) => k.includes(code));
+    return ACTIONS.some((a) => KEY_BINDINGS[a].includes(code)) || [...Object.values(MOVE_KEYS), ...Object.values(SHIFT_KEYS)].some((k) => k.includes(code));
   }
 
   frame(): InputFrame {
@@ -86,6 +94,7 @@ export class InputMap {
     }
     let x = (anyMove(MOVE_KEYS.right) ? 1 : 0) - (anyMove(MOVE_KEYS.left) ? 1 : 0);
     let y = (anyMove(MOVE_KEYS.up) ? 1 : 0) - (anyMove(MOVE_KEYS.down) ? 1 : 0);
+    let shift = (anyMove(SHIFT_KEYS.right) ? 1 : 0) - (anyMove(SHIFT_KEYS.left) ? 1 : 0);
 
     const pad = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads().find((p) => p) : null;
     const padHeld = emptyRecord();
@@ -96,6 +105,7 @@ export class InputMap {
       const sy = pad.axes[1] ?? 0;
       x += Math.abs(sx) > STICK_DEADZONE ? sx : btn(PAD_DPAD.right) - btn(PAD_DPAD.left);
       y += Math.abs(sy) > STICK_DEADZONE ? -sy : btn(PAD_DPAD.up) - btn(PAD_DPAD.down);
+      shift = Math.max(-1, Math.min(1, shift + btn(PAD_SHIFT.right) - btn(PAD_SHIFT.left)));
       for (const a of ACTIONS) {
         held[a] ||= padHeld[a];
         pressed[a] ||= padHeld[a] && !this.padHeldBefore[a];
@@ -109,7 +119,7 @@ export class InputMap {
       x /= len;
       y /= len;
     }
-    if (!this.enabled) return { move: { x: 0, y: 0 }, pressed: emptyRecord(), held: emptyRecord() };
-    return { move: { x, y }, pressed, held };
+    if (!this.enabled) return { move: { x: 0, y: 0 }, shift: 0, pressed: emptyRecord(), held: emptyRecord() };
+    return { move: { x, y }, shift, pressed, held };
   }
 }

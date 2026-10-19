@@ -64,9 +64,14 @@ export const PITCH_TIME_SCALE = 0.55;
 /** 振りかぶってからリリースまで（秒）。 */
 export const WINDUP_TIME = 0.7;
 
+/** 投手がプレートの上で左右にずれられる幅（m、一塁側が +）。 */
+export const PITCHER_SHIFT_RANGE = 0.3;
+
 export interface PitchCommand {
   type: PitchType;
   target: PlatePoint;
+  /** プレートを踏む位置のずれ（m、一塁側が +）。リリースの位置が同じだけずれる。 */
+  shift?: number;
 }
 
 export interface Pitch {
@@ -115,22 +120,31 @@ export function createPitch(p: Pitcher, cmd: PitchCommand, tired: number, rng: R
     x: clamp(cmd.target.x + rng.gauss(0, sd) + Math.cos(angle) * off, -1.2, 1.2),
     y: clamp(cmd.target.y + rng.gauss(0, sd) + Math.sin(angle) * off, 0.05, 2.2)
   };
+  const shape = pitchShape(p, cmd);
+  const flightTime = (shape.release.z - PLATE_Z) / (speedKmh / 3.6) / PITCH_TIME_SCALE;
+  return { ...shape, speedKmh, plate, flightTime, missed };
+}
+
+/** 球速・誤差によらない球の形（リリースの位置と変化）。 */
+function pitchShape(p: Pitcher, cmd: PitchCommand) {
+  const info = PITCHES[cmd.type];
   const amount = 0.45 + 0.55 * (p.breaking / 100);
   const hand = p.throws === 'R' ? 1 : -1;
-  const release = v3(RELEASE_POINT.x * hand, RELEASE_POINT.y, RELEASE_POINT.z);
-  const flightTime = (release.z - PLATE_Z) / (speedKmh / 3.6) / PITCH_TIME_SCALE;
+  const shift = clamp(cmd.shift ?? 0, -PITCHER_SHIFT_RANGE, PITCHER_SHIFT_RANGE);
   return {
     type: cmd.type,
-    speedKmh,
-    release,
-    plate,
+    release: v3(RELEASE_POINT.x * hand + shift, RELEASE_POINT.y, RELEASE_POINT.z),
     target: { ...cmd.target },
     breakX: info.breakX * amount * hand,
     breakY: info.breakY * amount,
-    late: info.late,
-    flightTime,
-    missed
+    late: info.late
   };
+}
+
+/** 投げる前に見せる軌道。狙いどおりに投げたときの通り道（リリース → 狙ったコース）を点の列で返す。 */
+export function previewPath(p: Pitcher, cmd: PitchCommand, points = 32): Vec3[] {
+  const pitch: Pitch = { ...pitchShape(p, cmd), speedKmh: p.velocity, plate: { ...cmd.target }, flightTime: 1, missed: false };
+  return Array.from({ length: points + 1 }, (_, i) => pitchPosition(pitch, i / points));
 }
 
 /**

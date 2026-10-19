@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { createBall, predictPath } from './ballPhysics.ts';
-import { battedBallType, cursorSize, EASY_TIMING_SCALE, evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingOutcome } from './batting.ts';
+import { batContact, batSpot, battedBallType, cursorSize, EASY_TIMING_SCALE, evaluateSwing, SWING_DURATION, timingWindow, type SwingCommand, type SwingOutcome } from './batting.ts';
 import { isFair } from './field.ts';
 import { createPitch, type Pitch } from './pitching.ts';
 import { Rng } from './rng.ts';
@@ -125,4 +125,24 @@ test('かんたん打撃：W でフライ、S でゴロ。大きく外れた球�
   assert.ok(launch(-1) < launch(0) && launch(0) < launch(1));
   const wild = pitch(0.7, 0.8);
   assert.equal(evaluateSwing(slugger, wild, { ...swingAt(wild), easy: { lift: 0 } }, new Rng(1)).kind, 'miss');
+});
+
+test('立ち位置が標準なら本塁の真ん中が芯、内角は詰まり外角は先っぽ。離れて立つと内角が芯になる', () => {
+  assert.equal(batContact(batSpot('R', 0, 0)), 'sweet');
+  assert.equal(batContact(batSpot('R', 0, -0.35)), 'handle');
+  assert.equal(batContact(batSpot('R', 0, 0.35)), 'tip');
+  // 右打者は三塁側（-x）へ離れると、内角（-x）の球を芯で捉えられる。
+  assert.equal(batContact(batSpot('R', -0.25, -0.25)), 'sweet');
+  // 左打者は左右が逆になる。
+  assert.equal(batContact(batSpot('L', 0, 0.35)), 'handle');
+  assert.equal(batContact(batSpot('L', 0.25, 0.25)), 'sweet');
+});
+
+test('芯で捉えた打球は、根っこや先っぽに当たった打球より速い', () => {
+  const p = pitch(0.2);
+  const swing = (stance: number) => fairContact((rng) => evaluateSwing(slugger, p, { ...swingAt(p), stance }, rng));
+  const sweet = swing(0.2);
+  const jammed = swing(-0.25);
+  assert.ok(sweet.sweet);
+  assert.ok(sweet.exitSpeed > jammed.exitSpeed + 4, `sweet=${sweet.exitSpeed} jammed=${jammed.exitSpeed}`);
 });

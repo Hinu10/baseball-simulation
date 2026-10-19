@@ -14,6 +14,8 @@ export interface Pose {
   t: number;
   /** 打席の左右（左打者は動きを左右反転）。 */
   bats?: 'R' | 'L';
+  /** 投げる手（左投手は投球動作を左右反転）。 */
+  throws?: 'R' | 'L';
 }
 
 export interface TeamLook {
@@ -155,6 +157,7 @@ export class PlayerFigure {
     this.armR.rotation.z = 0.12;
     this.batYaw.visible = false;
     this.glove.visible = true;
+    this.armL.add(this.glove);
     this.batYaw.rotation.set(0, 0, 0);
     this.batTilt.rotation.set(0, 0, 0);
   }
@@ -226,42 +229,123 @@ export class PlayerFigure {
         break;
       }
       case 'pitch': {
-        // 振りかぶり（脚を上げる）→ 踏み出して腕をしならせる → リリース → フォロースルー。
+        // セット（胸の前で両手を合わせる）→ 脚を高く上げて体を閉じる → 踏み出して沈み込み、腕を後ろへ引いてトップを作る
+        // → 体を開きながら前へ倒れ込んでリリース → 腕を振り抜き、軸足が後ろから跳ね上がる → 守備の構えへ戻る。
+        // 左投手は左右を反転する（投げる腕・上げる脚・グラブの手が入れ替わる）。
         const w = WINDUP_TIME;
-        this.legL.rotation.x = keys(t, [
+        const hand = p.throws === 'L' ? -1 : 1;
+        const [arm, gloveArm] = hand === 1 ? [this.armR, this.armL] : [this.armL, this.armR];
+        const [lead, back] = hand === 1 ? [this.legL, this.legR] : [this.legR, this.legL];
+        gloveArm.add(this.glove);
+        lead.rotation.x = keys(t, [
           [0, 0],
-          [w * 0.45, -1.5],
-          [w * 0.85, -0.6],
-          [w, -0.5],
-          [w + 0.5, 0]
+          [w * 0.12, -0.15],
+          [w * 0.45, -1.7],
+          [w * 0.62, -1.3],
+          [w * 0.85, -0.75],
+          [w + 0.1, -0.55],
+          [w + 0.6, -0.15],
+          [w + 1.0, 0]
         ]);
-        this.armR.rotation.x = keys(t, [
-          [0, -0.6],
-          [w * 0.45, -0.4],
-          [w * 0.85, 2.6],
-          [w + 0.05, -1.5],
-          [w + 0.3, -0.7],
-          [w + 0.8, 0]
-        ]);
-        this.armL.rotation.x = keys(t, [
-          [0, -0.6],
-          [w * 0.45, -0.5],
-          [w * 0.85, -1.4],
-          [w + 0.1, 0.3],
-          [w + 0.8, 0]
-        ]);
-        this.upper.rotation.y = keys(t, [
+        lead.rotation.z = -hand * keys(t, [
           [0, 0],
-          [w * 0.5, 0.7],
-          [w, -0.4],
-          [w + 0.8, 0]
+          [w * 0.45, 0.25],
+          [w * 0.85, 0],
+          [w + 0.6, 0.12]
         ]);
+        back.rotation.x = keys(t, [
+          [0, 0],
+          [w * 0.45, 0.05],
+          [w * 0.85, 0.45],
+          [w, 0.7],
+          [w + 0.25, 1.25],
+          [w + 0.5, 0.1],
+          [w + 1.0, 0]
+        ]);
+        // 投げる腕：手を合わせた位置 → 下から後ろへ回す → 頭の後ろ（トップ）→ 前へ振り下ろす → 体の前で止める。
+        arm.rotation.x = keys(t, [
+          [0, -0.85],
+          [w * 0.45, -1.05],
+          [w * 0.6, 0.6],
+          [w * 0.85, 2.75],
+          [w, -1.45],
+          [w + 0.15, -0.6],
+          [w + 0.5, -0.3],
+          [w + 1.0, 0]
+        ]);
+        arm.rotation.z =
+          hand *
+          keys(t, [
+            [0, -0.35],
+            [w * 0.45, -0.3],
+            [w * 0.6, 0.5],
+            [w * 0.85, 0.65],
+            [w, 0.35],
+            [w + 0.2, -0.35],
+            [w + 0.8, 0.12]
+          ]);
+        // グラブの腕：本塁へ向けて伸ばし、リリースで胸に引きつける。
+        gloveArm.rotation.x = keys(t, [
+          [0, -0.85],
+          [w * 0.45, -1.05],
+          [w * 0.62, -1.2],
+          [w * 0.85, -1.55],
+          [w + 0.05, -0.4],
+          [w + 0.25, -0.9],
+          [w + 1.0, -0.15]
+        ]);
+        gloveArm.rotation.z = -hand * keys(t, [
+          [0, -0.35],
+          [w * 0.45, -0.3],
+          [w * 0.85, 0.1],
+          [w + 0.05, 0.4],
+          [w + 1.0, 0.12]
+        ]);
+        // 体：脚を上げるあいだは横向き（グラブ側を本塁へ）、リリースで正面を越えるまで開く。
+        this.body.rotation.y =
+          hand *
+          keys(t, [
+            [0, 0.15],
+            [w * 0.45, 1.15],
+            [w * 0.85, 0.8],
+            [w, -0.2],
+            [w + 0.3, -0.35],
+            [w + 1.0, 0]
+          ]);
+        this.upper.rotation.y =
+          hand *
+          keys(t, [
+            [0, 0],
+            [w * 0.6, 0.35],
+            [w * 0.85, 0.3],
+            [w + 0.05, -0.45],
+            [w + 1.0, 0]
+          ]);
         this.body.rotation.x = keys(t, [
           [0, 0],
-          [w * 0.5, -0.1],
-          [w + 0.05, 0.45],
-          [w + 0.8, 0]
+          [w * 0.45, -0.12],
+          [w * 0.85, 0.05],
+          [w + 0.05, 0.5],
+          [w + 0.3, 0.6],
+          [w + 1.0, 0.1]
         ]);
+        // 踏み出しで前へ出て、沈み込む。
+        this.body.position.z = keys(t, [
+          [0, 0],
+          [w * 0.45, -0.05],
+          [w * 0.85, 0.45],
+          [w + 0.3, 0.6],
+          [w + 1.0, 0.35]
+        ]);
+        this.body.position.y = keys(t, [
+          [0, 0],
+          [w * 0.45, 0.04],
+          [w * 0.85, -0.12],
+          [w + 0.2, -0.16],
+          [w + 1.0, -0.04]
+        ]);
+        // 頭は本塁を見続ける。
+        this.head.rotation.y = -this.body.rotation.y - this.upper.rotation.y;
         break;
       }
       case 'bat':

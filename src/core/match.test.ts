@@ -232,3 +232,28 @@ test('かんたん打撃：人が打つとき、カーソルを動かさずタ�
   }
   assert.ok(hits >= 4, `当たり ${hits} 回`);
 });
+
+test('盗塁のサインを出すと投球動作で走り出し、見送れば盗塁の判定がつく', () => {
+  let tried = 0;
+  for (let seed = 1; seed <= 30 && tried < 5; seed++) {
+    const m = new Match({ away, home, mode: 'manual', humanTeam: 0, fielding: 'auto', seed });
+    // 一塁に走者が出るまで、見送りを続ける。
+    until(m, () => m.phase === 'pre-pitch' && !!m.state.bases[1] && !m.state.bases[2] && m.humanBatting, NO_INPUT, 60 * 600);
+    if (!(m.phase === 'pre-pitch' && m.state.bases[1] && m.humanBatting)) continue;
+    const runner = m.state.bases[1];
+    const outs = m.state.outs;
+    m.tick(1 / 60, press({ steal: true }));
+    assert.deepEqual(m.stealers, [1]);
+    until(m, () => m.phase === 'pitch' && m.pitchTime > 0.1);
+    assert.ok((m.stealPosition(1) ?? 0) > 1.12, '走り出している');
+    until(m, () => m.phase !== 'pitch');
+    if ((m.phase as string) !== 'result' || m.play) continue;
+    if (m.state.bases[1] === runner) continue; // 四球で押し出された
+    tried++;
+    const text = m.message?.text ?? '';
+    assert.ok(/盗(成功|失敗)/.test(text.replace('二盗', '盗')), text);
+    if (text.includes('成功')) assert.equal(m.state.bases[2], runner);
+    else assert.ok(m.state.outs === outs + 1 || m.state.outs === 0);
+  }
+  assert.ok(tried > 0, '盗塁を試せた');
+});

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { createGameState, currentBatter, type GameState } from './gameState.ts';
 import { rad, v3 } from './math.ts';
-import { diveRange, NO_INPUT, PlaySim, wildThrowChance, type RunningStrategy } from './play.ts';
+import { diveRange, NO_INPUT, PlaySim, stealMargin, wildThrowChance, type RunningStrategy } from './play.ts';
 import { Rng } from './rng.ts';
 import { applyPlay } from './rules.ts';
 import { parseTeams } from './teams.ts';
@@ -191,4 +191,13 @@ test('CPU の守備選手も届きそうな打球にはダイビングし、守�
     }
   }
   assert.ok(caught >= 1 && caught <= 40, `82球中ダイビングキャッチが ${caught} 回`);
+});
+
+test('盗塁は足が速いほど、捕手の肩が弱いほど、スタートが良いほど決まりやすい', () => {
+  const base = { speed: 70, catcherArm: 60, from: 1 as const, breaking: false, jump: 0 };
+  assert.ok(stealMargin({ ...base, speed: 95 }) > 0, '俊足はセーフ');
+  assert.ok(stealMargin({ ...base, speed: 30 }) < 0, '鈍足はアウト');
+  assert.ok(stealMargin({ ...base, catcherArm: 30 }) > stealMargin({ ...base, catcherArm: 90 }));
+  assert.ok(stealMargin(base) > stealMargin({ ...base, jump: 0.3 }));
+  assert.ok(stealMargin({ ...base, breaking: true }) > stealMargin(base), '変化球は走りやすい');
 });

@@ -97,7 +97,7 @@ export class MatchView {
     this.camera.updateProjectionMatrix();
   }
 
-  private place(a: Actor, p: Vec3, facing: number, pose: PoseName, t: number, visible = true, bats?: 'R' | 'L') {
+  private place(a: Actor, p: Vec3, facing: number, pose: PoseName, t: number, visible = true, bats?: 'R' | 'L', throws?: 'R' | 'L') {
     a.figure.root.visible = visible;
     a.shadow.visible = visible;
     if (!visible) return;
@@ -106,7 +106,7 @@ export class MatchView {
     a.figure.root.scale.setScalar(FIGURE_SCALE);
     a.figure.root.rotation.y = facing;
     a.shadow.position.set(p.x, 0.05, p.z);
-    a.figure.pose({ name: pose, t, bats });
+    a.figure.pose({ name: pose, t, bats, throws });
   }
 
   /** メニュー表示中：球場の上をゆっくり回る。 */
@@ -118,6 +118,7 @@ export class MatchView {
     this.ball.visible = false;
     this.ballShadow.visible = false;
     this.overlays.group.visible = false;
+    this.crowd.setBatter(null);
     const a = this.time * 0.06;
     this.camera.position.set(-Math.sin(a) * 70, 38, 45 - Math.cos(a) * 70);
     this.camera.lookAt(0, 0, 45);
@@ -142,6 +143,8 @@ export class MatchView {
     this.scoreboard.update(s);
     const def = fieldingTeam(s);
     const off = battingTeam(s);
+    const atBat = s.teams[off].lineup[s.teams[off].battingIndex];
+    this.crowd.setBatter(s.over ? null : { id: atBat.id, name: atBat.name, team: off });
     const other = (t: TeamIndex) => (t === 0 ? 1 : 0) as TeamIndex;
     // 守っていないチームの守備用・攻撃していないチームの攻撃用は隠す。
     for (const a of this.fielders[other(def)]) this.place(a, HOME, 0, 'idle', 0, false);
@@ -175,7 +178,7 @@ export class MatchView {
         if (pos === 'P') {
           const pitching = m.phase === 'windup' || m.phase === 'pitch';
           const t = m.phase === 'windup' ? m.phaseTime : m.phase === 'pitch' ? WINDUP_TIME + m.pitchTime : 0;
-          this.place(a, v3(p.x, 0.25, p.z), Math.PI, pitching ? 'pitch' : 'idle', t);
+          this.place(a, v3(p.x + m.pitcherShift, 0.25, p.z), Math.PI, pitching ? 'pitch' : 'idle', t, true, undefined, s.teams[def].pitcher.throws);
         } else if (pos === 'C') {
           // 人が投げる・打つときの近い視点では、ゾーンが隠れないよう捕手を描かない。
           this.place(a, p, 0, 'crouch', m.clock, !(m.humanBatting || m.humanPitching));
@@ -185,6 +188,7 @@ export class MatchView {
       }
       const batter = s.teams[off].lineup[s.teams[off].battingIndex];
       const box = batterBox(batter.bats);
+      box.x += m.batterStance;
       const swinging = m.phase === 'pitch' && m.swingStarted();
       const pose: PoseName = m.buntStance ? 'bunt' : swinging ? 'swing' : 'bat';
       const swingT = swinging && m.swing ? m.pitchTime - m.swing.time : 0;
@@ -195,8 +199,10 @@ export class MatchView {
         const a = this.offense[off][b];
         const id = s.bases[b];
         const p = basePos(b);
-        const lead = v3(p.x + (basePos(b + 1).x - p.x) * 0.1, 0, p.z + (basePos(b + 1).z - p.z) * 0.1);
-        this.place(a, lead, facingTo(lead, basePos(b + 1)), 'idle', m.clock, !!id);
+        // 盗塁中は次の塁へ走る。
+        const running = b < 3 ? m.stealPosition(b as 1 | 2) : null;
+        const lead = running !== null ? PlaySim.runnerPos(running) : v3(p.x + (basePos(b + 1).x - p.x) * 0.1, 0, p.z + (basePos(b + 1).z - p.z) * 0.1);
+        this.place(a, lead, facingTo(lead, basePos(b + 1)), running !== null ? 'run' : 'idle', m.clock, !!id);
       }
       if (m.phase === 'pitch' && m.pitch) {
         const bp = pitchPosition(m.pitch, m.pitchTime);

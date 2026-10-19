@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { glowColor, inkOn, lineupOf, luminance, parseTeams, TeamDataError, textColor } from './teams.ts';
+import { glowColor, inkOn, lineupOf, luminance, parseTeams, roleOf, rotationStarter, TeamDataError, textColor } from './teams.ts';
 
 const clone = () => structuredClone(raw) as { teams: any[] };
 
@@ -55,4 +55,17 @@ test('知らない球種を弾く', () => {
   const d = clone();
   d.teams[0].pitchers[0].pitches.push('knuckle');
   assert.throws(() => parseTeams(d), /球種/);
+});
+
+test('各球団の登録は29〜31人で、先発・中継ぎ・抑えがそろい、先発はローテーションで回る', () => {
+  for (const t of parseTeams(raw)) {
+    const n = t.batters.length + t.pitchers.length;
+    assert.ok(n >= 29 && n <= 31, `${t.nameJa} は ${n} 人`);
+    const starters = t.pitchers.filter((p) => roleOf(p) === 'starter');
+    assert.ok(starters.length >= 5 && t.pitchers.some((p) => roleOf(p) === 'reliever') && t.pitchers.some((p) => roleOf(p) === 'closer'), t.nameJa);
+    assert.equal(rotationStarter(t, 0), t.startingPitcher);
+    const order = Array.from({ length: starters.length }, (_, i) => rotationStarter(t, i));
+    assert.equal(new Set(order).size, starters.length, '一巡するまで同じ先発は出ない');
+    assert.equal(rotationStarter(t, starters.length), t.startingPitcher);
+  }
 });

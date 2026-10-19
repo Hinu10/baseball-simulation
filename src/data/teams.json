@@ -19,12 +19,26 @@
         { "id": "tkc-09", "name": "青木 健", "number": 7, "position": "LF", "bats": "R", "meet": 62, "power": 46, "speed": 72, "arm": 62, "fielding": 70 },
         { "id": "tkc-10", "name": "佐伯 光", "number": 0, "position": "2B", "bats": "R", "meet": 58, "power": 30, "speed": 84, "arm": 60, "fielding": 74 },
         { "id": "tkc-11", "name": "山内 拓海", "number": 22, "position": "C", "bats": "R", "meet": 48, "power": 44, "speed": 30, "arm": 72, "fielding": 70 },
-        { "id": "tkc-12", "name": "森 大地", "number": 31, "position": "LF", "bats": "L", "meet": 56, "power": 64, "speed": 50, "arm": 58, "fielding": 56 }
+        { "id": "tkc-12", "name": "森 大地", "number": 31, "position": "LF", "bats": "L", "meet": 56, "power": 64, "speed": 50, "arm": 58, "fielding": 56 },
+        { "id": "tkc-13", "name": "真壁 慎也", "number": 5, "position": "C", "bats": "L", "meet": 60, "power": 44, "speed": 73, "arm": 52, "fielding": 68 },
+        { "id": "tkc-14", "name": "萩原 湊", "number": 8, "position": "SS", "bats": "R", "meet": 62, "power": 33, "speed": 41, "arm": 52, "fielding": 67 },
+        { "id": "tkc-15", "name": "松永 秀斗", "number": 42, "position": "CF", "bats": "L", "meet": 66, "power": 35, "speed": 65, "arm": 70, "fielding": 65 },
+        { "id": "tkc-16", "name": "森下 律", "number": 60, "position": "1B", "bats": "R", "meet": 44, "power": 74, "speed": 74, "arm": 67, "fielding": 43 }
       ],
       "pitchers": [
-        { "id": "tkc-p1", "name": "神崎 蒼", "number": 18, "throws": "R", "velocity": 152, "control": 70, "stamina": 78, "breaking": 72, "pitches": ["fastball", "slider", "fork"], "arm": 80, "fielding": 62, "speed": 50 },
-        { "id": "tkc-p2", "name": "日向 涼", "number": 11, "throws": "L", "velocity": 144, "control": 82, "stamina": 64, "breaking": 78, "pitches": ["fastball", "curve", "slider"], "arm": 70, "fielding": 66, "speed": 48 },
-        { "id": "tkc-p3", "name": "大谷地 豪", "number": 47, "throws": "R", "velocity": 156, "control": 52, "stamina": 40, "breaking": 60, "pitches": ["fastball", "fork"], "arm": 84, "fielding": 50, "speed": 42 }
+        { "id": "tkc-p1", "name": "神崎 蒼", "number": 18, "throws": "R", "velocity": 152, "control": 70, "stamina": 78, "breaking": 72, "pitches": ["fastball", "slider", "fork"], "arm": 80, "fielding": 62, "speed": 50, "role": "starter" },
+        { "id": "tkc-p2", "name": "日向 涼", "number": 11, "throws": "L", "velocity": 144, "control": 82, "stamina": 64, "breaking": 78, "pitches": ["fastball", "curve", "slider"], "arm": 70, "fielding": 66, "speed": 48, "role": "starter" },
+        { "id": "tkc-p3", "name": "大谷地 豪", "number": 47, "throws": "R", "velocity": 156, "control": 52, "stamina": 40, "breaking": 60, "pitches": ["fastball", "fork"], "arm": 84, "fielding": 50, "speed": 42, "role": "closer" },
+        { "id": "tkc-p4", "name": "川上 結翔", "number": 35, "throws": "L", "velocity": 146, "control": 69, "stamina": 87, "breaking": 58, "pitches": ["fastball", "curve", "slider"], "arm": 64, "fielding": 56, "speed": 59, "role": "starter" },
+        { "id": "tkc-p5", "name": "野口 晃", "number": 51, "throws": "R", "velocity": 147, "control": 77, "stamina": 87, "breaking": 72, "pitches": ["fastball", "curve", "fork"], "arm": 73, "fielding": 50, "speed": 58, "role": "starter" },
+        { "id": "tkc-p6", "name": "和田 湊", "number": 23, "throws": "R", "velocity": 139, "control": 78, "stamina": 75, "breaking": 55, "pitches": ["fastball", "curve", "slider"], "arm": 79, "fielding": 52, "speed": 46, "role": "starter" },
+        { "id": "tkc-p7", "name": "武田 匠", "number": 19, "throws": "R", "velocity": 145, "control": 75, "stamina": 70, "breaking": 54, "pitches": ["fastball", "curve", "slider"], "arm": 67, "fielding": 46, "speed": 38, "role": "starter" },
+        { "id": "tkc-p8", "name": "尾崎 雄大", "number": 30, "throws": "R", "velocity": 152, "control": 68, "stamina": 46, "breaking": 65, "pitches": ["fastball", "curve"], "arm": 64, "fielding": 62, "speed": 36, "role": "reliever" },
+        { "id": "tkc-p9", "name": "横山 直人", "number": 46, "throws": "R", "velocity": 154, "control": 46, "stamina": 49, "breaking": 78, "pitches": ["fastball", "fork"], "arm": 55, "fielding": 47, "speed": 39, "role": "reliever" },
+        { "id": "tkc-p10", "name": "南雲 進", "number": 34, "throws": "R", "velocity": 143, "control": 66, "stamina": 47, "breaking": 70, "pitches": ["fastball", "slider"], "arm": 78, "fielding": 65, "speed": 35, "role": "reliever" },
+        { "id": "tkc-p11", "name": "西条 隼人", "number": 29, "throws": "L", "velocity": 154, "control": 60, "stamina": 38, "breaking": 69, "pitches": ["fastball", "curve"], "arm": 65, "fielding": 56, "speed": 53, "role": "reliever" },
+        { "id": "tkc-p12", "name": "椎名 健太", "number": 38, "throws": "R", "velocity": 152, "control": 58, "stamina": 45, "breaking": 72, "pitches": ["fastball", "slider", "fork"], "arm": 59, "fielding": 49, "speed": 60, "role": "reliever" },
+        { "id": "tkc-p13", "name": "野村 優斗", "number": 50, "throws": "R", "velocity": 146, "control": 64, "stamina": 40, "breaking": 51, "pitches": ["fastball", "curve", "slider"], "arm": 68, "fielding": 70, "speed": 49, "role": "reliever" }
       ],
       "lineup": ["tkc-01", "tkc-02", "tkc-03", "tkc-04", "tkc-05", "tkc-06", "tkc-07", "tkc-08", "tkc-09"],
       "startingPitcher": "tkc-p1"
@@ -48,12 +62,27 @@
         { "id": "osw-09", "name": "岩瀬 蓮", "number": 23, "position": "LF", "bats": "R", "meet": 60, "power": 48, "speed": 74, "arm": 64, "fielding": 68 },
         { "id": "osw-10", "name": "竹内 海斗", "number": 0, "position": "SS", "bats": "R", "meet": 56, "power": 30, "speed": 86, "arm": 66, "fielding": 76 },
         { "id": "osw-11", "name": "原田 修", "number": 27, "position": "C", "bats": "R", "meet": 46, "power": 46, "speed": 30, "arm": 74, "fielding": 70 },
-        { "id": "osw-12", "name": "上田 一輝", "number": 38, "position": "1B", "bats": "L", "meet": 54, "power": 66, "speed": 42, "arm": 52, "fielding": 58 }
+        { "id": "osw-12", "name": "上田 一輝", "number": 38, "position": "1B", "bats": "L", "meet": 54, "power": 66, "speed": 42, "arm": 52, "fielding": 58 },
+        { "id": "osw-13", "name": "青柳 隼人", "number": 53, "position": "C", "bats": "R", "meet": 52, "power": 52, "speed": 53, "arm": 53, "fielding": 61 },
+        { "id": "osw-14", "name": "和田 颯太", "number": 31, "position": "SS", "bats": "L", "meet": 66, "power": 60, "speed": 43, "arm": 52, "fielding": 60 },
+        { "id": "osw-15", "name": "椎名 蒼真", "number": 36, "position": "CF", "bats": "R", "meet": 59, "power": 58, "speed": 55, "arm": 48, "fielding": 54 },
+        { "id": "osw-16", "name": "水野 奏太", "number": 22, "position": "1B", "bats": "R", "meet": 66, "power": 71, "speed": 47, "arm": 48, "fielding": 47 }
       ],
       "pitchers": [
-        { "id": "osw-p1", "name": "牙城 隆之介", "number": 14, "throws": "R", "velocity": 148, "control": 78, "stamina": 82, "breaking": 76, "pitches": ["fastball", "curve", "slider", "fork"], "arm": 76, "fielding": 64, "speed": 46 },
-        { "id": "osw-p2", "name": "真田 一真", "number": 21, "throws": "L", "velocity": 140, "control": 74, "stamina": 70, "breaking": 84, "pitches": ["fastball", "curve", "fork"], "arm": 68, "fielding": 60, "speed": 50 },
-        { "id": "osw-p3", "name": "猛田 剛", "number": 54, "throws": "R", "velocity": 158, "control": 50, "stamina": 38, "breaking": 58, "pitches": ["fastball", "slider"], "arm": 86, "fielding": 48, "speed": 40 }
+        { "id": "osw-p1", "name": "牙城 隆之介", "number": 14, "throws": "R", "velocity": 148, "control": 78, "stamina": 82, "breaking": 76, "pitches": ["fastball", "curve", "slider", "fork"], "arm": 76, "fielding": 64, "speed": 46, "role": "starter" },
+        { "id": "osw-p2", "name": "真田 一真", "number": 21, "throws": "L", "velocity": 140, "control": 74, "stamina": 70, "breaking": 84, "pitches": ["fastball", "curve", "fork"], "arm": 68, "fielding": 60, "speed": 50, "role": "starter" },
+        { "id": "osw-p3", "name": "猛田 剛", "number": 54, "throws": "R", "velocity": 158, "control": 50, "stamina": 38, "breaking": 58, "pitches": ["fastball", "slider"], "arm": 86, "fielding": 48, "speed": 40, "role": "closer" },
+        { "id": "osw-p4", "name": "横山 剛", "number": 15, "throws": "R", "velocity": 141, "control": 78, "stamina": 83, "breaking": 62, "pitches": ["fastball", "slider", "fork"], "arm": 62, "fielding": 58, "speed": 40, "role": "starter" },
+        { "id": "osw-p5", "name": "樋口 匠", "number": 13, "throws": "R", "velocity": 141, "control": 56, "stamina": 86, "breaking": 59, "pitches": ["fastball", "curve", "fork"], "arm": 78, "fielding": 67, "speed": 47, "role": "starter" },
+        { "id": "osw-p6", "name": "藤堂 朝陽", "number": 60, "throws": "R", "velocity": 149, "control": 67, "stamina": 81, "breaking": 66, "pitches": ["fastball", "slider", "fork"], "arm": 59, "fielding": 55, "speed": 60, "role": "starter" },
+        { "id": "osw-p7", "name": "白石 直人", "number": 52, "throws": "R", "velocity": 142, "control": 56, "stamina": 84, "breaking": 51, "pitches": ["fastball", "curve", "slider"], "arm": 66, "fielding": 57, "speed": 40, "role": "starter" },
+        { "id": "osw-p8", "name": "吉岡 律", "number": 20, "throws": "R", "velocity": 144, "control": 55, "stamina": 40, "breaking": 78, "pitches": ["fastball", "fork"], "arm": 66, "fielding": 56, "speed": 60, "role": "reliever" },
+        { "id": "osw-p9", "name": "武田 晃", "number": 41, "throws": "L", "velocity": 149, "control": 60, "stamina": 49, "breaking": 68, "pitches": ["fastball", "curve", "fork"], "arm": 57, "fielding": 63, "speed": 49, "role": "reliever" },
+        { "id": "osw-p10", "name": "水野 秀斗", "number": 59, "throws": "R", "velocity": 145, "control": 52, "stamina": 51, "breaking": 72, "pitches": ["fastball", "curve", "slider"], "arm": 60, "fielding": 52, "speed": 40, "role": "reliever" },
+        { "id": "osw-p11", "name": "前川 直人", "number": 28, "throws": "R", "velocity": 150, "control": 48, "stamina": 47, "breaking": 77, "pitches": ["fastball", "slider"], "arm": 61, "fielding": 67, "speed": 56, "role": "reliever" },
+        { "id": "osw-p12", "name": "小野寺 和真", "number": 40, "throws": "R", "velocity": 146, "control": 69, "stamina": 34, "breaking": 54, "pitches": ["fastball", "curve", "fork"], "arm": 65, "fielding": 45, "speed": 56, "role": "reliever" },
+        { "id": "osw-p13", "name": "平良 圭", "number": 30, "throws": "L", "velocity": 155, "control": 71, "stamina": 35, "breaking": 75, "pitches": ["fastball", "curve", "slider"], "arm": 57, "fielding": 65, "speed": 44, "role": "reliever" },
+        { "id": "osw-p14", "name": "松永 勇気", "number": 37, "throws": "L", "velocity": 144, "control": 69, "stamina": 41, "breaking": 62, "pitches": ["fastball", "curve"], "arm": 56, "fielding": 69, "speed": 39, "role": "reliever" }
       ],
       "lineup": ["osw-01", "osw-02", "osw-03", "osw-04", "osw-05", "osw-06", "osw-07", "osw-08", "osw-09"],
       "startingPitcher": "osw-p1"
@@ -77,12 +106,28 @@
         { "id": "sml-09", "name": "綾瀬 晴", "number": 42, "position": "LF", "bats": "R", "meet": 73, "power": 50, "speed": 66, "arm": 70, "fielding": 74 },
         { "id": "sml-10", "name": "有馬 輝", "number": 65, "position": "C", "bats": "R", "meet": 51, "power": 35, "speed": 53, "arm": 85, "fielding": 87 },
         { "id": "sml-11", "name": "結城 岳", "number": 57, "position": "SS", "bats": "R", "meet": 58, "power": 33, "speed": 82, "arm": 60, "fielding": 88 },
-        { "id": "sml-12", "name": "天野 歩", "number": 60, "position": "RF", "bats": "R", "meet": 63, "power": 56, "speed": 72, "arm": 69, "fielding": 75 }
+        { "id": "sml-12", "name": "天野 歩", "number": 60, "position": "RF", "bats": "R", "meet": 63, "power": 56, "speed": 72, "arm": 69, "fielding": 75 },
+        { "id": "sml-13", "name": "寺島 隆之", "number": 17, "position": "C", "bats": "R", "meet": 57, "power": 65, "speed": 53, "arm": 71, "fielding": 62 },
+        { "id": "sml-14", "name": "望月 秀斗", "number": 52, "position": "SS", "bats": "R", "meet": 58, "power": 31, "speed": 47, "arm": 76, "fielding": 66 },
+        { "id": "sml-15", "name": "武田 蒼真", "number": 30, "position": "CF", "bats": "L", "meet": 50, "power": 37, "speed": 47, "arm": 69, "fielding": 68 },
+        { "id": "sml-16", "name": "真壁 奏太", "number": 79, "position": "1B", "bats": "R", "meet": 62, "power": 73, "speed": 72, "arm": 51, "fielding": 54 }
       ],
       "pitchers": [
-        { "id": "sml-p1", "name": "三雲 岳", "number": 13, "throws": "R", "velocity": 148, "control": 71, "stamina": 74, "breaking": 70, "pitches": ["fastball", "slider", "fork"], "arm": 75, "fielding": 58, "speed": 49 },
-        { "id": "sml-p2", "name": "氷室 隼", "number": 11, "throws": "L", "velocity": 146, "control": 81, "stamina": 64, "breaking": 79, "pitches": ["fastball", "curve", "slider"], "arm": 74, "fielding": 56, "speed": 50 },
-        { "id": "sml-p3", "name": "御堂 嵐", "number": 19, "throws": "R", "velocity": 153, "control": 58, "stamina": 43, "breaking": 66, "pitches": ["fastball", "fork"], "arm": 75, "fielding": 55, "speed": 44 }
+        { "id": "sml-p1", "name": "三雲 岳", "number": 13, "throws": "R", "velocity": 148, "control": 71, "stamina": 74, "breaking": 70, "pitches": ["fastball", "slider", "fork"], "arm": 75, "fielding": 58, "speed": 49, "role": "starter" },
+        { "id": "sml-p2", "name": "氷室 隼", "number": 11, "throws": "L", "velocity": 146, "control": 81, "stamina": 64, "breaking": 79, "pitches": ["fastball", "curve", "slider"], "arm": 74, "fielding": 56, "speed": 50, "role": "starter" },
+        { "id": "sml-p3", "name": "御堂 嵐", "number": 19, "throws": "R", "velocity": 153, "control": 58, "stamina": 43, "breaking": 66, "pitches": ["fastball", "fork"], "arm": 75, "fielding": 55, "speed": 44, "role": "closer" },
+        { "id": "sml-p4", "name": "冬木 陽翔", "number": 16, "throws": "L", "velocity": 149, "control": 77, "stamina": 67, "breaking": 69, "pitches": ["fastball", "curve", "fork"], "arm": 57, "fielding": 62, "speed": 47, "role": "starter" },
+        { "id": "sml-p5", "name": "松永 湊", "number": 29, "throws": "L", "velocity": 149, "control": 56, "stamina": 88, "breaking": 71, "pitches": ["fastball", "curve", "slider"], "arm": 59, "fielding": 58, "speed": 51, "role": "starter" },
+        { "id": "sml-p6", "name": "片桐 翔", "number": 24, "throws": "R", "velocity": 141, "control": 65, "stamina": 85, "breaking": 63, "pitches": ["fastball", "slider", "fork"], "arm": 80, "fielding": 48, "speed": 54, "role": "starter" },
+        { "id": "sml-p7", "name": "有馬 颯太", "number": 36, "throws": "L", "velocity": 139, "control": 68, "stamina": 74, "breaking": 54, "pitches": ["fastball", "curve", "fork"], "arm": 65, "fielding": 66, "speed": 46, "role": "starter" },
+        { "id": "sml-p8", "name": "梶原 陽翔", "number": 56, "throws": "R", "velocity": 148, "control": 67, "stamina": 31, "breaking": 75, "pitches": ["fastball", "curve"], "arm": 75, "fielding": 51, "speed": 39, "role": "reliever" },
+        { "id": "sml-p9", "name": "夏目 隆之", "number": 63, "throws": "R", "velocity": 148, "control": 67, "stamina": 33, "breaking": 76, "pitches": ["fastball", "curve", "slider"], "arm": 63, "fielding": 60, "speed": 55, "role": "reliever" },
+        { "id": "sml-p10", "name": "遠山 翔", "number": 35, "throws": "R", "velocity": 150, "control": 68, "stamina": 39, "breaking": 48, "pitches": ["fastball", "slider"], "arm": 66, "fielding": 49, "speed": 54, "role": "reliever" },
+        { "id": "sml-p11", "name": "片桐 勇気", "number": 46, "throws": "R", "velocity": 145, "control": 68, "stamina": 39, "breaking": 69, "pitches": ["fastball", "slider"], "arm": 80, "fielding": 45, "speed": 41, "role": "reliever" },
+        { "id": "sml-p12", "name": "上杉 朝陽", "number": 34, "throws": "R", "velocity": 151, "control": 55, "stamina": 37, "breaking": 73, "pitches": ["fastball", "fork"], "arm": 69, "fielding": 62, "speed": 39, "role": "reliever" },
+        { "id": "sml-p13", "name": "沢村 光", "number": 22, "throws": "R", "velocity": 148, "control": 57, "stamina": 48, "breaking": 60, "pitches": ["fastball", "curve", "fork"], "arm": 75, "fielding": 51, "speed": 47, "role": "reliever" },
+        { "id": "sml-p14", "name": "赤井 湊", "number": 20, "throws": "R", "velocity": 146, "control": 71, "stamina": 42, "breaking": 74, "pitches": ["fastball", "curve", "fork"], "arm": 57, "fielding": 48, "speed": 54, "role": "reliever" },
+        { "id": "sml-p15", "name": "古賀 蓮", "number": 69, "throws": "R", "velocity": 155, "control": 62, "stamina": 49, "breaking": 75, "pitches": ["fastball", "curve", "slider"], "arm": 61, "fielding": 46, "speed": 60, "role": "reliever" }
       ],
       "lineup": ["sml-01", "sml-02", "sml-03", "sml-04", "sml-05", "sml-06", "sml-07", "sml-08", "sml-09"],
       "startingPitcher": "sml-p1"
@@ -106,12 +151,27 @@
         { "id": "hnz-09", "name": "雨宮 海斗", "number": 59, "position": "LF", "bats": "L", "meet": 74, "power": 51, "speed": 59, "arm": 65, "fielding": 74 },
         { "id": "hnz-10", "name": "加賀美 陽翔", "number": 22, "position": "C", "bats": "R", "meet": 56, "power": 42, "speed": 39, "arm": 79, "fielding": 77 },
         { "id": "hnz-11", "name": "加賀美 誠也", "number": 27, "position": "SS", "bats": "L", "meet": 61, "power": 28, "speed": 74, "arm": 64, "fielding": 81 },
-        { "id": "hnz-12", "name": "霧島 岳", "number": 39, "position": "RF", "bats": "L", "meet": 74, "power": 57, "speed": 69, "arm": 71, "fielding": 68 }
+        { "id": "hnz-12", "name": "霧島 岳", "number": 39, "position": "RF", "bats": "L", "meet": 74, "power": 57, "speed": 69, "arm": 71, "fielding": 68 },
+        { "id": "hnz-13", "name": "関 航", "number": 95, "position": "C", "bats": "L", "meet": 66, "power": 34, "speed": 68, "arm": 48, "fielding": 59 },
+        { "id": "hnz-14", "name": "安田 航", "number": 5, "position": "SS", "bats": "L", "meet": 63, "power": 46, "speed": 74, "arm": 48, "fielding": 72 },
+        { "id": "hnz-15", "name": "堀 創", "number": 64, "position": "CF", "bats": "L", "meet": 55, "power": 54, "speed": 70, "arm": 63, "fielding": 71 },
+        { "id": "hnz-16", "name": "和田 智也", "number": 33, "position": "1B", "bats": "R", "meet": 42, "power": 61, "speed": 65, "arm": 62, "fielding": 42 }
       ],
       "pitchers": [
-        { "id": "hnz-p1", "name": "緋村 航", "number": 17, "throws": "R", "velocity": 154, "control": 80, "stamina": 82, "breaking": 71, "pitches": ["fastball", "slider", "fork"], "arm": 84, "fielding": 58, "speed": 47 },
-        { "id": "hnz-p2", "name": "鷹野 歩", "number": 21, "throws": "L", "velocity": 143, "control": 86, "stamina": 66, "breaking": 81, "pitches": ["fastball", "curve", "slider"], "arm": 80, "fielding": 61, "speed": 40 },
-        { "id": "hnz-p3", "name": "剣持 優作", "number": 19, "throws": "R", "velocity": 157, "control": 53, "stamina": 39, "breaking": 62, "pitches": ["fastball", "fork"], "arm": 80, "fielding": 56, "speed": 48 }
+        { "id": "hnz-p1", "name": "緋村 航", "number": 17, "throws": "R", "velocity": 154, "control": 80, "stamina": 82, "breaking": 71, "pitches": ["fastball", "slider", "fork"], "arm": 84, "fielding": 58, "speed": 47, "role": "starter" },
+        { "id": "hnz-p2", "name": "鷹野 歩", "number": 21, "throws": "L", "velocity": 143, "control": 86, "stamina": 66, "breaking": 81, "pitches": ["fastball", "curve", "slider"], "arm": 80, "fielding": 61, "speed": 40, "role": "starter" },
+        { "id": "hnz-p3", "name": "剣持 優作", "number": 19, "throws": "R", "velocity": 157, "control": 53, "stamina": 39, "breaking": 62, "pitches": ["fastball", "fork"], "arm": 80, "fielding": 56, "speed": 48, "role": "closer" },
+        { "id": "hnz-p4", "name": "片桐 陽翔", "number": 16, "throws": "L", "velocity": 145, "control": 68, "stamina": 81, "breaking": 77, "pitches": ["fastball", "slider", "fork"], "arm": 73, "fielding": 69, "speed": 45, "role": "starter" },
+        { "id": "hnz-p5", "name": "古賀 圭", "number": 69, "throws": "L", "velocity": 148, "control": 79, "stamina": 78, "breaking": 54, "pitches": ["fastball", "curve", "slider"], "arm": 60, "fielding": 53, "speed": 37, "role": "starter" },
+        { "id": "hnz-p6", "name": "久我 隼人", "number": 49, "throws": "L", "velocity": 142, "control": 66, "stamina": 71, "breaking": 66, "pitches": ["fastball", "curve", "fork"], "arm": 71, "fielding": 50, "speed": 43, "role": "starter" },
+        { "id": "hnz-p7", "name": "須藤 航", "number": 18, "throws": "R", "velocity": 149, "control": 60, "stamina": 67, "breaking": 54, "pitches": ["fastball", "curve", "slider"], "arm": 73, "fielding": 52, "speed": 44, "role": "starter" },
+        { "id": "hnz-p8", "name": "横山 圭", "number": 61, "throws": "R", "velocity": 152, "control": 71, "stamina": 47, "breaking": 74, "pitches": ["fastball", "curve"], "arm": 72, "fielding": 50, "speed": 40, "role": "reliever" },
+        { "id": "hnz-p9", "name": "安田 樹", "number": 11, "throws": "R", "velocity": 149, "control": 64, "stamina": 44, "breaking": 68, "pitches": ["fastball", "curve"], "arm": 74, "fielding": 64, "speed": 48, "role": "reliever" },
+        { "id": "hnz-p10", "name": "杉浦 創", "number": 26, "throws": "L", "velocity": 145, "control": 61, "stamina": 52, "breaking": 54, "pitches": ["fastball", "curve", "fork"], "arm": 78, "fielding": 49, "speed": 44, "role": "reliever" },
+        { "id": "hnz-p11", "name": "佐伯 律", "number": 43, "throws": "R", "velocity": 153, "control": 46, "stamina": 44, "breaking": 70, "pitches": ["fastball", "slider"], "arm": 55, "fielding": 46, "speed": 50, "role": "reliever" },
+        { "id": "hnz-p12", "name": "西条 蒼真", "number": 58, "throws": "R", "velocity": 150, "control": 61, "stamina": 46, "breaking": 70, "pitches": ["fastball", "slider"], "arm": 65, "fielding": 49, "speed": 52, "role": "reliever" },
+        { "id": "hnz-p13", "name": "藤堂 悠真", "number": 30, "throws": "R", "velocity": 150, "control": 60, "stamina": 52, "breaking": 59, "pitches": ["fastball", "curve"], "arm": 61, "fielding": 48, "speed": 45, "role": "reliever" },
+        { "id": "hnz-p14", "name": "草野 匠", "number": 42, "throws": "R", "velocity": 153, "control": 65, "stamina": 52, "breaking": 52, "pitches": ["fastball", "curve", "slider"], "arm": 75, "fielding": 60, "speed": 50, "role": "reliever" }
       ],
       "lineup": ["hnz-01", "hnz-02", "hnz-03", "hnz-04", "hnz-05", "hnz-06", "hnz-07", "hnz-08", "hnz-09"],
       "startingPitcher": "hnz-p1"
@@ -135,12 +195,26 @@
         { "id": "kmy-09", "name": "柳生 晴", "number": 65, "position": "LF", "bats": "R", "meet": 63, "power": 69, "speed": 60, "arm": 64, "fielding": 60 },
         { "id": "kmy-10", "name": "雪村 隼", "number": 53, "position": "C", "bats": "L", "meet": 53, "power": 51, "speed": 33, "arm": 74, "fielding": 81 },
         { "id": "kmy-11", "name": "霧島 律", "number": 33, "position": "SS", "bats": "R", "meet": 55, "power": 46, "speed": 70, "arm": 61, "fielding": 79 },
-        { "id": "kmy-12", "name": "紫藤 悠真", "number": 8, "position": "RF", "bats": "R", "meet": 54, "power": 75, "speed": 62, "arm": 69, "fielding": 62 }
+        { "id": "kmy-12", "name": "紫藤 悠真", "number": 8, "position": "RF", "bats": "R", "meet": 54, "power": 75, "speed": 62, "arm": 69, "fielding": 62 },
+        { "id": "kmy-13", "name": "片桐 樹", "number": 62, "position": "C", "bats": "R", "meet": 51, "power": 50, "speed": 59, "arm": 57, "fielding": 77 },
+        { "id": "kmy-14", "name": "樋口 奏太", "number": 18, "position": "SS", "bats": "R", "meet": 57, "power": 51, "speed": 40, "arm": 64, "fielding": 57 },
+        { "id": "kmy-15", "name": "古賀 隼人", "number": 16, "position": "CF", "bats": "L", "meet": 54, "power": 33, "speed": 41, "arm": 73, "fielding": 63 },
+        { "id": "kmy-16", "name": "若林 海斗", "number": 38, "position": "1B", "bats": "R", "meet": 52, "power": 74, "speed": 44, "arm": 52, "fielding": 45 }
       ],
       "pitchers": [
-        { "id": "kmy-p1", "name": "橘 一真", "number": 17, "throws": "R", "velocity": 150, "control": 74, "stamina": 86, "breaking": 70, "pitches": ["fastball", "slider", "fork"], "arm": 81, "fielding": 56, "speed": 48 },
-        { "id": "kmy-p2", "name": "葛城 大翔", "number": 15, "throws": "L", "velocity": 141, "control": 73, "stamina": 66, "breaking": 78, "pitches": ["fastball", "curve", "slider"], "arm": 75, "fielding": 59, "speed": 40 },
-        { "id": "kmy-p3", "name": "南雲 嵐", "number": 14, "throws": "R", "velocity": 155, "control": 52, "stamina": 44, "breaking": 66, "pitches": ["fastball", "fork"], "arm": 76, "fielding": 61, "speed": 51 }
+        { "id": "kmy-p1", "name": "橘 一真", "number": 17, "throws": "R", "velocity": 150, "control": 74, "stamina": 86, "breaking": 70, "pitches": ["fastball", "slider", "fork"], "arm": 81, "fielding": 56, "speed": 48, "role": "starter" },
+        { "id": "kmy-p2", "name": "葛城 大翔", "number": 15, "throws": "L", "velocity": 141, "control": 73, "stamina": 66, "breaking": 78, "pitches": ["fastball", "curve", "slider"], "arm": 75, "fielding": 59, "speed": 40, "role": "starter" },
+        { "id": "kmy-p3", "name": "南雲 嵐", "number": 14, "throws": "R", "velocity": 155, "control": 52, "stamina": 44, "breaking": 66, "pitches": ["fastball", "fork"], "arm": 76, "fielding": 61, "speed": 51, "role": "closer" },
+        { "id": "kmy-p4", "name": "上杉 健太", "number": 46, "throws": "R", "velocity": 143, "control": 71, "stamina": 84, "breaking": 76, "pitches": ["fastball", "curve", "slider"], "arm": 78, "fielding": 50, "speed": 44, "role": "starter" },
+        { "id": "kmy-p5", "name": "岩城 奏太", "number": 24, "throws": "R", "velocity": 149, "control": 80, "stamina": 87, "breaking": 54, "pitches": ["fastball", "slider", "fork"], "arm": 71, "fielding": 59, "speed": 55, "role": "starter" },
+        { "id": "kmy-p6", "name": "本郷 樹", "number": 13, "throws": "L", "velocity": 141, "control": 62, "stamina": 83, "breaking": 60, "pitches": ["fastball", "curve", "slider"], "arm": 56, "fielding": 47, "speed": 41, "role": "starter" },
+        { "id": "kmy-p7", "name": "秋山 結翔", "number": 27, "throws": "R", "velocity": 148, "control": 67, "stamina": 74, "breaking": 75, "pitches": ["fastball", "curve", "slider"], "arm": 66, "fielding": 58, "speed": 56, "role": "starter" },
+        { "id": "kmy-p8", "name": "加賀 進", "number": 56, "throws": "R", "velocity": 155, "control": 50, "stamina": 37, "breaking": 63, "pitches": ["fastball", "curve"], "arm": 56, "fielding": 62, "speed": 41, "role": "reliever" },
+        { "id": "kmy-p9", "name": "武田 雄大", "number": 21, "throws": "R", "velocity": 147, "control": 63, "stamina": 49, "breaking": 64, "pitches": ["fastball", "slider", "fork"], "arm": 78, "fielding": 60, "speed": 41, "role": "reliever" },
+        { "id": "kmy-p10", "name": "有馬 剛", "number": 25, "throws": "R", "velocity": 155, "control": 49, "stamina": 51, "breaking": 65, "pitches": ["fastball", "fork"], "arm": 61, "fielding": 63, "speed": 51, "role": "reliever" },
+        { "id": "kmy-p11", "name": "赤井 優斗", "number": 35, "throws": "R", "velocity": 147, "control": 45, "stamina": 37, "breaking": 78, "pitches": ["fastball", "curve", "fork"], "arm": 59, "fielding": 66, "speed": 45, "role": "reliever" },
+        { "id": "kmy-p12", "name": "秋山 颯太", "number": 36, "throws": "R", "velocity": 149, "control": 56, "stamina": 50, "breaking": 46, "pitches": ["fastball", "curve", "fork"], "arm": 68, "fielding": 55, "speed": 37, "role": "reliever" },
+        { "id": "kmy-p13", "name": "松岡 匠", "number": 19, "throws": "L", "velocity": 146, "control": 52, "stamina": 37, "breaking": 50, "pitches": ["fastball", "curve", "fork"], "arm": 74, "fielding": 60, "speed": 51, "role": "reliever" }
       ],
       "lineup": ["kmy-01", "kmy-02", "kmy-03", "kmy-04", "kmy-05", "kmy-06", "kmy-07", "kmy-08", "kmy-09"],
       "startingPitcher": "kmy-p1"
@@ -164,12 +238,28 @@
         { "id": "fcx-09", "name": "雪村 嵐", "number": 50, "position": "LF", "bats": "R", "meet": 67, "power": 56, "speed": 67, "arm": 70, "fielding": 69 },
         { "id": "fcx-10", "name": "八雲 隼", "number": 7, "position": "C", "bats": "L", "meet": 45, "power": 52, "speed": 39, "arm": 75, "fielding": 78 },
         { "id": "fcx-11", "name": "南雲 玲央", "number": 37, "position": "SS", "bats": "L", "meet": 64, "power": 35, "speed": 83, "arm": 62, "fielding": 73 },
-        { "id": "fcx-12", "name": "黒瀬 鉄平", "number": 3, "position": "RF", "bats": "L", "meet": 63, "power": 57, "speed": 57, "arm": 72, "fielding": 70 }
+        { "id": "fcx-12", "name": "黒瀬 鉄平", "number": 3, "position": "RF", "bats": "L", "meet": 63, "power": 57, "speed": 57, "arm": 72, "fielding": 70 },
+        { "id": "fcx-13", "name": "早瀬 創", "number": 85, "position": "C", "bats": "R", "meet": 54, "power": 50, "speed": 76, "arm": 71, "fielding": 64 },
+        { "id": "fcx-14", "name": "武田 陽翔", "number": 52, "position": "SS", "bats": "L", "meet": 57, "power": 37, "speed": 57, "arm": 61, "fielding": 50 },
+        { "id": "fcx-15", "name": "吉岡 陸", "number": 5, "position": "CF", "bats": "R", "meet": 59, "power": 44, "speed": 52, "arm": 66, "fielding": 73 },
+        { "id": "fcx-16", "name": "増田 奏太", "number": 64, "position": "1B", "bats": "R", "meet": 66, "power": 60, "speed": 46, "arm": 49, "fielding": 44 }
       ],
       "pitchers": [
-        { "id": "fcx-p1", "name": "春日 奏太", "number": 13, "throws": "R", "velocity": 154, "control": 80, "stamina": 82, "breaking": 83, "pitches": ["fastball", "curve", "slider", "fork"], "arm": 73, "fielding": 59, "speed": 48 },
-        { "id": "fcx-p2", "name": "鷹野 誠也", "number": 14, "throws": "L", "velocity": 149, "control": 81, "stamina": 69, "breaking": 78, "pitches": ["fastball", "curve", "slider"], "arm": 76, "fielding": 60, "speed": 45 },
-        { "id": "fcx-p3", "name": "結城 司", "number": 17, "throws": "R", "velocity": 160, "control": 57, "stamina": 44, "breaking": 70, "pitches": ["fastball", "fork"], "arm": 82, "fielding": 55, "speed": 47 }
+        { "id": "fcx-p1", "name": "春日 奏太", "number": 13, "throws": "R", "velocity": 154, "control": 80, "stamina": 82, "breaking": 83, "pitches": ["fastball", "curve", "slider", "fork"], "arm": 73, "fielding": 59, "speed": 48, "role": "starter" },
+        { "id": "fcx-p2", "name": "鷹野 誠也", "number": 14, "throws": "L", "velocity": 149, "control": 81, "stamina": 69, "breaking": 78, "pitches": ["fastball", "curve", "slider"], "arm": 76, "fielding": 60, "speed": 45, "role": "starter" },
+        { "id": "fcx-p3", "name": "結城 司", "number": 17, "throws": "R", "velocity": 160, "control": 57, "stamina": 44, "breaking": 70, "pitches": ["fastball", "fork"], "arm": 82, "fielding": 55, "speed": 47, "role": "closer" },
+        { "id": "fcx-p4", "name": "夏目 誠", "number": 18, "throws": "R", "velocity": 138, "control": 74, "stamina": 80, "breaking": 78, "pitches": ["fastball", "curve", "slider"], "arm": 73, "fielding": 62, "speed": 57, "role": "starter" },
+        { "id": "fcx-p5", "name": "野口 創", "number": 16, "throws": "R", "velocity": 145, "control": 70, "stamina": 83, "breaking": 58, "pitches": ["fastball", "curve", "slider"], "arm": 57, "fielding": 54, "speed": 42, "role": "starter" },
+        { "id": "fcx-p6", "name": "東郷 拓海", "number": 67, "throws": "R", "velocity": 140, "control": 72, "stamina": 81, "breaking": 67, "pitches": ["fastball", "curve", "slider"], "arm": 70, "fielding": 50, "speed": 40, "role": "starter" },
+        { "id": "fcx-p7", "name": "東郷 匠", "number": 26, "throws": "R", "velocity": 138, "control": 67, "stamina": 67, "breaking": 50, "pitches": ["fastball", "slider", "fork"], "arm": 70, "fielding": 58, "speed": 36, "role": "starter" },
+        { "id": "fcx-p8", "name": "白石 勇気", "number": 41, "throws": "R", "velocity": 145, "control": 55, "stamina": 40, "breaking": 58, "pitches": ["fastball", "slider", "fork"], "arm": 75, "fielding": 69, "speed": 43, "role": "reliever" },
+        { "id": "fcx-p9", "name": "堀 雄大", "number": 21, "throws": "R", "velocity": 153, "control": 56, "stamina": 47, "breaking": 46, "pitches": ["fastball", "curve", "fork"], "arm": 57, "fielding": 70, "speed": 40, "role": "reliever" },
+        { "id": "fcx-p10", "name": "和田 蓮", "number": 15, "throws": "R", "velocity": 152, "control": 65, "stamina": 40, "breaking": 49, "pitches": ["fastball", "slider"], "arm": 70, "fielding": 57, "speed": 60, "role": "reliever" },
+        { "id": "fcx-p11", "name": "秋山 誠", "number": 11, "throws": "R", "velocity": 146, "control": 64, "stamina": 30, "breaking": 65, "pitches": ["fastball", "fork"], "arm": 59, "fielding": 48, "speed": 36, "role": "reliever" },
+        { "id": "fcx-p12", "name": "本郷 秀斗", "number": 61, "throws": "R", "velocity": 147, "control": 52, "stamina": 32, "breaking": 60, "pitches": ["fastball", "curve", "slider"], "arm": 70, "fielding": 57, "speed": 57, "role": "reliever" },
+        { "id": "fcx-p13", "name": "千葉 輝", "number": 34, "throws": "L", "velocity": 146, "control": 45, "stamina": 32, "breaking": 63, "pitches": ["fastball", "curve", "fork"], "arm": 72, "fielding": 54, "speed": 39, "role": "reliever" },
+        { "id": "fcx-p14", "name": "遠山 慎也", "number": 24, "throws": "R", "velocity": 147, "control": 70, "stamina": 38, "breaking": 46, "pitches": ["fastball", "slider", "fork"], "arm": 62, "fielding": 66, "speed": 56, "role": "reliever" },
+        { "id": "fcx-p15", "name": "広瀬 慎也", "number": 31, "throws": "R", "velocity": 145, "control": 46, "stamina": 37, "breaking": 49, "pitches": ["fastball", "curve"], "arm": 70, "fielding": 49, "speed": 52, "role": "reliever" }
       ],
       "lineup": ["fcx-01", "fcx-02", "fcx-03", "fcx-04", "fcx-05", "fcx-06", "fcx-07", "fcx-08", "fcx-09"],
       "startingPitcher": "fcx-p1"

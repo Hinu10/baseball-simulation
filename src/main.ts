@@ -6,15 +6,15 @@ import { Sound } from './audio/sound.ts';
 import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { battingTeam, EXTRA_INNINGS, INNINGS_OPTIONS, score, type Innings, type MatchMode, type TeamIndex } from './core/gameState.ts';
 import { conditionedTeam, initialConditions } from './core/condition.ts';
-import { addGame, advanceConditions, emptyPennant, pairOthers, seasonOver, standings, type GameResult, type Pennant } from './core/pennant.ts';
+import { addGame, advanceConditions, emptyPennant, emptyRecord, gamesPlayed, pairOthers, seasonOver, standings, type GameResult, type Pennant } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
-import { parseTeams, teamStyle, type TeamData } from './core/teams.ts';
+import { parseTeams, roleOf, rotationStarter, teamStyle, type TeamData } from './core/teams.ts';
 import { InputMap, type InputFrame } from './input/actions.ts';
 import { MatchView } from './render/view.ts';
 import { HELP_HTML } from './ui/help.ts';
 import { Hud, MODE_LABEL } from './ui/hud.ts';
-import { MenuList, type MenuItem } from './ui/menuList.ts';
+import { MenuList, type MenuItem, type MenuOption } from './ui/menuList.ts';
 import { RANK_NOTE, rosterHtml } from './ui/roster.ts';
 import { PENNANT_TABS, pennantHtml, pennantProgress, pennantSummaryHtml, rankOf } from './ui/pennant.ts';
 import { loadPennant, savePennant } from './ui/season.ts';
@@ -50,6 +50,8 @@ class App {
   pennantTab = 0;
   /** 「新しいシーズン」を一度押した（もう一度押すとリセット）。 */
   private resetArmed = false;
+  /** メニューで選んだ、あなたのチームの先発（チームを変えたら無効）。試合が終わったら選び直し。 */
+  private starterPick: { team: string; id: string } | null = null;
   subsOpen = false;
   /** 選手・打順の画面で表示しているチーム（rosterTeams() の添字）。 */
   rosterIndex = 0;
@@ -91,6 +93,7 @@ class App {
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 
     const teamOptions = teams.map((t) => ({ value: t.id, label: t.nameJa }));
+    const owner = this;
     const mainItems: MenuItem[] = [
       { kind: 'choice', label: 'あなたのチーム', options: teamOptions, get: () => this.settings.team, set: (v) => this.set({ team: v }) },
       {
@@ -118,6 +121,16 @@ class App {
         ],
         get: () => this.settings.side,
         set: (v) => this.set({ side: v as Settings['side'] })
+      },
+      {
+        kind: 'choice',
+        label: '先発投手',
+        // あなたのチームの先発候補。既定はローテーションの順番の投手で、試合ごとに選び直せる。
+        get options() {
+          return owner.starterOptions();
+        },
+        get: () => this.myStarter(),
+        set: (v) => (this.starterPick = { team: this.settings.team, id: v })
       },
       { kind: 'choice', label: 'モード', options: MODES.map((m) => ({ value: m, label: MODE_LABEL[m] })), get: () => this.settings.mode, set: (v) => this.set({ mode: v as MatchMode }) },
       {
@@ -291,9 +304,31 @@ class App {
     this.helpEl.style.display = open ? '' : 'none';
   }
 
-  /** 選手の今日の調子を反映した球団。 */
+  /** 選手の今日の調子を反映した球団。先発はローテーションで回し、あなたのチームはメニューで選んだ投手にする。 */
   private today(t: TeamData): TeamData {
-    return conditionedTeam(t, this.pennant.condition);
+    const starter = t.id === this.settings.team ? this.myStarter() : this.rotation(t);
+    return { ...conditionedTeam(t, this.pennant.condition), startingPitcher: starter };
+  }
+
+  /** ローテーションで次に投げる先発（その球団のこれまでの試合数で決まる）。 */
+  private rotation(t: TeamData): string {
+    return rotationStarter(t, gamesPlayed(this.pennant.teams[t.id] ?? emptyRecord()));
+  }
+
+  /** メニューで選んだ、あなたのチームの先発（選んでいなければローテーションの順番）。 */
+  myStarter(): string {
+    const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
+    const pick = this.starterPick;
+    return pick && pick.team === mine.id && mine.pitchers.some((p) => p.id === pick.id) ? pick.id : this.rotation(mine);
+  }
+
+  /** 先発投手の選択肢：先発の投手（ローテーションの順番の投手に印）。 */
+  starterOptions(): MenuOption[] {
+    const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
+    const next = this.rotation(mine);
+    return mine.pitchers
+      .filter((p) => roleOf(p) === 'starter')
+      .map((p) => ({ value: p.id, label: `${p.name.split(' ')[0]}${p.id === next ? '（順番）' : ''}` }));
   }
 
   /** 選手・打順の画面に出すチーム。試合中は先攻・後攻、試合前はあなたのチーム・相手・ほかの球団の順。 */
@@ -488,6 +523,8 @@ class App {
   }
 
   private showResult() {
+    // 先発は試合ごとに選ぶので、次の試合はローテーションの順番に戻す。
+    this.starterPick = null;
     const m = this.match!;
     const s = m.state;
     // 最後まで終わった試合だけペナントに数える（途中でメニューに戻った試合は数えない）。
@@ -609,7 +646,7 @@ class App {
         // 早送りでも 1 回の更新は小さく刻む。
         for (let i = 0; i < scale; i++) {
           const before = this.match.phase;
-          this.match.tick(dt, { move: f.move, primary: f.pressed.primary && i === 0, secondary: f.pressed.secondary && i === 0, switch: f.pressed.switch && i === 0 });
+          this.match.tick(dt, { move: f.move, shift: f.shift, primary: f.pressed.primary && i === 0, secondary: f.pressed.secondary && i === 0, switch: f.pressed.switch && i === 0, steal: f.pressed.steal && i === 0 });
           this.hearTick(before);
         }
         if (this.match.phase === 'over') {

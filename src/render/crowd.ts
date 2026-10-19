@@ -1,8 +1,8 @@
 // 観客席の観客。数千人を InstancedMesh で描き、安打・得点・本塁打のときに跳ねて沸く。
 // 観客は基本的に応援する球団のユニフォーム姿（チームカラーを組み合わせたもの）。プロ野球の球場のように全体ではホームのファンが多く、
-// 右翼はホームの応援団、左翼のポール寄りはビジターの応援団。沸くのは攻撃中のチームのファンが中心。
+// 外野は右翼がホーム、左翼がビジターの応援席で、相手のファンは混ざらない。沸くのは攻撃中のチームのファンが中心。
 import * as THREE from 'three';
-import type { TeamColors } from '../core/teams.ts';
+import { inkOn, type TeamColors } from '../core/teams.ts';
 import type { TeamIndex } from '../core/gameState.ts';
 
 export interface Seat {
@@ -22,18 +22,20 @@ const SKIN = ['#f1c9a5', '#e8b996', '#d9a47c', '#f6d7bd', '#c68a62'];
 /** 私服（ユニフォームを着ていない少数の人。落ち着いた色が多い）。 */
 const CASUAL = ['#f5f5f5', '#e8e0d0', '#2b2b2b', '#3e4a61', '#8a8f98', '#5d6d7e', '#c8b79a', '#6d4c41', '#a5b4c4', '#b0413e'];
 
+/** 打席の選手の名前入りタオルを掲げるファンの数（チームごと）。 */
+const TOWEL_HOLDERS = 14;
+const TOWEL = { w: 2.6, h: 0.65 };
+
 /** 一塁側（core の +x）がホーム（後攻）。 */
 const sideOf = (s: Seat): TeamIndex => (s.x > 0 ? 1 : 0);
 
 /**
  * その席に座るファンの割合 [ホーム, ビジター]（残りは私服）。プロ野球の球場のように全体ではホームが多く、
- * ビジターのファンは三塁側の内野と左翼のポール寄り（ビジター応援団）に集まる。
+ * ビジターのファンは三塁側の内野と左翼席に集まる。外野席は応援席なので、相手チームのファンは座らない。
  */
 export function fanShare(s: Pick<Seat, 'x' | 'z' | 'outfield'>): [number, number] {
   if (s.outfield) {
-    if (s.x > 0) return [0.96, 0.02];
-    // 左翼はポール寄りがビジター応援団、中堅寄りはホームのファン。
-    return s.x < -35 ? [0.12, 0.84] : [0.7, 0.26];
+    return s.x > 0 ? [0.97, 0] : [0, 0.97];
   }
   if (s.z < -4) return [0.74, 0.2];
   return s.x > 0 ? [0.9, 0.05] : [0.55, 0.4];
@@ -78,6 +80,12 @@ export class Crowd {
   private readonly phase: Float32Array;
   private readonly flags: { pole: THREE.Group; cloth: THREE.Mesh; team: TeamIndex; phase: number }[] = [];
   private readonly excitement: [number, number] = [0, 0];
+  /** 名前入りタオル。打席の選手が代わるたびに、その選手のファンが掲げる。 */
+  private readonly towels: { mesh: THREE.Mesh; seat: number; phase: number }[] = [];
+  private readonly towelGeo = new THREE.PlaneGeometry(TOWEL.w, TOWEL.h);
+  private readonly towelMat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+  private towelKey = '';
+  private teamColors: [TeamColors, TeamColors] | null = null;
   private moving = false;
   private time = 0;
 
@@ -151,6 +159,8 @@ export class Crowd {
    * 私服はわずか。試合がなければ私服。teams は [ビジター（先攻）, ホーム（後攻）]。
    */
   setTeams(teams: [TeamColors, TeamColors] | null) {
+    this.teamColors = teams;
+    this.setBatter(null);
     const color = new THREE.Color();
     this.seats.forEach((s, i) => {
       const [home, visitor] = teams ? fanShare(s) : [0, 0];
@@ -204,6 +214,47 @@ export class Crowd {
     }
   }
 
+  /**
+   * 打席の選手の名前（フルネーム）を書いたタオルを、そのチームのファンの何人かが頭の上に掲げる。
+   * null ならタオルをしまう。同じ選手のあいだは同じ人が掲げ続ける。
+   */
+  setBatter(batter: { id: string; name: string; team: TeamIndex } | null) {
+    const key = batter && this.teamColors ? `${batter.team}|${batter.id}` : '';
+    if (key === this.towelKey) return;
+    this.towelKey = key;
+    for (const t of this.towels) this.group.remove(t.mesh);
+    this.towels.length = 0;
+    if (!batter || !this.teamColors) return;
+    const colors = this.teamColors[batter.team];
+    this.towelMat.map?.dispose();
+    this.towelMat.map = towelTexture(batter.name, colors.primary, inkOn(colors.primary));
+    this.towelMat.needsUpdate = true;
+    // そのチームのファンの中から、内野と外野に散らばるように選ぶ。
+    const fans = this.seats.map((_, i) => i).filter((i) => this.fan[i] === batter.team);
+    for (let k = 0; k < TOWEL_HOLDERS && fans.length; k++) {
+      const seat = fans[Math.floor(((k + Math.random()) / TOWEL_HOLDERS) * fans.length) % fans.length];
+      const s = this.seats[seat];
+      const mesh = new THREE.Mesh(this.towelGeo, this.towelMat);
+      // 球場全体は左右反転して描くので、タオルだけ反転を戻して文字が読めるようにする。
+      mesh.scale.set(-SCALE, SCALE, SCALE);
+      mesh.rotation.y = s.yaw;
+      this.towels.push({ mesh, seat, phase: Math.random() * Math.PI * 2 });
+      this.group.add(mesh);
+    }
+    this.placeTowels();
+  }
+
+  /** タオルを持ち主の頭の上に置く（沸いているときは高く掲げて振る）。 */
+  private placeTowels() {
+    for (const t of this.towels) {
+      const s = this.seats[t.seat];
+      const e = Math.min(1, this.excitement[this.fan[t.seat] as TeamIndex] ?? 0);
+      const bob = Math.sin(this.time * 3 + t.phase);
+      t.mesh.position.set(s.x, s.y + (BODY.h + 0.75 + 0.25 * e + 0.05 * bob) * SCALE, s.z);
+      t.mesh.rotation.z = bob * (0.05 + 0.25 * e);
+    }
+  }
+
   /** 沸かせる。strength は 0.5（安打）〜 1.2（本塁打）くらい。team は攻撃中のチーム。 */
   cheer(strength: number, team: TeamIndex) {
     this.excitement[team] = Math.max(this.excitement[team], Math.min(1.3, strength));
@@ -218,6 +269,7 @@ export class Crowd {
       f.cloth.rotation.y = Math.sin(this.time * 2 + f.phase) * 0.25;
       f.pole.rotation.z = Math.sin(this.time * 6 + f.phase) * 0.45 * e;
     }
+    this.placeTowels();
     const active = this.excitement[0] > 0 || this.excitement[1] > 0;
     if (!active && !this.moving) return;
     // 跳ねる高さだけを、各部品の行列の y 成分（添字 13）に書き込む。
@@ -234,6 +286,27 @@ export class Crowd {
     for (const { mesh } of this.parts) mesh.instanceMatrix.needsUpdate = true;
     this.moving = active;
   }
+}
+
+/** 名前入りタオルの絵（チームカラーの地に名前、上下に細い線）。 */
+function towelTexture(name: string, bg: string, ink: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = bg;
+  g.fillRect(0, 0, 512, 128);
+  g.fillStyle = ink;
+  g.fillRect(0, 10, 512, 6);
+  g.fillRect(0, 112, 512, 6);
+  g.font = 'bold 76px "Hiragino Sans", "Noto Sans JP", sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(name, 256, 66, 480);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
 }
 
 /** 位置と法線だけの形を 1 つにまとめる。 */
