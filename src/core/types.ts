@@ -4,10 +4,21 @@ export type Position = 'P' | 'C' | '1B' | '2B' | '3B' | 'SS' | 'LF' | 'CF' | 'RF
 /** 打順に入る守備位置。DH は守らない。 */
 export type LineupPosition = Exclude<Position, 'P'> | 'DH';
 export type Hand = 'R' | 'L';
-export type PitchType = 'fastball' | 'curve' | 'slider' | 'fork';
+export type PitchType =
+  | 'fastball'
+  | 'slowball'
+  | 'twoseam'
+  | 'cutter'
+  | 'shoot'
+  | 'curve'
+  | 'knucklecurve'
+  | 'slider'
+  | 'fork'
+  | 'changeup'
+  | 'palm';
 
 export const FIELD_POSITIONS: readonly Position[] = ['P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
-export const PITCH_TYPES: readonly PitchType[] = ['fastball', 'curve', 'slider', 'fork'];
+export const PITCH_TYPES: readonly PitchType[] = ['fastball', 'slowball', 'twoseam', 'cutter', 'shoot', 'curve', 'knucklecurve', 'slider', 'fork', 'changeup', 'palm'];
 
 export const POSITION_LABEL: Record<LineupPosition | 'P', string> = {
   P: '投',

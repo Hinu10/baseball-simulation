@@ -13,7 +13,19 @@ const overlay = (color: string, opacity = 1) =>
 
 const CURSOR_COLOR = { meet: '#ffe14d', power: '#ff4d4d', bunt: '#4dd9ff' };
 /** 投げる前に見せる軌道の色（球種ごと）。 */
-const PATH_COLOR: Record<PitchType, string> = { fastball: '#ffffff', curve: '#4dd9ff', slider: '#ffe14d', fork: '#ff7ad9' };
+const PATH_COLOR: Record<PitchType, string> = {
+  fastball: '#ffffff',
+  slowball: '#d0d0d0',
+  twoseam: '#ffb0b0',
+  cutter: '#fff3a0',
+  shoot: '#ff8a5c',
+  curve: '#4dd9ff',
+  knucklecurve: '#7aa7ff',
+  slider: '#ffe14d',
+  fork: '#ff7ad9',
+  changeup: '#9be58a',
+  palm: '#c79bff'
+};
 const SWEET_COLOR = '#5dff8a';
 /** バットの目安の、芯の幅と全体の長さ（batSpot の値）。 */
 const BAT_GUIDE = { sweet: 0.35, end: 1.6 };

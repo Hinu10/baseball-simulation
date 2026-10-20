@@ -26,9 +26,17 @@ export interface PitchInfo {
 
 export const PITCHES: Record<PitchType, PitchInfo> = {
   fastball: { label: 'ストレート', short: '直', speed: 1, breakX: -0.04, breakY: 0.04, late: 2 },
+  // 遅いストレート：腕の振りはストレートのまま、ぐっと遅い。
+  slowball: { label: 'スローボール', short: '遅', speed: 0.72, breakX: -0.02, breakY: -0.12, late: 1.6 },
+  twoseam: { label: 'ツーシーム', short: 'ツ', speed: 0.96, breakX: -0.14, breakY: -0.1, late: 3 },
+  cutter: { label: 'カットボール', short: 'カッ', speed: 0.94, breakX: 0.14, breakY: -0.03, late: 3.2 },
+  shoot: { label: 'シュート', short: 'シ', speed: 0.92, breakX: -0.27, breakY: -0.06, late: 2.6 },
   curve: { label: 'カーブ', short: 'カ', speed: 0.78, breakX: 0.26, breakY: -0.42, late: 2 },
+  knucklecurve: { label: 'ナックルカーブ', short: 'ナ', speed: 0.83, breakX: 0.18, breakY: -0.52, late: 2.8 },
   slider: { label: 'スライダー', short: 'ス', speed: 0.88, breakX: 0.34, breakY: -0.1, late: 2.4 },
-  fork: { label: 'フォーク', short: 'フ', speed: 0.9, breakX: 0, breakY: -0.46, late: 3.2 }
+  fork: { label: 'フォーク', short: 'フ', speed: 0.9, breakX: 0, breakY: -0.46, late: 3.2 },
+  changeup: { label: 'チェンジアップ', short: 'チ', speed: 0.83, breakX: -0.12, breakY: -0.26, late: 2.8 },
+  palm: { label: 'パーム', short: 'パ', speed: 0.76, breakX: -0.05, breakY: -0.36, late: 3 }
 };
 
 /** ストライクゾーン。打者ごとに持てる形にしておき、MVP は共通サイズを使う。 */

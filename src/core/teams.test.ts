@@ -96,7 +96,7 @@ test('寛ブタイガーの主力：4人がスタメンで、開幕投手は風�
   const t = parseTeams(raw).find((x) => x.id === 'kanbu')!;
   const names = lineupOf(t).map((b) => b.name);
   for (const n of ['中座 玲', '畑見 一樹', '川鷺 尤輔', '大森 龍之介']) assert.ok(names.includes(n), n);
-  assert.equal(t.pitchers.find((p) => p.id === t.startingPitcher)!.name, '風嵐 翔真');
+  assert.equal(t.pitchers.find((p) => p.id === t.startingPitcher)!.name, '風嵐 柊弥');
   assert.ok(!allBatters(t).some((b) => b.name.startsWith('淵野')));
 });
 
