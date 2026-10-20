@@ -71,7 +71,7 @@ function noticesHtml(p: Pennant, teams: TeamData[], you: string, days = 30): str
     const rows = list
       .map((n) => {
         const t = teams.find((x) => x.id === n.team);
-        return t ? `<tr class="${n.team === you ? 'current' : ''}"><td class="name">${teamName(t)}</td><td class="kind ${n.kind}">${NOTICE_LABEL[n.kind]}</td><td>${n.group}</td><td class="name">${esc(n.name)}<small>#${n.number}</small></td></tr>` : '';
+        return t ? `<tr class="${n.team === you ? 'current' : ''}"><td class="name">${teamName(t)}</td><td class="kind ${n.kind}">${NOTICE_LABEL[n.kind]}${n.reason ? `（${esc(n.reason)}）` : ''}</td><td>${n.group}</td><td class="name">${esc(n.name)}<small>#${n.number}</small></td></tr>` : '';
       })
       .join('');
     return `<h3>${day}日目のあと</h3><table class="roster-table notice-table">${rows}</table>`;
@@ -106,7 +106,7 @@ export function pennantSummaryHtml(p: Pennant, teams: TeamData[], you: TeamData)
     .join('');
   const short: Record<string, string> = { up: '登録', down: '抹消', sign: '支配下' };
   const notices = noticesOn(p, p.day)
-    .map((n) => `<span>${esc(teams.find((t) => t.id === n.team)?.shortName ?? '')} ${short[n.kind]} ${esc(n.name)}</span>`)
+    .map((n) => `<span>${esc(teams.find((t) => t.id === n.team)?.shortName ?? '')} ${short[n.kind]}${n.reason ? `（${esc(n.reason)}）` : ''} ${esc(n.name)}</span>`)
     .join('');
   return `<div class="pennant-summary"><div>ペナント ${esc(you.league)} <b>${rankOf(p, teams, you.id)}位</b>　${r.w}勝${r.l}敗${r.t ? `${r.t}分` : ''}（${pennantProgress(p, teams)}）</div>${others ? `<div class="others">他球場　${others}</div>` : ''}${notices ? `<div class="others">公示　${notices}</div>` : ''}</div>`;
 }
