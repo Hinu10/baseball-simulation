@@ -129,7 +129,10 @@ export function syncRosters(p: Pennant, teams: TeamData[]): Pennant {
   for (const t of teams) {
     const reg = registrations[t.id];
     if (!reg) continue;
-    const promoted = new Set(p.notices.filter((n) => n.team === t.id && n.kind === 'up').map((n) => n.id));
+    // 公示で2軍から上がった選手（最初の公示が登録）。抹消されてから戻った1軍の選手は含めない。
+    const first = new Map<string, Notice['kind']>();
+    for (const n of p.notices) if (n.team === t.id && n.kind !== 'sign' && !first.has(n.id)) first.set(n.id, n.kind);
+    const promoted = new Set([...first].filter(([, kind]) => kind === 'up').map(([id]) => id));
     registrations[t.id] = syncRoster(t, reg, promoted);
   }
   return { ...p, registrations };

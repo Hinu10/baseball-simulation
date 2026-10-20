@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { createGameState, type GameState } from './gameState.ts';
-import { addGame, emptyPennant, formatInnings, INTERLEAGUE, isInterleague, nextOpponent, pairOthers, seasonOver, SEASON_GAMES, standings, titleRaces, type Pennant } from './pennant.ts';
+import { addGame, emptyPennant, formatInnings, INTERLEAGUE, isInterleague, nextOpponent, pairOthers, seasonOver, SEASON_GAMES, standings, syncRosters, titleRaces, type Pennant } from './pennant.ts';
 import { parseTeams, type TeamData } from './teams.ts';
 
 const teams = parseTeams(raw);
@@ -116,4 +116,19 @@ test('順位表はリーグごとに出せる', () => {
   assert.equal(b.length, 6);
   assert.ok(!b.includes(teams[0]));
   assert.equal(standings(emptyPennant(), b).length, 6);
+});
+
+test('古い保存で、抹消されてから公示で戻った1軍の選手も、teams.json の1軍から外したら抹消する', () => {
+  const t = teams[0];
+  const out = t.batters.find((b) => b.id === t.lineup[0])!;
+  const up = t.farm!.batters.find((b) => b.position === out.position)!;
+  const data = { ...t, batters: [...t.batters.filter((b) => b !== out), up], farm: { ...t.farm!, batters: [...t.farm!.batters.filter((b) => b !== up), out] } };
+  const notice = (kind: 'up' | 'down', day: number) => ({ day, team: t.id, kind, id: out.id, name: out.name, number: out.number, group: '外野手' });
+  const p: Pennant = {
+    ...emptyPennant(),
+    registrations: { [t.id]: { active: [...t.batters, ...t.pitchers].map((x) => x.id), signed: {}, removedOn: { [out.id]: 2 } } },
+    notices: [notice('down', 2), notice('up', 20)]
+  };
+  const active = syncRosters(p, [data]).registrations[t.id].active;
+  assert.ok(active.includes(up.id) && !active.includes(out.id));
 });
