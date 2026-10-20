@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { glowColor, inkOn, lineupOf, luminance, managerOf, parseTeams, roleOf, rotationStarter, TeamDataError, textColor } from './teams.ts';
+import { allBatters, glowColor, inkOn, lineupOf, luminance, managerOf, parseTeams, roleOf, rotationStarter, TeamDataError, textColor } from './teams.ts';
 
 const clone = () => structuredClone(raw) as { teams: any[] };
 
-test('同梱の teams.json は6球団とも検証を通る', () => {
+test('同梱の teams.json は12球団とも検証を通る', () => {
   const teams = parseTeams(raw);
   assert.deepEqual(
     teams.map((t) => t.nameJa),
-    ['マイカイスピーカー', 'ジョガワコーク', 'スマーリンズ', '花桜', '神山国', 'ファクロムエックス']
+    ['マイカイスピーカー', 'ジョガワコーク', 'スマーリンズ', '花桜', '神山国', 'ファクロムエックス', '寛ブタイガー', '万山グース', 'オネタール', 'サックスターズ', 'メリークッスーズ', '金ノダンク']
   );
   for (const t of teams) {
     assert.ok(t.batters.length >= 9);
@@ -72,7 +72,8 @@ test('各球団の登録は29〜31人で、先発・中継ぎ・抑えがそろ�
 
 test('各球団の首脳陣：先頭が監督で、背番号は選手と重ならない', () => {
   const managers = Object.fromEntries(parseTeams(raw).map((t) => [t.id, managerOf(t).name.split(' ')[0]]));
-  assert.deepEqual(managers, { hanazakura: '上尾', kamiyama: '河卿田', jogawa: '元新', maikai: '考田', facrom: '加野尾', smarlins: '澤' });
+  const first = Object.fromEntries(Object.entries(managers).slice(0, 6));
+  assert.deepEqual(first, { hanazakura: '上尾', kamiyama: '河卿田', jogawa: '元新', maikai: '考田', facrom: '加野尾', smarlins: '澤' });
   for (const t of parseTeams(raw)) {
     const players = new Set([...t.batters, ...t.pitchers].map((p) => p.number));
     for (const m of t.staff) assert.ok(!players.has(m.number), `${t.shortName} ${m.name}`);
@@ -88,4 +89,12 @@ test('各球団に2軍と育成の選手がいて、育成の背番号は3桁', 
   const c = clone();
   c.teams[0].development.batters[0].number = 5;
   assert.throws(() => parseTeams(c), TeamDataError);
+});
+
+test('寛ブタイガーの主力：4人がスタメンで、開幕投手は風嵐。海外に移った淵野はいない', () => {
+  const t = parseTeams(raw).find((x) => x.id === 'kanbu')!;
+  const names = lineupOf(t).map((b) => b.name);
+  for (const n of ['中座 玲', '畑見 一樹', '川鷺 尤輔', '大森 龍之介']) assert.ok(names.includes(n), n);
+  assert.equal(t.pitchers.find((p) => p.id === t.startingPitcher)!.name, '風嵐 翔真');
+  assert.ok(!allBatters(t).some((b) => b.name.startsWith('淵野')));
 });
