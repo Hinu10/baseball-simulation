@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { createGameState, type GameState } from './gameState.ts';
-import { addGame, emptyPennant, formatInnings, pairOthers, seasonOver, SEASON_GAMES, standings, titleRaces } from './pennant.ts';
+import { addGame, emptyPennant, formatInnings, INTERLEAGUE, isInterleague, nextOpponent, pairOthers, seasonOver, SEASON_GAMES, standings, titleRaces, type Pennant } from './pennant.ts';
 import { parseTeams, type TeamData } from './teams.ts';
 
 const teams = parseTeams(raw);
@@ -86,4 +86,34 @@ test('出場した試合数は、打席に立った野手・登板した投手�
   assert.equal(pennant.batting[b].so, 2);
   assert.equal(pennant.pitching[p].g, 2);
   assert.equal(pennant.pitching[p].outs, 18);
+});
+
+test('1シーズン：同じリーグの5球団と25試合ずつ、交流戦で他リーグの6球団と3試合ずつ、計143試合', () => {
+  let p: Pennant = emptyPennant();
+  const mine = teams[0];
+  let random = 1;
+  const rand = () => ((random = (random * 16807) % 2147483647) / 2147483647);
+  for (let day = 0; day < SEASON_GAMES; day++) {
+    assert.equal(isInterleague(day), day >= INTERLEAGUE.from && day < INTERLEAGUE.from + INTERLEAGUE.days);
+    const other = nextOpponent(p, teams, mine);
+    const games: [TeamData, TeamData][] = [[mine, other], ...pairOthers(p, teams, [mine.id, other.id], rand)];
+    assert.equal(games.length, 6, '12球団がみな1試合ずつ');
+    for (const [a, h] of games) p = addGame(p, finished(a, h, 1, 0));
+    p = { ...p, day: p.day + 1 };
+  }
+  assert.ok(seasonOver(p, teams));
+  for (const a of teams) {
+    for (const b of teams) {
+      if (a === b) continue;
+      const n = p.meetings[[a.id, b.id].sort().join('|')] ?? 0;
+      assert.equal(n, a.league === b.league ? 25 : 3, `${a.shortName}-${b.shortName}`);
+    }
+  }
+});
+
+test('順位表はリーグごとに出せる', () => {
+  const b = teams.filter((t) => t.league === teams[11].league);
+  assert.equal(b.length, 6);
+  assert.ok(!b.includes(teams[0]));
+  assert.equal(standings(emptyPennant(), b).length, 6);
 });

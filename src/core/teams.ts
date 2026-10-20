@@ -96,6 +96,8 @@ export interface TeamData {
   nameJa: string;
   shortName: string;
   abbr: string;
+  /** 所属リーグの名前。順位とタイトルはリーグごと。 */
+  league: string;
   colors: TeamColors;
   /** 首脳陣。先頭が監督。 */
   staff: StaffMember[];
@@ -133,7 +135,7 @@ export function parseTeams(raw: unknown): TeamData[] {
     const name = t.name ?? '(名前なし)';
     if (!t.id || ids.has(t.id)) fail(name, '球団 id がないか重複しています');
     ids.add(t.id);
-    for (const key of ['name', 'nameJa', 'shortName', 'abbr'] as const) if (typeof t[key] !== 'string' || !t[key]) fail(name, `${key} がありません`);
+    for (const key of ['name', 'nameJa', 'shortName', 'abbr', 'league'] as const) if (typeof t[key] !== 'string' || !t[key]) fail(name, `${key} がありません`);
     for (const key of ['primary', 'secondary', 'uniform', 'cap'] as const) {
       if (!/^#[0-9a-fA-F]{6}$/.test(t.colors?.[key] ?? '')) fail(name, `colors.${key} は #rrggbb で書いてください`);
     }
