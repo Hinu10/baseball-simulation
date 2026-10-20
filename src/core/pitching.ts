@@ -100,11 +100,17 @@ export interface Pitch {
   missed: boolean;
 }
 
-/** 投球数とスタミナから疲労（0〜1）。スタミナ 50 でおよそ 50 球から疲れ始める。 */
+/** 投げられる球数の目安（ここで疲れきる）。スタミナ 80 で 100 球、40 で 60 球。 */
+export const pitchLimit = (p: Pitcher) => 20 + p.stamina;
+
+/** 投球数とスタミナから疲労（0〜1）。限界の半分の球数から球に出始め、限界で疲れきる。 */
 export function fatigue(p: Pitcher, pitchCount: number): number {
-  const capacity = 35 + 0.9 * p.stamina;
-  return clamp((pitchCount - capacity * 0.6) / (capacity * 0.6), 0, 1);
+  const limit = pitchLimit(p);
+  return clamp((pitchCount - limit * 0.5) / (limit * 0.5), 0, 1);
 }
+
+/** 残りのスタミナ（0〜1、画面の表示）。1球目から減っていく。 */
+export const staminaLeft = (p: Pitcher, pitchCount: number) => clamp(1 - pitchCount / pitchLimit(p), 0, 1);
 
 /** コントロールと疲労による制球誤差の標準偏差（m）。 */
 export function controlError(p: Pitcher, tired: number): number {

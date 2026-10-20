@@ -3,7 +3,7 @@ import { STRATEGY_LABEL } from '../core/ai.ts';
 import { basePos } from '../core/field.ts';
 import { addLines, addPitchingLines, battingTeam, currentBatter, currentBatterPosition, currentPitcher, emptyLine, emptyPitchingLine, fieldingTeam, score, type GameState } from '../core/gameState.ts';
 import type { Match } from '../core/match.ts';
-import { fatigue, PITCHES } from '../core/pitching.ts';
+import { PITCHES, staminaLeft } from '../core/pitching.ts';
 import { POSITION_LABEL } from '../core/types.ts';
 import type { MatchView } from '../render/view.ts';
 import { conditionBadge } from './roster.ts';
@@ -134,7 +134,7 @@ export class Hud {
        ${this.seasonLine(s, batter.id)}
        <div class="stats"><span>ミート</span>${bar(batter.meet)}<span>パワー</span>${bar(batter.power, 'pow')}<span>走力</span>${bar(batter.speed, 'spd')}</div>`
     );
-    const stamina = Math.round((1 - fatigue(pitcher, ft.pitchCount)) * 100);
+    const stamina = Math.round(staminaLeft(pitcher, ft.pitchCount) * 100);
     this.html(
       'pitcher',
       `<div class="role" style="--team:${ft.team.colors.primary}">投手　${pitcher.throws === 'R' ? '右投' : '左投'}</div>
