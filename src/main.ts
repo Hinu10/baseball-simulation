@@ -9,7 +9,7 @@ import { conditionedTeam, initialConditions } from './core/condition.ts';
 import { managedTeam } from './core/manager.ts';
 import { registeredTeam } from './core/registration.ts';
 import { parkOf } from './core/field.ts';
-import { addGame, advanceDay, emptyPennant, emptyRecord, gamesPlayed, leagues, nextOpponent, pairOthers, seasonOver, standings, type GameResult, type Pennant } from './core/pennant.ts';
+import { addGame, advanceDay, emptyPennant, emptyRecord, gamesPlayed, leagues, nextOpponent, pairOthers, seasonOver, standings, syncRosters, type GameResult, type Pennant } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
 import { parseTeams, roleOf, rotationStarter, teamStyle, type TeamData } from './core/teams.ts';
@@ -70,8 +70,8 @@ class App {
   private heardEvents = 0;
   /** いまのプレーで攻撃しているチーム（そのファンが沸く）。 */
   private heardTeam: TeamIndex = 0;
-  /** ペナントレースの経過。試合が終わるたびに、他球場の試合も行って足して保存する。 */
-  private pennant = withConditions(loadPennant());
+  /** ペナントレースの経過。試合が終わるたびに、他球場の試合も行って足して保存する。teams.json の1軍の入れ替えは読み込むときに反映する。 */
+  private pennant = withConditions(syncRosters(loadPennant(), teams));
   private readonly hud = new Hud();
   private readonly ui = document.getElementById('ui')!;
   private readonly menuEl = document.createElement('div');

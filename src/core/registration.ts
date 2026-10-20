@@ -19,6 +19,8 @@ export interface Registration {
   injuredUntil?: Record<string, number>;
   /** 故障で1軍を外れた選手と、代わりに上がった選手（治ったら入れ替えて戻す）。 */
   replacedBy?: Record<string, string>;
+  /** 最後に合わせた teams.json の1軍（これと違っていたら syncRoster で反映する）。 */
+  roster?: string[];
 }
 
 export type Registrations = Record<string, Registration>;
@@ -66,7 +68,23 @@ export const groupOf = (p: Batter | Pitcher) => ('position' in p ? GROUP[p.posit
 
 /** 開幕時の登録（teams.json のとおり）。 */
 export function initialRegistration(t: TeamData): Registration {
-  return { active: [...t.batters, ...t.pitchers].map((p) => p.id), signed: {}, removedOn: {} };
+  const roster = [...t.batters, ...t.pitchers].map((p) => p.id);
+  return { active: [...roster], signed: {}, removedOn: {}, roster };
+}
+
+/**
+ * teams.json の1軍が変わっていたら、途中の登録にも反映する。新しく1軍に入った選手を登録し、外れた選手を抹消する。
+ * roster の無い古い保存では、登録の記録に出てこない1軍の選手を新しく入ったものとし、
+ * 公示で上がった選手（promoted）以外で teams.json の1軍にいない選手を外れたものとみなす。
+ */
+export function syncRoster(t: TeamData, reg: Registration, promoted: ReadonlySet<string> = new Set()): Registration {
+  const roster = [...t.batters, ...t.pitchers].map((p) => p.id);
+  const now = new Set(roster);
+  const before = new Set(reg.roster ?? [...reg.active, ...Object.keys(reg.removedOn), ...Object.keys(reg.injuredUntil ?? {})]);
+  const removed = new Set(reg.roster ? reg.roster.filter((id) => !now.has(id)) : reg.active.filter((id) => !now.has(id) && !promoted.has(id)));
+  const added = roster.filter((id) => !before.has(id) && !reg.active.includes(id));
+  const replacedBy = Object.fromEntries(Object.entries(reg.replacedBy ?? {}).filter(([id]) => !removed.has(id)));
+  return { ...reg, active: [...reg.active.filter((id) => !removed.has(id)), ...added], ...(reg.replacedBy && { replacedBy }), roster };
 }
 
 /** 背番号（支配下登録で変わる）と、故障の残り日数（day を渡したとき）を付ける。 */
