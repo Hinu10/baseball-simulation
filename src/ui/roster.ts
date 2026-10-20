@@ -98,6 +98,11 @@ export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
     <div class="roster-scroll"><table class="roster-table season-table"><tr><th>役割</th><th class="name">名前</th><th>登板</th><th>勝</th><th>敗</th><th>投球回</th><th>被安打</th><th>奪三振</th><th>与四球</th><th>失点</th><th>防御率</th></tr>${pitchers}</table></div>`;
 }
 
+/** 首脳陣（監督・コーチ）の一覧。 */
+export function staffHtml(team: TeamData): string {
+  return `<h3>首脳陣</h3><p class="staff">${team.staff.map((m) => `<span><small>${esc(m.role)}</small>${esc(m.name)}<small>#${m.number}</small></span>`).join('')}</p>`;
+}
+
 /** 1チーム分の表。live があれば試合中の打順・投手を使う。season があれば、その下にシーズン成績を出す。 */
 export function rosterHtml(team: TeamData, live?: RosterLive, season?: RosterSeason): string {
   const t = live?.state.teams[live.index];
@@ -112,6 +117,7 @@ export function rosterHtml(team: TeamData, live?: RosterLive, season?: RosterSea
   const todayHead = live ? '<th>今日</th>' : '';
   const batterHead = `<tr><th></th><th>守</th><th class="name">名前</th><th>打</th><th>調子</th><th>ミート</th><th>パワー</th><th>走力</th><th>肩</th><th>守備</th>${todayHead}</tr>`;
   return `<div class="roster-team" style="${teamStyle(team.colors)}">
+    ${staffHtml(team)}
     <h3>打順</h3>
     <div class="roster-scroll"><table class="roster-table">${batterHead}${lineup.map((b, i) => batterRow(b, String(i + 1), positions[i], live, i === atBat)).join('')}${
       bench.length ? `<tr class="bench-head"><td colspan="${live ? 11 : 10}">控え</td></tr>${bench.map((b) => batterRow(b, '', removed.has(b.id) ? null : b.position, live, false, removed.has(b.id))).join('')}` : ''
