@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { glowColor, inkOn, lineupOf, luminance, parseTeams, roleOf, rotationStarter, TeamDataError, textColor } from './teams.ts';
+import { glowColor, inkOn, lineupOf, luminance, managerOf, parseTeams, roleOf, rotationStarter, TeamDataError, textColor } from './teams.ts';
 
 const clone = () => structuredClone(raw) as { teams: any[] };
 
@@ -67,5 +67,14 @@ test('各球団の登録は29〜31人で、先発・中継ぎ・抑えがそろ�
     const order = Array.from({ length: starters.length }, (_, i) => rotationStarter(t, i));
     assert.equal(new Set(order).size, starters.length, '一巡するまで同じ先発は出ない');
     assert.equal(rotationStarter(t, starters.length), t.startingPitcher);
+  }
+});
+
+test('各球団の首脳陣：先頭が監督で、背番号は選手と重ならない', () => {
+  const managers = Object.fromEntries(parseTeams(raw).map((t) => [t.id, managerOf(t).name.split(' ')[0]]));
+  assert.deepEqual(managers, { hanazakura: '上尾', kamiyama: '河卿田', jogawa: '元新', maikai: '考田', facrom: '加野尾', smarlins: '澤' });
+  for (const t of parseTeams(raw)) {
+    const players = new Set([...t.batters, ...t.pitchers].map((p) => p.number));
+    for (const m of t.staff) assert.ok(!players.has(m.number), `${t.shortName} ${m.name}`);
   }
 });

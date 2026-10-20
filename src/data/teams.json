@@ -7,6 +7,16 @@
       "shortName": "マイカイ",
       "abbr": "MKS",
       "colors": { "primary": "#3f8f2f", "secondary": "#a4d65e", "uniform": "#f6faf2", "cap": "#2e6b22" },
+      "staff": [
+        { "role": "監督", "name": "考田 慎之介", "number": 78 },
+        { "role": "ヘッドコーチ", "name": "森岡 草平", "number": 81 },
+        { "role": "投手コーチ", "name": "若葉 一樹", "number": 71 },
+        { "role": "打撃コーチ", "name": "林道 光", "number": 74 },
+        { "role": "内野守備走塁コーチ", "name": "苗場 翔吾", "number": 76 },
+        { "role": "外野守備走塁コーチ", "name": "緑川 大輔", "number": 87 },
+        { "role": "バッテリーコーチ", "name": "柊 敬", "number": 83 },
+        { "role": "二軍監督", "name": "杉並 光太郎", "number": 92 }
+      ],
       "batters": [
         { "id": "tkc-01", "name": "星野 翔", "number": 1, "position": "CF", "bats": "L", "meet": 78, "power": 42, "speed": 90, "arm": 66, "fielding": 82 },
         { "id": "tkc-02", "name": "宮坂 遼", "number": 6, "position": "SS", "bats": "R", "meet": 70, "power": 38, "speed": 76, "arm": 74, "fielding": 86 },
@@ -50,6 +60,16 @@
       "shortName": "ジョガワ",
       "abbr": "JGC",
       "colors": { "primary": "#c8102e", "secondary": "#1a1a1a", "uniform": "#fdf6f0", "cap": "#1a1a1a" },
+      "staff": [
+        { "role": "監督", "name": "元新 静雄", "number": 70 },
+        { "role": "ヘッドコーチ", "name": "穂高 篤", "number": 79 },
+        { "role": "投手コーチ", "name": "落合田 恒", "number": 72 },
+        { "role": "打撃コーチ", "name": "澄川 悟", "number": 73 },
+        { "role": "内野守備走塁コーチ", "name": "閑野 慎吾", "number": 75 },
+        { "role": "外野守備走塁コーチ", "name": "穏原 克也", "number": 84 },
+        { "role": "バッテリーコーチ", "name": "凪村 仁", "number": 82 },
+        { "role": "二軍監督", "name": "寂光 義弘", "number": 90 }
+      ],
       "batters": [
         { "id": "osw-01", "name": "三鷹 疾風", "number": 2, "position": "SS", "bats": "R", "meet": 73, "power": 39, "speed": 87, "arm": 71, "fielding": 83 },
         { "id": "osw-02", "name": "大村 柊", "number": 8, "position": "2B", "bats": "L", "meet": 75, "power": 43, "speed": 69, "arm": 61, "fielding": 77 },
@@ -94,6 +114,16 @@
       "shortName": "スマーリンズ",
       "abbr": "SML",
       "colors": { "primary": "#a9dcf2", "secondary": "#4a8db7", "uniform": "#f9fdff", "cap": "#a9dcf2" },
+      "staff": [
+        { "role": "監督", "name": "澤 海人", "number": 75 },
+        { "role": "ヘッドコーチ", "name": "潮見 浩二", "number": 81 },
+        { "role": "投手コーチ", "name": "汐田 渚", "number": 71 },
+        { "role": "打撃コーチ", "name": "浜辺 拓", "number": 74 },
+        { "role": "内野守備走塁コーチ", "name": "磯村 大樹", "number": 76 },
+        { "role": "外野守備走塁コーチ", "name": "波多野 航", "number": 85 },
+        { "role": "バッテリーコーチ", "name": "岬 健", "number": 83 },
+        { "role": "二軍監督", "name": "灯台寺 進", "number": 90 }
+      ],
       "batters": [
         { "id": "sml-01", "name": "鏑木 健吾", "number": 51, "position": "CF", "bats": "R", "meet": 82, "power": 28, "speed": 94, "arm": 60, "fielding": 78 },
         { "id": "sml-02", "name": "芹沢 陽翔", "number": 7, "position": "2B", "bats": "R", "meet": 72, "power": 36, "speed": 78, "arm": 62, "fielding": 80 },
@@ -139,6 +169,16 @@
       "shortName": "花桜",
       "abbr": "HNZ",
       "colors": { "primary": "#c48a9a", "secondary": "#6e3550", "uniform": "#fcf7f8", "cap": "#c48a9a" },
+      "staff": [
+        { "role": "監督", "name": "上尾 雅臣", "number": 77 },
+        { "role": "ヘッドコーチ", "name": "白藤 恭介", "number": 81 },
+        { "role": "投手コーチ", "name": "桐谷 修", "number": 72 },
+        { "role": "打撃コーチ", "name": "早乙女 隆", "number": 73 },
+        { "role": "内野守備走塁コーチ", "name": "雛田 圭吾", "number": 75 },
+        { "role": "外野守備走塁コーチ", "name": "杜若 誠", "number": 86 },
+        { "role": "バッテリーコーチ", "name": "葛城 了", "number": 82 },
+        { "role": "二軍監督", "name": "梢 宗一郎", "number": 90 }
+      ],
       "batters": [
         { "id": "hnz-01", "name": "鷲尾 嵐", "number": 7, "position": "CF", "bats": "R", "meet": 86, "power": 40, "speed": 92, "arm": 74, "fielding": 82 },
         { "id": "hnz-02", "name": "花房 海斗", "number": 55, "position": "2B", "bats": "R", "meet": 82, "power": 42, "speed": 74, "arm": 70, "fielding": 88 },
@@ -184,6 +224,16 @@
       "shortName": "神山国",
       "abbr": "KMY",
       "colors": { "primary": "#f2c300", "secondary": "#1f2a44", "uniform": "#fffdf3", "cap": "#f2c300" },
+      "staff": [
+        { "role": "監督", "name": "河卿田 剛", "number": 88 },
+        { "role": "ヘッドコーチ", "name": "鉄谷 源蔵", "number": 80 },
+        { "role": "投手コーチ", "name": "鋼 一徹", "number": 71 },
+        { "role": "打撃コーチ", "name": "大鍛 武", "number": 74 },
+        { "role": "内野守備走塁コーチ", "name": "槌田 豊", "number": 76 },
+        { "role": "外野守備走塁コーチ", "name": "鋳方 健二", "number": 85 },
+        { "role": "バッテリーコーチ", "name": "炉端 実", "number": 83 },
+        { "role": "二軍監督", "name": "錬野 忠", "number": 91 }
+      ],
       "batters": [
         { "id": "kmy-01", "name": "雪村 匠", "number": 47, "position": "CF", "bats": "R", "meet": 80, "power": 60, "speed": 88, "arm": 73, "fielding": 80 },
         { "id": "kmy-02", "name": "宇佐美 鉄平", "number": 55, "position": "2B", "bats": "L", "meet": 77, "power": 67, "speed": 77, "arm": 76, "fielding": 88 },
@@ -227,6 +277,16 @@
       "shortName": "ファクロム",
       "abbr": "FCX",
       "colors": { "primary": "#0a1a4a", "secondary": "#b8c2d6", "uniform": "#eef1f7", "cap": "#0a1a4a" },
+      "staff": [
+        { "role": "監督", "name": "加野尾 拓真", "number": 89 },
+        { "role": "ヘッドコーチ", "name": "黒鉄 浩", "number": 80 },
+        { "role": "投手コーチ", "name": "紺野 冬馬", "number": 72 },
+        { "role": "打撃コーチ", "name": "銀城 亮", "number": 73 },
+        { "role": "内野守備走塁コーチ", "name": "藍沢 武史", "number": 75 },
+        { "role": "外野守備走塁コーチ", "name": "星影 透", "number": 86 },
+        { "role": "バッテリーコーチ", "name": "霜月 樹", "number": 82 },
+        { "role": "二軍監督", "name": "暁 正人", "number": 93 }
+      ],
       "batters": [
         { "id": "fcx-01", "name": "南雲 律", "number": 48, "position": "CF", "bats": "R", "meet": 74, "power": 42, "speed": 96, "arm": 62, "fielding": 76 },
         { "id": "fcx-02", "name": "嵐山 陽翔", "number": 69, "position": "2B", "bats": "R", "meet": 82, "power": 48, "speed": 82, "arm": 74, "fielding": 82 },

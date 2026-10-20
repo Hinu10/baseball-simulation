@@ -603,6 +603,21 @@ button {
 .roster-scroll {
   overflow-x: auto;
 }
+.staff {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 4px 8px;
+  font-size: 14px;
+}
+.staff small {
+  margin: 0 4px;
+  font-size: 11px;
+  color: #667;
+}
+.staff span:first-child {
+  font-weight: 700;
+}
 .roster-table {
   width: 100%;
   border-collapse: collapse;

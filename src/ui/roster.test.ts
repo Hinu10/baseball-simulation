@@ -16,6 +16,7 @@ test('試合前の選手・打順：打順の9人・控え・投手と先発が�
   for (const b of away.batters) assert.ok(html.includes(b.name), b.name);
   for (const p of away.pitchers) assert.ok(html.includes(p.name), p.name);
   assert.ok(html.includes('控え') && html.includes('先発'));
+  assert.ok(html.includes('首脳陣') && html.includes(away.staff[0].name), '監督が出る');
   assert.ok(!html.includes('今日'), '試合前は今日の欄を出さない');
   // 打順どおりに並ぶ。
   const pos = away.lineup.map((id) => html.indexOf(away.batters.find((b) => b.id === id)!.name));

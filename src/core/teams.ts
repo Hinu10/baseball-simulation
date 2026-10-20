@@ -77,6 +77,13 @@ export interface Pitcher {
   condition?: number;
 }
 
+/** 首脳陣（監督・コーチ）。 */
+export interface StaffMember {
+  role: string;
+  name: string;
+  number: number;
+}
+
 export interface TeamData {
   id: string;
   name: string;
@@ -84,6 +91,8 @@ export interface TeamData {
   shortName: string;
   abbr: string;
   colors: TeamColors;
+  /** 首脳陣。先頭が監督。 */
+  staff: StaffMember[];
   batters: Batter[];
   pitchers: Pitcher[];
   /** 打順（野手の id を9人）。 */
@@ -120,6 +129,8 @@ export function parseTeams(raw: unknown): TeamData[] {
     for (const key of ['primary', 'secondary', 'uniform', 'cap'] as const) {
       if (!/^#[0-9a-fA-F]{6}$/.test(t.colors?.[key] ?? '')) fail(name, `colors.${key} は #rrggbb で書いてください`);
     }
+    if (!Array.isArray(t.staff) || t.staff[0]?.role !== '監督') fail(name, '首脳陣（staff）の先頭に監督が必要です');
+    for (const m of t.staff) if (!m.name || !m.role || typeof m.number !== 'number') fail(name, '首脳陣は role・name・number を書いてください');
     if (!Array.isArray(t.batters) || t.batters.length < 9) fail(name, '野手は9人以上必要です');
     if (!Array.isArray(t.pitchers) || t.pitchers.length < 1) fail(name, '投手が必要です');
     const playerIds = new Set<string>();
@@ -167,3 +178,6 @@ export function rotationStarter(team: TeamData, n: number): string {
   const first = Math.max(0, starters.findIndex((p) => p.id === team.startingPitcher));
   return starters[(first + n) % starters.length].id;
 }
+
+/** 監督。 */
+export const managerOf = (t: TeamData): StaffMember => t.staff[0];
