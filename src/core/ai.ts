@@ -101,12 +101,29 @@ export interface BatterSituation extends Count {
   runnerOnFirst: boolean;
   runnerOnSecond: boolean;
   pitcherVelocity: number;
+  /** 投手の変化球の能力（球の力に効く）。 */
+  pitcherBreaking?: number;
 }
 
 /**
  * CPU 打者のスイングを決める。球の見え方（変化球にだまされる）とタイミングに能力・難易度に応じた誤差が乗る。
  * null なら見送り。
  */
+/**
+ * 球の力。最高球速 147km/h・変化球の能力 65 の投手が、変化 0.22m の球を投げたときを 1 とした、打者のずれの大きさ（タイミング・狙い）。
+ * 速球派の投手ほどタイミングが（遅い球も速い球に合わせて待つので活きる）、大きく曲がる球ほど狙いがずれ、
+ * 変化球の能力が高い投手ほど両方ずれる（空振りが増え、芯を外す）。
+ */
+export const STUFF = { velocity: 147, perKmh: 0.018, breakRef: 0.22, perBreak: 1.4, breakingRef: 65, perBreaking: 0.008 };
+export function pitchStuff(pitch: Pick<Pitch, 'breakX' | 'breakY'>, velocity: number = STUFF.velocity, breaking: number = STUFF.breakingRef): { timing: number; aim: number } {
+  const brk = Math.hypot(pitch.breakX, pitch.breakY);
+  const arm = 1 + STUFF.perBreaking * (breaking - STUFF.breakingRef);
+  return {
+    timing: Math.max(0.7, (1 + STUFF.perKmh * (velocity - STUFF.velocity)) * arm),
+    aim: Math.max(0.75, (1 + STUFF.perBreak * (brk - STUFF.breakRef)) * arm)
+  };
+}
+
 export function planSwing(b: Batter, pitch: Pitch, sit: BatterSituation, strategy: OffenseStrategy, errorScale: number, rng: Rng): SwingCommand | null {
   const skill = b.meet / 100;
   // 変化球は曲がる前の軌道で判断しがち。
@@ -140,8 +157,10 @@ export function planSwing(b: Batter, pitch: Pitch, sit: BatterSituation, strateg
   // ストレートのつもりで待つので、遅い球にはタイミングが早くなる。
   const fastFlight = RELEASE_POINT.z / (sit.pitcherVelocity / 3.6) / PITCH_TIME_SCALE;
   const bias = -(pitch.flightTime - fastFlight) * 0.3 * (1 - skill * 0.4);
-  const timeErr = (0.075 - 0.02 * skill) * errorScale;
-  const cursorErr = (0.075 - 0.02 * skill) * errorScale;
+  // 球の力：速い球ほどタイミングが、大きく曲がる球ほど狙いがずれる（空振りが増える）。
+  const stuff = pitchStuff(pitch, sit.pitcherVelocity, sit.pitcherBreaking);
+  const timeErr = (0.075 - 0.02 * skill) * errorScale * stuff.timing;
+  const cursorErr = (0.075 - 0.02 * skill) * errorScale * stuff.aim;
   // 長打を狙う打者は球の少し下にカーソルを置いて打ち上げる。
   const lift = mode === 'power' ? 0.025 : 0.005;
   return {

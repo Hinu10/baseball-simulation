@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { choosePitch, DIFFICULTY_ERROR, planSwing } from './ai.ts';
+import { choosePitch, DIFFICULTY_ERROR, pitchStuff, planSwing } from './ai.ts';
 import { evaluateSwing } from './batting.ts';
 import { score } from './gameState.ts';
 import { Match } from './match.ts';
@@ -105,4 +105,13 @@ test('たくさんの試合で、得点・安打・三振・四球が野球ら�
   assert.ok(hits / pa > 0.15 && hits / pa < 0.4, `安打率 ${hits / pa}`);
   assert.ok(k / pa > 0.05 && k / pa < 0.3, `三振率 ${k / pa}`);
   assert.ok(bb / pa > 0.01 && bb / pa < 0.15, `四球率 ${bb / pa}`);
+});
+
+test('球の力：速球派で変化球の能力が高い投手ほど、打者のタイミング・狙いがずれる', () => {
+  const avg = pitchStuff({ breakX: 0.15, breakY: 0.16 });
+  assert.ok(Math.abs(avg.timing - 1) < 0.05 && Math.abs(avg.aim - 1) < 0.05, '平均的な投手は 1 前後');
+  const ace = pitchStuff({ breakX: 0.3, breakY: 0.4 }, 182, 95);
+  assert.ok(ace.timing > 1.5 && ace.aim > 1.5);
+  const soft = pitchStuff({ breakX: 0.05, breakY: 0.05 }, 132, 40);
+  assert.ok(soft.timing < 1 && soft.aim < 1);
 });
