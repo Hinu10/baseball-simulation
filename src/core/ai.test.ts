@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { choosePitch, DIFFICULTY_ERROR, pitchStuff, planSwing } from './ai.ts';
+import { choosePitch, decideSteal, DIFFICULTY_ERROR, pitchStuff, planSwing, stealChance } from './ai.ts';
 import { evaluateSwing } from './batting.ts';
 import { score } from './gameState.ts';
 import { Match } from './match.ts';
@@ -114,4 +114,15 @@ test('球の力：速球派で変化球の能力が高い投手ほど、打者�
   assert.ok(ace.timing > 1.5 && ace.aim > 1.5);
   const soft = pitchStuff({ breakX: 0.05, breakY: 0.05 }, 132, 40);
   assert.ok(soft.timing < 1 && soft.aim < 1);
+});
+
+test('CPU の盗塁：足の速い走者・肩の弱い捕手ほど成功しそうで、追い込まれたら走らない', () => {
+  assert.ok(stealChance({ speed: 95, catcherArm: 50, from: 1 }) > stealChance({ speed: 50, catcherArm: 90, from: 1 }));
+  const fast = { speed: 95, catcherArm: 60, from: 1 as const, outs: 0, balls: 1, strikes: 0, running: 'normal' as const };
+  const rng = new Rng(1);
+  let go = 0;
+  for (let i = 0; i < 200; i++) if (decideSteal(fast, rng)) go++;
+  assert.ok(go > 50, `足の速い走者は走る（${go}/200）`);
+  for (let i = 0; i < 50; i++) assert.ok(!decideSteal({ ...fast, strikes: 2 }, rng));
+  for (let i = 0; i < 50; i++) assert.ok(!decideSteal({ ...fast, speed: 40 }, rng), '足の遅い走者は走らない');
 });
