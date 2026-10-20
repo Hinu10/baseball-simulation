@@ -105,8 +105,8 @@ export const HOME_PARKS: Readonly<Record<string, Park>> = {
     id: 'kanbu',
     name: 'Kanbu Dome',
     nameJa: '寛ブドーム',
-    // とにかく広い。
-    fence: { left: 102, right: 102, center: 127, height: 3.6 },
+    // 12球場で一番広い（そのぶん、寛ブの打者は長打力がある）。
+    fence: { left: 100, right: 100, center: 123, height: 3.2 },
     foul: { side: 22, backstop: 24 },
     dome: true
   },
