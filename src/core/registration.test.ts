@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { FRAGILITY, initialRegistration, injuryChance, INJURY_DAYS, REREGISTER_DAYS, registeredTeam, rosterMoves } from './registration.ts';
+import { FRAGILITY, initialRegistration, injuryChance, INJURY_DAYS, REREGISTER_DAYS, registeredTeam, rosterMoves, syncRoster } from './registration.ts';
 import { parseTeams, roleOf } from './teams.ts';
 
 const teams = parseTeams(raw);
@@ -91,4 +91,45 @@ test('返り咲き：2軍にいる力の上の選手は、調子が戻れば1軍
   const reg = { ...initialRegistration(t), active: [...initialRegistration(t).active.filter((id) => id !== star.id), sub.id] };
   const { registrations } = rosterMoves({ [t.id]: reg }, [t], { [star.id]: 0.5 }, 30, () => 0.1);
   assert.ok(registrations[t.id].active.includes(star.id));
+});
+
+/** teams.json で、1軍の野手1人（打順の先頭）と2軍の同じ守備位置の野手を入れ替えた球団。 */
+function swappedData() {
+  const out = t.batters.find((b) => b.id === t.lineup[0])!;
+  const up = t.farm!.batters.find((b) => b.position === out.position)!;
+  const data = {
+    ...t,
+    batters: [...t.batters.filter((b) => b !== out), up],
+    farm: { ...t.farm!, batters: [...t.farm!.batters.filter((b) => b !== up), out] },
+    lineup: [up.id, ...t.lineup.slice(1)]
+  };
+  return { out, up, data };
+}
+
+test('teams.json の1軍を入れ替えたら、途中の登録にも反映する（打順も新しいデータのとおり）', () => {
+  const { out, up, data } = swappedData();
+  const r = registeredTeam(data, syncRoster(data, initialRegistration(t)));
+  assert.ok(r.batters.some((b) => b.id === up.id) && r.farm!.batters.some((b) => b.id === out.id));
+  assert.equal(r.lineup[0], up.id);
+  assert.equal(r.batters.length, t.batters.length);
+});
+
+test('公示で入れ替わった選手は、teams.json が変わらなければそのまま', () => {
+  const out = t.batters.find((b) => b.id === t.lineup[0])!;
+  const { registrations } = rosterMoves({}, [t], { [out.id]: -1 }, 5, always);
+  const reg = registrations[t.id];
+  assert.deepEqual(syncRoster(t, reg).active, reg.active);
+});
+
+test('roster の無い古い保存でも、新しく1軍に入った選手を登録し、公示で上がった選手は残す', () => {
+  const { out, up, data } = swappedData();
+  // 古い保存：開幕から投手1人が公示で入れ替わっている。
+  const down = t.pitchers.find((p) => roleOf(p) === 'starter' && p.id !== t.startingPitcher)!;
+  const promoted = t.farm!.pitchers.find((p) => roleOf(p) === 'starter')!;
+  const { roster: _, ...old } = initialRegistration(t);
+  const reg = { ...old, active: [...old.active.filter((id) => id !== down.id), promoted.id], removedOn: { [down.id]: 3 } };
+  const synced = syncRoster(data, reg, new Set([promoted.id]));
+  assert.ok(synced.active.includes(up.id) && !synced.active.includes(out.id));
+  assert.ok(synced.active.includes(promoted.id) && !synced.active.includes(down.id));
+  assert.equal(synced.active.length, reg.active.length);
 });

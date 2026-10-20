@@ -3,7 +3,7 @@
 
 import { addLines, addPitchingLines, battingAverage, earnedRunAverage, emptyLine, emptyPitchingLine, score, type BattingLine, type GameState, type PitchingLine } from './gameState.ts';
 import { nextConditions, type Conditions } from './condition.ts';
-import { addNotices, rosterMoves, type Notice, type Registrations } from './registration.ts';
+import { addNotices, rosterMoves, syncRoster, type Notice, type Registrations } from './registration.ts';
 import { allBatters, allPitchers, type TeamData } from './teams.ts';
 
 /** 1シーズンの試合数（各球団）。同じリーグの5球団と25試合ずつ（125試合）、交流戦で他リーグの6球団と3試合ずつ（18試合）。 */
@@ -121,6 +121,18 @@ export function advanceDay(p: Pennant, teams: TeamData[], games: GameState[], ra
   const day = p.day + 1;
   const moves = rosterMoves(p.registrations, teams, condition, day, random);
   return { ...p, condition, day, registrations: moves.registrations, notices: addNotices(p.notices, moves.notices) };
+}
+
+/** teams.json の1軍の入れ替えを、途中のペナントの登録に反映する（順位・成績・公示はそのまま）。 */
+export function syncRosters(p: Pennant, teams: TeamData[]): Pennant {
+  const registrations = { ...p.registrations };
+  for (const t of teams) {
+    const reg = registrations[t.id];
+    if (!reg) continue;
+    const promoted = new Set(p.notices.filter((n) => n.team === t.id && n.kind === 'up').map((n) => n.id));
+    registrations[t.id] = syncRoster(t, reg, promoted);
+  }
+  return { ...p, registrations };
 }
 
 /** その節（day）に出た公示。 */
