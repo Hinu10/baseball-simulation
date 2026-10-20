@@ -3,6 +3,7 @@
 
 import { addLines, addPitchingLines, battingAverage, earnedRunAverage, emptyLine, emptyPitchingLine, score, type BattingLine, type GameState, type PitchingLine } from './gameState.ts';
 import { nextConditions, type Conditions } from './condition.ts';
+import { addNotices, rosterMoves, type Notice, type Registrations } from './registration.ts';
 import { allBatters, allPitchers, type TeamData } from './teams.ts';
 
 /** 1シーズンの試合数（各球団）。 */
@@ -37,9 +38,15 @@ export interface Pennant {
   lastRound: GameResult[];
   /** 選手の調子（選手 id ごと、-1〜1）。1節ごとに変わる。 */
   condition: Conditions;
+  /** 消化した節（日）の数。 */
+  day: number;
+  /** 球団ごとの出場選手登録（無い球団は開幕時のまま）。 */
+  registrations: Registrations;
+  /** 公示（古い順）。 */
+  notices: Notice[];
 }
 
-export const emptyPennant = (): Pennant => ({ teams: {}, batting: {}, pitching: {}, meetings: {}, lastRound: [], condition: {} });
+export const emptyPennant = (): Pennant => ({ teams: {}, batting: {}, pitching: {}, meetings: {}, lastRound: [], condition: {}, day: 0, registrations: {}, notices: [] });
 export const emptyRecord = (): TeamRecord => ({ w: 0, l: 0, t: 0, rs: 0, ra: 0, innings: 0 });
 
 const pairKey = (a: string, b: string) => [a, b].sort().join('|');
@@ -60,7 +67,10 @@ export function addGame(p: Pennant, s: GameState): Pennant {
     pitching: { ...p.pitching },
     meetings: { ...p.meetings },
     lastRound: p.lastRound,
-    condition: p.condition
+    condition: p.condition,
+    day: p.day,
+    registrations: p.registrations,
+    notices: p.notices
   };
   const [away, home] = s.teams.map((t) => t.team.id);
   const runs = [score(s, 0), score(s, 1)];
@@ -84,12 +94,21 @@ export function addGame(p: Pennant, s: GameState): Pennant {
   return next;
 }
 
-/** 1節（1日）の試合を終えたあと、その日の成績も踏まえて全選手の調子を進める。 */
-export function advanceConditions(p: Pennant, teams: TeamData[], games: GameState[], random: () => number = Math.random): Pennant {
+/**
+ * 1節（1日）の試合を終えたあと、その日の成績も踏まえて全選手の調子を進め、出場選手登録を入れ替える（公示）。
+ * teams は teams.json の球団（登録を反映する前）。
+ */
+export function advanceDay(p: Pennant, teams: TeamData[], games: GameState[], random: () => number = Math.random): Pennant {
   const batting = Object.assign({}, ...games.map((g) => g.batting));
   const pitching = Object.assign({}, ...games.map((g) => g.pitching));
-  return { ...p, condition: nextConditions(p.condition, teams, batting, pitching, random) };
+  const condition = nextConditions(p.condition, teams, batting, pitching, random);
+  const day = p.day + 1;
+  const moves = rosterMoves(p.registrations, teams, condition, day, random);
+  return { ...p, condition, day, registrations: moves.registrations, notices: addNotices(p.notices, moves.notices) };
 }
+
+/** その節（day）に出た公示。 */
+export const noticesOn = (p: Pennant, day: number) => p.notices.filter((n) => n.day === day);
 
 /**
  * あなたの試合と同じ節に行う、残りの球団どうしの組み合わせ。対戦の少ない組を優先し、

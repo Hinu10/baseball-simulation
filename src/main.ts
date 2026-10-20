@@ -7,8 +7,9 @@ import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { battingTeam, EXTRA_INNINGS, INNINGS_OPTIONS, score, type Innings, type MatchMode, type TeamIndex } from './core/gameState.ts';
 import { conditionedTeam, initialConditions } from './core/condition.ts';
 import { managedTeam } from './core/manager.ts';
+import { registeredTeam } from './core/registration.ts';
 import { parkOf } from './core/field.ts';
-import { addGame, advanceConditions, emptyPennant, emptyRecord, gamesPlayed, pairOthers, seasonOver, standings, type GameResult, type Pennant } from './core/pennant.ts';
+import { addGame, advanceDay, emptyPennant, emptyRecord, gamesPlayed, pairOthers, seasonOver, standings, type GameResult, type Pennant } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
 import { parseTeams, roleOf, rotationStarter, teamStyle, type TeamData } from './core/teams.ts';
@@ -309,26 +310,31 @@ class App {
   /** 選手の今日の調子を反映した球団。先発はローテーションで回し、あなたのチームはメニューで選んだ投手にする。 */
   private today(t: TeamData): TeamData {
     const starter = t.id === this.settings.team ? this.myStarter() : this.rotation(t);
-    const team = { ...conditionedTeam(t, this.pennant.condition), startingPitcher: starter };
+    const team = { ...conditionedTeam(this.registered(t), this.pennant.condition), startingPitcher: starter };
     // あなたのチーム以外は、CPU の監督がひどく調子を落とした選手を2軍に落とし、打順を少し組み替える。
     return t.id === this.settings.team ? team : managedTeam(team).team;
   }
 
+  /** 出場選手登録（公示）を反映した球団。1軍・2軍・育成が入れ替わっている。 */
+  private registered(t: TeamData): TeamData {
+    return registeredTeam(t, this.pennant.registrations[t.id]);
+  }
+
   /** ローテーションで次に投げる先発（その球団のこれまでの試合数で決まる）。 */
   private rotation(t: TeamData): string {
-    return rotationStarter(t, gamesPlayed(this.pennant.teams[t.id] ?? emptyRecord()));
+    return rotationStarter(this.registered(t), gamesPlayed(this.pennant.teams[t.id] ?? emptyRecord()));
   }
 
   /** メニューで選んだ、あなたのチームの先発（選んでいなければローテーションの順番）。 */
   myStarter(): string {
-    const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
+    const mine = this.registered(teams.find((t) => t.id === this.settings.team) ?? teams[0]);
     const pick = this.starterPick;
     return pick && pick.team === mine.id && mine.pitchers.some((p) => p.id === pick.id) ? pick.id : this.rotation(mine);
   }
 
   /** 先発投手の選択肢：先発の投手（ローテーションの順番の投手に印）。 */
   starterOptions(): MenuOption[] {
-    const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
+    const mine = this.registered(teams.find((t) => t.id === this.settings.team) ?? teams[0]);
     const next = this.rotation(mine);
     return mine.pitchers
       .filter((p) => roleOf(p) === 'starter')
@@ -406,7 +412,7 @@ class App {
     const over = seasonOver(this.pennant, teams);
     const champion = over ? `<p class="pennant-champion">🏆 ${standings(this.pennant, teams)[0].team.nameJa} 優勝！</p>` : '';
     const reset = this.resetArmed ? 'もう一度押すとリセット' : '新しいシーズンを始める';
-    this.pennantEl.innerHTML = `<div class="panel help-card roster-card pennant-card"><h2>ペナント<small>${pennantProgress(this.pennant, teams)}</small></h2>${champion}<div class="roster-tabs pennant-tabs">${tabs}</div>${pennantHtml(this.pennant, teams, this.pennantTab, you)}<p class="note">あなたの試合が終わるたびに、ほかの4球団も1試合ずつ行います。勝率は引き分けを除いて計算し、失点はすべて自責点として扱います。　A/D でタブ切り替え</p><div class="pennant-buttons"><button class="reset${this.resetArmed ? ' armed' : ''}">${reset}</button><button class="close">とじる（Esc）</button></div></div>`;
+    this.pennantEl.innerHTML = `<div class="panel help-card roster-card pennant-card"><h2>ペナント<small>${pennantProgress(this.pennant, teams)}</small></h2>${champion}<div class="roster-tabs pennant-tabs">${tabs}</div>${pennantHtml(this.pennant, teams, this.pennantTab, you)}<p class="note">あなたの試合が終わるたびに、ほかの4球団も1試合ずつ行い、各球団はたまに出場選手登録を入れ替えます（公示）。勝率は引き分けを除いて計算し、失点はすべて自責点として扱います。　A/D でタブ切り替え</p><div class="pennant-buttons"><button class="reset${this.resetArmed ? ' armed' : ''}">${reset}</button><button class="close">とじる（Esc）</button></div></div>`;
     this.pennantEl.querySelectorAll<HTMLButtonElement>('.pennant-tabs button').forEach((b) =>
       b.addEventListener('click', () => {
         this.pennantTab = Number(b.dataset.i);
@@ -464,8 +470,8 @@ class App {
       round.push(result(other.state));
       games.push(other.state);
     }
-    // 1日が終わったら、その日の出来も踏まえて全選手の調子が変わる。
-    this.pennant = advanceConditions({ ...p, lastRound: round }, teams, games);
+    // 1日が終わったら、その日の出来も踏まえて全選手の調子が変わり、たまに出場選手登録が入れ替わる（公示）。
+    this.pennant = advanceDay({ ...p, lastRound: round }, teams, games);
     savePennant(this.pennant);
     return true;
   }
