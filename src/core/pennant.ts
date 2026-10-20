@@ -3,7 +3,7 @@
 
 import { addLines, addPitchingLines, battingAverage, earnedRunAverage, emptyLine, emptyPitchingLine, score, type BattingLine, type GameState, type PitchingLine } from './gameState.ts';
 import { nextConditions, type Conditions } from './condition.ts';
-import type { TeamData } from './teams.ts';
+import { allBatters, allPitchers, type TeamData } from './teams.ts';
 
 /** 1シーズンの試合数（各球団）。 */
 export const SEASON_GAMES = 30;
@@ -157,8 +157,8 @@ type Entry<L> = { id: string; name: string; team: TeamData; line: L };
 
 /** タイトル争い（打撃4部門・投手3部門）。各部門の上位 top 人。 */
 export function titleRaces(p: Pennant, teams: TeamData[], top = 5): { batting: TitleRace[]; pitching: TitleRace[] } {
-  const batters: Entry<BattingLine>[] = teams.flatMap((team) => team.batters.filter((b) => p.batting[b.id]).map((b) => ({ id: b.id, name: b.name, team, line: p.batting[b.id] })));
-  const pitchers: Entry<PitchingLine>[] = teams.flatMap((team) => team.pitchers.filter((x) => p.pitching[x.id]).map((x) => ({ id: x.id, name: x.name, team, line: p.pitching[x.id] })));
+  const batters: Entry<BattingLine>[] = teams.flatMap((team) => allBatters(team).filter((b) => p.batting[b.id]).map((b) => ({ id: b.id, name: b.name, team, line: p.batting[b.id] })));
+  const pitchers: Entry<PitchingLine>[] = teams.flatMap((team) => allPitchers(team).filter((x) => p.pitching[x.id]).map((x) => ({ id: x.id, name: x.name, team, line: p.pitching[x.id] })));
   const record = (t: TeamData) => p.teams[t.id] ?? emptyRecord();
 
   const rank = <L,>(list: Entry<L>[], value: (l: L) => number | null, ascending = false): Leader[] =>

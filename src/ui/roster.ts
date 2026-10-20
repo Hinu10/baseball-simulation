@@ -2,7 +2,7 @@
 // その下に、選手ごとのシーズン成績（ペナントの通算）を出す。
 import { battingTeam, type BattingLine, type GameState, type PitchingLine, type TeamIndex } from '../core/gameState.ts';
 import { PITCHES } from '../core/pitching.ts';
-import { roleOf, ROLE_LABEL, teamStyle, type Batter, type Pitcher, type TeamData } from '../core/teams.ts';
+import { roleOf, ROLE_LABEL, teamStyle, type Batter, type Pitcher, type Squad, type TeamData } from '../core/teams.ts';
 import { conditionLevel } from '../core/condition.ts';
 import { POSITION_LABEL, type LineupPosition } from '../core/types.ts';
 import { formatAverage, formatEra, formatInnings } from './season.ts';
@@ -69,8 +69,14 @@ export interface RosterSeason {
  * 今日の試合の成績は、試合が終わってから加わる。
  */
 export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
-  // 2軍にいる選手も、成績の表には残す。
-  const order = [...team.lineup.map((id) => team.batters.find((b) => b.id === id)!), ...team.batters.filter((b) => !team.lineup.includes(b.id)), ...(team.farm?.batters ?? [])];
+  // 2軍・育成の選手は、今季に出場していれば成績の表に残す。
+  const played = <T extends { id: string }>(list: T[] | undefined, rec: Record<string, unknown>) => (list ?? []).filter((p) => rec[p.id]);
+  const order = [
+    ...team.lineup.map((id) => team.batters.find((b) => b.id === id)!),
+    ...team.batters.filter((b) => !team.lineup.includes(b.id)),
+    ...played(team.farm?.batters, season.batting),
+    ...played(team.development?.batters, season.batting)
+  ];
   const none = (cols: number) => `<td colspan="${cols}" class="empty">―</td>`;
   // 試合数・四球・三振・盗塁・登板は後から記録し始めたので、以前の保存データには無い（0 と区別して「―」）。
   const cell = (v: number | undefined) => `<td>${v ?? '―'}</td>`;
@@ -83,7 +89,7 @@ export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
       return `<tr><td class="pos">${POSITION_LABEL[b.position]}</td><td class="name">${esc(b.name)}<small>#${b.number}</small></td>${cells}</tr>`;
     })
     .join('');
-  const pitchers = [...team.pitchers, ...(team.farm?.pitchers ?? [])]
+  const pitchers = [...team.pitchers, ...played(team.farm?.pitchers, season.pitching), ...played(team.development?.pitchers, season.pitching)]
     .map((p) => {
       const l = season.pitching[p.id];
       const cells = l
@@ -96,6 +102,17 @@ export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
     <div class="roster-scroll"><table class="roster-table season-table"><tr><th>守</th><th class="name">名前</th><th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th><th>四球</th><th>三振</th><th>盗塁</th><th>打率</th></tr>${batters}</table></div>
     <h3>今季の投手成績</h3>
     <div class="roster-scroll"><table class="roster-table season-table"><tr><th>役割</th><th class="name">名前</th><th>登板</th><th>勝</th><th>敗</th><th>投球回</th><th>被安打</th><th>奪三振</th><th>与四球</th><th>失点</th><th>防御率</th></tr>${pitchers}</table></div>`;
+}
+
+const BATTER_HEAD = '<tr><th></th><th>守</th><th class="name">名前</th><th>打</th><th>調子</th><th>ミート</th><th>パワー</th><th>走力</th><th>肩</th><th>守備</th></tr>';
+const PITCHER_HEAD = '<tr><th class="name">名前</th><th>役割</th><th>投</th><th>調子</th><th>球速</th><th>コントロール</th><th>スタミナ</th><th>変化球</th><th>球種</th></tr>';
+
+/** 2軍・育成の選手の表（野手・投手）。 */
+export function squadHtml(title: string, sq: Squad | undefined): string {
+  if (!sq || (!sq.batters.length && !sq.pitchers.length)) return '';
+  return `<h3>${title}</h3>
+    <div class="roster-scroll"><table class="roster-table squad-table">${BATTER_HEAD}${sq.batters.map((b) => batterRow(b, '', b.position, undefined, false)).join('')}</table></div>
+    <div class="roster-scroll"><table class="roster-table squad-table">${PITCHER_HEAD}${sq.pitchers.map((p) => pitcherRow(p, undefined, false, 0, false)).join('')}</table></div>`;
 }
 
 /** 首脳陣（監督・コーチ）の一覧。 */
@@ -126,7 +143,8 @@ export function rosterHtml(team: TeamData, live?: RosterLive, season?: RosterSea
     <div class="roster-scroll"><table class="roster-table"><tr><th class="name">名前</th><th>役割</th><th>投</th><th>調子</th><th>球速</th><th>コントロール</th><th>スタミナ</th><th>変化球</th><th>球種</th>${todayHead}</tr>${team.pitchers
       .map((p) => pitcherRow(p, live, p.id === mound, t?.pitchCount ?? 0, removed.has(p.id)))
       .join('')}</table></div>
-    ${team.farm && (team.farm.batters.length || team.farm.pitchers.length) ? `<h3>2軍で調整中</h3><p class="farm">${[...team.farm.batters, ...team.farm.pitchers].map((p) => `${esc(p.name)}${conditionBadge(p.condition)}`).join('　')}</p>` : ''}
+    ${squadHtml('2軍', team.farm)}
+    ${squadHtml('育成', team.development)}
     ${season ? seasonStatsHtml(team, season) : ''}
   </div>`;
 }

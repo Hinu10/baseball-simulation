@@ -3,7 +3,7 @@
 
 import { clamp } from './math.ts';
 import type { BattingLine, PitchingLine } from './gameState.ts';
-import type { Batter, Pitcher, TeamData } from './teams.ts';
+import { allBatters, allPitchers, type Batter, type Pitcher, type TeamData } from './teams.ts';
 
 export type Conditions = Record<string, number>;
 
@@ -31,7 +31,8 @@ function gauss(random: () => number): number {
   return Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random());
 }
 
-const playerIds = (teams: TeamData[]) => teams.flatMap((t) => [...t.batters, ...t.pitchers].map((p) => p.id));
+/** 2軍・育成の選手も調子を持つ（1軍に上がったときに使う）。 */
+const playerIds = (teams: TeamData[]) => teams.flatMap((t) => [...allBatters(t), ...allPitchers(t)].map((p) => p.id));
 
 /** 開幕時の調子（ばらつかせておく）。 */
 export function initialConditions(teams: TeamData[], random: () => number = Math.random): Conditions {
@@ -76,6 +77,7 @@ export function conditionedTeam(t: TeamData, conditions: Conditions): TeamData {
   return {
     ...t,
     batters: t.batters.map((b) => conditionedBatter(b, conditions[b.id] ?? 0)),
-    pitchers: t.pitchers.map((p) => conditionedPitcher(p, conditions[p.id] ?? 0))
+    pitchers: t.pitchers.map((p) => conditionedPitcher(p, conditions[p.id] ?? 0)),
+    ...(t.farm && { farm: { batters: t.farm.batters.map((b) => conditionedBatter(b, conditions[b.id] ?? 0)), pitchers: t.farm.pitchers.map((p) => conditionedPitcher(p, conditions[p.id] ?? 0)) } })
   };
 }
