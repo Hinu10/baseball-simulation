@@ -7,6 +7,7 @@ import { DIFFICULTY_LABEL, STRATEGY_LABEL, type Strategy } from './core/ai.ts';
 import { battingTeam, EXTRA_INNINGS, INNINGS_OPTIONS, score, type Innings, type MatchMode, type TeamIndex } from './core/gameState.ts';
 import { conditionedTeam, initialConditions } from './core/condition.ts';
 import { managedTeam } from './core/manager.ts';
+import { parkOf } from './core/field.ts';
 import { addGame, advanceConditions, emptyPennant, emptyRecord, gamesPlayed, pairOthers, seasonOver, standings, type GameResult, type Pennant } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
@@ -270,10 +271,10 @@ class App {
     return this.settings.side === 'home' ? away : home;
   }
 
-  /** メニューの背景の観客を、次の試合の2チームのファンにする。 */
+  /** メニューの背景を、次の試合の球場（ホームの本拠地）と2チームのファンにする。 */
   private dressCrowd() {
     const [away, home] = this.matchup(this.settings);
-    this.view.crowd.setTeams([away.colors, home.colors]);
+    this.view.setPark(parkOf(home.id), [away.colors, home.colors]);
   }
 
   private setSound(enabled: boolean) {
