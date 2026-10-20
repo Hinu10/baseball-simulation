@@ -20,11 +20,11 @@ test('ひどい不調の1軍の選手を抹消し、同じ守備位置の2軍の
   const out = t.batters.find((b) => b.id === t.lineup[0])!;
   const conditions = { [out.id]: -1 };
   const { registrations, notices } = rosterMoves({}, [t], conditions, 5, always);
-  const kinds = notices.filter((n) => n.kind !== 'sign');
-  assert.equal(kinds.length, 2);
-  const up = t.farm!.batters.find((b) => b.id === kinds.find((n) => n.kind === 'up')!.id)!;
+  // 入れ替えは「登録」「抹消」の順に公示する（返り咲きの入れ替えも同じ日に起きうる）。
+  const at = notices.findIndex((n) => n.kind === 'down' && n.id === out.id);
+  assert.ok(at > 0);
+  const up = t.farm!.batters.find((b) => b.id === notices[at - 1].id)!;
   assert.equal(up.position, out.position);
-  assert.equal(kinds.find((n) => n.kind === 'down')!.id, out.id);
   const r = registeredTeam(t, registrations[t.id]);
   assert.ok(!r.batters.some((b) => b.id === out.id) && r.farm!.batters.some((b) => b.id === out.id));
   assert.equal(r.lineup[0], up.id);
@@ -82,4 +82,13 @@ test('故障しやすい選手ほど故障しやすく、故障すると抹消�
   const back = rosterMoves(hurt.registrations, [fragile], {}, until, never);
   assert.ok(back.registrations[t.id].active.includes(ace.id));
   assert.ok(!back.registrations[t.id].active.includes(up.id));
+});
+
+test('返り咲き：2軍にいる力の上の選手は、調子が戻れば1軍の同じ枠の選手と入れ替わる', () => {
+  const star = t.batters.find((b) => b.id === t.lineup[0])!;
+  // 主力を2軍に落とした状態から始める（同じ守備位置の2軍の選手が代わりに1軍）。
+  const sub = t.farm!.batters.find((b) => b.position === star.position)!;
+  const reg = { ...initialRegistration(t), active: [...initialRegistration(t).active.filter((id) => id !== star.id), sub.id] };
+  const { registrations } = rosterMoves({ [t.id]: reg }, [t], { [star.id]: 0.5 }, 30, () => 0.1);
+  assert.ok(registrations[t.id].active.includes(star.id));
 });

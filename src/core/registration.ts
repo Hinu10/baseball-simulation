@@ -46,6 +46,9 @@ export const REREGISTER_DAYS = 10;
 export const SWAP_CHANCE = 0.07;
 /** 1節に、育成選手を支配下登録する確率（143試合でおよそ1人）。 */
 export const SIGN_CHANCE = 0.008;
+/** 1節に、力の上の2軍の選手を1軍に戻すかを考える確率と、そうするのに要る力の差（strength の値）。 */
+export const COMEBACK_CHANCE = 0.25;
+export const COMEBACK_MARGIN = 15;
 /** 抹消を考えるほどの不調。 */
 const SLUMP = -0.5;
 /** 上げる2軍の選手は、これより調子がよいこと。 */
@@ -192,6 +195,19 @@ export function rosterMoves(
         const up = ready.reduce((a, p) => (strength(p) + 30 * cond(p) > strength(a) + 30 * cond(a) ? p : a));
         swap(out, up);
         break;
+      }
+    }
+    // 返り咲き：調子を戻した2軍の選手が、1軍の同じ枠でいちばん力の落ちる選手よりはっきり上なら入れ替える（主力が2軍に残ったままにしない）。
+    if (random() < COMEBACK_CHANCE) {
+      const now = registeredTeam(t, reg);
+      const ready = [...now.farm!.batters, ...now.farm!.pitchers].filter((p) => cond(p) > READY && canRegister(p)).sort((a, b) => strength(b) - strength(a));
+      for (const up of ready) {
+        const slot = [...now.batters, ...now.pitchers].filter((p) => sameSlot(up, p));
+        const weakest = slot.reduce<Batter | Pitcher | null>((a, p) => (!a || strength(p) < strength(a) ? p : a), null);
+        if (weakest && strength(up) - strength(weakest) >= COMEBACK_MARGIN) {
+          swap(weakest, up);
+          break;
+        }
       }
     }
     const prospects = [...team.development!.batters, ...team.development!.pitchers];
