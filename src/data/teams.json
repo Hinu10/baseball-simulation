@@ -554,10 +554,10 @@
         { "role": "二軍監督", "name": "樫木 健", "number": 90 }
       ],
       "batters": [
-        { "id": "kbt-01", "name": "中座 玲", "number": 63, "position": "2B", "bats": "L", "meet": 90, "power": 59, "speed": 78, "arm": 70, "fielding": 84 },
+        { "id": "kbt-01", "name": "中座 玲", "number": 63, "position": "2B", "bats": "L", "meet": 97, "power": 70, "speed": 78, "arm": 70, "fielding": 84 },
         { "id": "kbt-02", "name": "畑見 一樹", "number": 3, "position": "SS", "bats": "R", "meet": 77, "power": 53, "speed": 80, "arm": 78, "fielding": 86 },
         { "id": "kbt-03", "name": "川鷺 尤輔", "number": 68, "position": "RF", "bats": "L", "meet": 76, "power": 92, "speed": 66, "arm": 82, "fielding": 74 },
-        { "id": "kbt-04", "name": "大森 龍之介", "number": 37, "position": "3B", "bats": "R", "meet": 87, "power": 94, "speed": 58, "arm": 80, "fielding": 72 },
+        { "id": "kbt-04", "name": "大森 龍之介", "number": 37, "position": "3B", "bats": "R", "meet": 95, "power": 99, "speed": 66, "arm": 86, "fielding": 82 },
         { "id": "kbt-05", "name": "醍醐 翔太", "number": 32, "position": "C", "bats": "R", "meet": 54, "power": 72, "speed": 40, "arm": 60, "fielding": 70 },
         { "id": "kbt-06", "name": "綾瀬 晴臣", "number": 13, "position": "C", "bats": "L", "meet": 64, "power": 67, "speed": 36, "arm": 74, "fielding": 61 },
         { "id": "kbt-07", "name": "駒井 哲平", "number": 19, "position": "C", "bats": "R", "meet": 55, "power": 73, "speed": 47, "arm": 60, "fielding": 60 },
