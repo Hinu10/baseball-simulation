@@ -556,7 +556,7 @@
       "batters": [
         { "id": "kbt-01", "name": "中座 玲", "number": 63, "position": "2B", "bats": "L", "meet": 94, "power": 63, "speed": 78, "arm": 70, "fielding": 84 },
         { "id": "kbt-02", "name": "畑見 一樹", "number": 3, "position": "SS", "bats": "R", "meet": 81, "power": 57, "speed": 80, "arm": 78, "fielding": 86 },
-        { "id": "kbt-03", "name": "川鷺 尤輔", "number": 68, "position": "RF", "bats": "L", "meet": 88, "power": 96, "speed": 66, "arm": 82, "fielding": 74 },
+        { "id": "kbt-03", "name": "川鷺 尤輔", "number": 68, "position": "RF", "bats": "L", "meet": 80, "power": 96, "speed": 66, "arm": 82, "fielding": 74 },
         { "id": "kbt-04", "name": "大森 龍之介", "number": 37, "position": "3B", "bats": "R", "meet": 91, "power": 98, "speed": 58, "arm": 80, "fielding": 72 },
         { "id": "kbt-05", "name": "醍醐 翔太", "number": 32, "position": "C", "bats": "R", "meet": 58, "power": 76, "speed": 40, "arm": 60, "fielding": 70 },
         { "id": "kbt-06", "name": "綾瀬 晴臣", "number": 13, "position": "C", "bats": "L", "meet": 68, "power": 71, "speed": 36, "arm": 74, "fielding": 61 },

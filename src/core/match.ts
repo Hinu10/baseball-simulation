@@ -433,7 +433,8 @@ export class Match {
           outs: s.outs,
           runnerOnFirst: !!s.bases[1],
           runnerOnSecond: !!s.bases[2],
-          pitcherVelocity: pitcher.velocity
+          pitcherVelocity: pitcher.velocity,
+          pitcherBreaking: pitcher.breaking
         },
         this.strategyOf(bt).offense,
         this.errorScaleOf(bt),

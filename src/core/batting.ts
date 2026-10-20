@@ -153,7 +153,7 @@ export function evaluateSwing(b: Batter, pitch: Pitch, swing: SwingCommand, rng:
   const spot = batSpot(b.bats, swing.stance ?? 0, pitch.plate.x);
   const sweet = off < 0.3 && Math.abs(nt) < 0.3 && batContact(spot) === 'sweet';
   const quality = clamp(1 - 0.5 * off * off - 0.35 * nt * nt, 0.15, 1) * batSpotPower(spot) * (sweet ? 1.06 : 1);
-  const base = (41.2 + 6.5 * (b.power / 100)) * (swing.mode === 'power' ? 1.04 : 0.97);
+  const base = (40.4 + 6.5 * (b.power / 100)) * (swing.mode === 'power' ? 1.04 : 0.97);
   const exitSpeed = Math.max(4, base * quality + (pitch.speedKmh / 3.6) * 0.08 + rng.gauss(0, 1));
 
   // カーソルの中心より球が上なら、バットが球の下をたたいて打球が上がる。
