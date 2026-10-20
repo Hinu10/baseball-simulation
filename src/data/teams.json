@@ -234,7 +234,7 @@
         "batters": [
           { "id": "sml-f01", "name": "佐々木 悠斗", "number": 27, "position": "C", "bats": "R", "meet": 42, "power": 34, "speed": 44, "arm": 71, "fielding": 59 },
           { "id": "sml-f02", "name": "郡司 史弥", "number": 18, "position": "C", "bats": "R", "meet": 48, "power": 51, "speed": 40, "arm": 75, "fielding": 70 },
-          { "id": "sml-f03", "name": "浅葱 煌大", "number": 2, "position": "SS", "bats": "L", "meet": 43, "power": 44, "speed": 72, "arm": 62, "fielding": 57 },
+          { "id": "sml-f03", "name": "浅葱 晴臣", "number": 2, "position": "SS", "bats": "L", "meet": 43, "power": 44, "speed": 72, "arm": 62, "fielding": 57 },
           { "id": "sml-f04", "name": "菖蒲 昴", "number": 61, "position": "2B", "bats": "L", "meet": 41, "power": 59, "speed": 51, "arm": 58, "fielding": 55 },
           { "id": "sml-f05", "name": "藍原 昴", "number": 55, "position": "3B", "bats": "R", "meet": 33, "power": 38, "speed": 57, "arm": 77, "fielding": 51 },
           { "id": "sml-f06", "name": "都築 柚希", "number": 5, "position": "1B", "bats": "R", "meet": 49, "power": 74, "speed": 44, "arm": 54, "fielding": 45 },
@@ -337,7 +337,7 @@
           { "id": "hnz-fp3", "name": "釘宮 翔太", "number": 53, "throws": "R", "velocity": 151, "control": 52, "stamina": 79, "breaking": 61, "pitches": ["fastball", "curve", "slider"], "arm": 52, "fielding": 54, "speed": 43, "role": "starter" },
           { "id": "hnz-fp4", "name": "蛍原 雅楽", "number": 15, "throws": "L", "velocity": 138, "control": 69, "stamina": 83, "breaking": 61, "pitches": ["fastball", "curve"], "arm": 56, "fielding": 45, "speed": 32, "role": "starter" },
           { "id": "hnz-fp5", "name": "綾瀬 稜", "number": 6, "throws": "R", "velocity": 153, "control": 75, "stamina": 40, "breaking": 64, "pitches": ["fastball", "curve", "slider", "palm"], "arm": 68, "fielding": 57, "speed": 55, "role": "reliever" },
-          { "id": "hnz-fp6", "name": "鴨居 煌大", "number": 46, "throws": "L", "velocity": 150, "control": 55, "stamina": 58, "breaking": 61, "pitches": ["fastball", "slider", "fork"], "arm": 70, "fielding": 67, "speed": 53, "role": "reliever" },
+          { "id": "hnz-fp6", "name": "鴨居 樹生", "number": 46, "throws": "L", "velocity": 150, "control": 55, "stamina": 58, "breaking": 61, "pitches": ["fastball", "slider", "fork"], "arm": 70, "fielding": 67, "speed": 53, "role": "reliever" },
           { "id": "hnz-fp7", "name": "錦戸 琥太郎", "number": 57, "throws": "L", "velocity": 144, "control": 58, "stamina": 42, "breaking": 69, "pitches": ["fastball", "curve", "fork"], "arm": 62, "fielding": 55, "speed": 47, "role": "reliever" },
           { "id": "hnz-fp8", "name": "瑞木 瑛士", "number": 52, "throws": "R", "velocity": 144, "control": 50, "stamina": 38, "breaking": 66, "pitches": ["fastball", "curve", "slider"], "arm": 63, "fielding": 50, "speed": 52, "role": "reliever" }
         ]
@@ -854,7 +854,7 @@
         { "id": "sks-p9", "name": "薬師寺 誉", "number": 47, "throws": "L", "velocity": 148, "control": 73, "stamina": 42, "breaking": 82, "pitches": ["fastball", "slider"], "arm": 65, "fielding": 63, "speed": 51, "role": "reliever" },
         { "id": "sks-p8", "name": "漆原 雄太", "number": 29, "throws": "R", "velocity": 159, "control": 72, "stamina": 45, "breaking": 71, "pitches": ["fastball", "curve", "slider"], "arm": 63, "fielding": 63, "speed": 46, "role": "reliever" },
         { "id": "sks-p13", "name": "忍足 和也", "number": 46, "throws": "R", "velocity": 152, "control": 80, "stamina": 40, "breaking": 70, "pitches": ["fastball", "curve", "slider"], "arm": 71, "fielding": 59, "speed": 38, "role": "reliever" },
-        { "id": "sks-p11", "name": "鶴見 煌大", "number": 28, "throws": "R", "velocity": 149, "control": 63, "stamina": 46, "breaking": 88, "pitches": ["fastball", "shoot", "fork"], "arm": 81, "fielding": 55, "speed": 59, "role": "reliever" },
+        { "id": "sks-p11", "name": "鶴見 柾", "number": 28, "throws": "R", "velocity": 149, "control": 63, "stamina": 46, "breaking": 88, "pitches": ["fastball", "shoot", "fork"], "arm": 81, "fielding": 55, "speed": 59, "role": "reliever" },
         { "id": "sks-p15", "name": "蒼井 大樹", "number": 16, "throws": "R", "velocity": 151, "control": 73, "stamina": 31, "breaking": 75, "pitches": ["fastball", "slider"], "arm": 63, "fielding": 50, "speed": 53, "role": "closer" },
         { "id": "sks-p10", "name": "九条 直樹", "number": 53, "throws": "R", "velocity": 149, "control": 69, "stamina": 41, "breaking": 58, "pitches": ["fastball", "knucklecurve", "slider", "fork"], "arm": 60, "fielding": 60, "speed": 58, "role": "reliever" }
       ],
@@ -882,7 +882,7 @@
       },
       "development": {
         "batters": [
-          { "id": "sks-d01", "name": "森本 煌大", "number": 111, "position": "C", "bats": "R", "meet": 37, "power": 76, "speed": 39, "arm": 70, "fielding": 53 },
+          { "id": "sks-d01", "name": "森本 冬弥", "number": 111, "position": "C", "bats": "R", "meet": 37, "power": 76, "speed": 39, "arm": 70, "fielding": 53 },
           { "id": "sks-d02", "name": "西園寺 悠吏", "number": 113, "position": "SS", "bats": "R", "meet": 54, "power": 29, "speed": 68, "arm": 65, "fielding": 63 },
           { "id": "sks-d03", "name": "深見 大樹", "number": 119, "position": "CF", "bats": "R", "meet": 23, "power": 39, "speed": 56, "arm": 73, "fielding": 61 }
         ],
