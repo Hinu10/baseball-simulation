@@ -1,7 +1,7 @@
 // 選手交代の画面。下げる選手（打順の9人か投手）を選び、次に控えから入れる選手を選ぶ。
 import { battingTeam, benchBatters, benchPitchers, type TeamGameState } from '../core/gameState.ts';
 import type { Match } from '../core/match.ts';
-import { fatigue } from '../core/pitching.ts';
+import { staminaLeft } from '../core/pitching.ts';
 import type { Substitution } from '../core/rules.ts';
 import type { Batter, Pitcher } from '../core/teams.ts';
 import { POSITION_LABEL } from '../core/types.ts';
@@ -61,7 +61,7 @@ export class SubstitutionPanel {
       };
     });
     const p = t.pitcher;
-    const sta = Math.round((1 - fatigue(p, t.pitchCount)) * 100);
+    const sta = Math.round(staminaLeft(p, t.pitchCount) * 100);
     rows.push({
       slot: -1,
       label: `投手 ${p.name}`,

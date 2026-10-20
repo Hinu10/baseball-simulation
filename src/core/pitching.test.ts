@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { createPitch, DEFAULT_ZONE, previewPath, fatigue, isStrike, missChance, pitchPosition, PITCHES } from './pitching.ts';
+import { createPitch, DEFAULT_ZONE, previewPath, fatigue, isStrike, missChance, pitchPosition, PITCHES, staminaLeft } from './pitching.ts';
 import { Rng } from './rng.ts';
 import { parseTeams, type Pitcher } from './teams.ts';
 import { PITCH_TYPES } from './types.ts';
@@ -107,4 +107,13 @@ test('増やした球種：スローボールは一番遅く、シュート・�
   const fast = { ...ace, velocity: 182 };
   const p = createPitch(fast, { type: 'fastball', target: { x: 0, y: 0.8 } }, 0, new Rng(1));
   assert.ok(p.speedKmh > 175);
+});
+
+test('スタミナ：1球目から減り、先発（スタミナ80）は100球前後で疲れきる', () => {
+  const sp = { ...ace, stamina: 80 };
+  assert.ok(staminaLeft(sp, 1) < 1);
+  assert.equal(fatigue(sp, 40), 0, '前半は球に出ない');
+  assert.ok(fatigue(sp, 75) > 0.3);
+  assert.equal(fatigue(sp, 100), 1);
+  assert.equal(staminaLeft(sp, 100), 0);
 });

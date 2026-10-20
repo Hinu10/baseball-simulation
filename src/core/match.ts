@@ -51,6 +51,8 @@ const START = { x: 0, y: (DEFAULT_ZONE.bottom + DEFAULT_ZONE.top) / 2 };
 const RESULT_TIME = { call: 0.9, play: 1.8 };
 /** 救援投手の力の目安（球速・制球・変化球）。 */
 const power = (p: Pitcher) => (p.velocity - 130) * 2 + p.control + p.breaking;
+/** CPU の中継ぎ・抑えが、回の頭で交代するまでに投げる球数の目安（1イニング投げていなくても）。 */
+const RELIEVER_PITCHES = 22;
 /** CPU チームが投手を代える疲れ（fatigue）の目安。 */
 const CPU_RELIEF_FATIGUE = 0.85;
 
@@ -205,12 +207,24 @@ export class Match {
       this.applySubstitution(team, { kind: 'pitcher', playerId: closer.id });
       return;
     }
+    // 中継ぎ・抑えは基本1イニング：回の頭で、もう1イニング投げていれば次の中継ぎに代える。
+    const fresh = bench.filter((p) => roleOf(p) === 'reliever');
+    const done = (s.pitching[t.pitcher.id]?.outs ?? 0) >= 3 || t.pitchCount >= RELIEVER_PITCHES;
+    if (roleOf(t.pitcher) !== 'starter' && done && s.outs === 0 && !s.bases.some((b) => b) && fresh.length) {
+      this.applySubstitution(team, { kind: 'pitcher', playerId: this.pickReliever(fresh).id });
+      return;
+    }
     if (fatigue(t.pitcher, t.pitchCount) < CPU_RELIEF_FATIGUE) return;
     // 疲れたら中継ぎから、力のある投手を出す。中継ぎがいなければ抑え、最後に先発。
     const pick = (role: string) => bench.filter((p) => roleOf(p) === role);
     const pool = [pick('reliever'), pick('closer'), bench].find((x) => x.length)!;
-    const next = pool.reduce((a, b) => (power(b) > power(a) ? b : a));
-    this.applySubstitution(team, { kind: 'pitcher', playerId: next.id });
+    this.applySubstitution(team, { kind: 'pitcher', playerId: this.pickReliever(pool).id });
+  }
+
+  /** 次に出す投手。毎試合同じ投手ばかりにならないよう、力のある順に重みを付けて選ぶ（いちばん上が出やすい）。 */
+  private pickReliever(pool: Pitcher[]): Pitcher {
+    const ranked = [...pool].sort((a, b) => power(b) - power(a));
+    return this.rng.weighted(ranked.map((p, i) => ({ value: p, weight: 1 / (i + 1.5) })));
   }
 
   /** 自動モードで、試合終了まで一気に進める。 */
