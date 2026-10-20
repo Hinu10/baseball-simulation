@@ -125,7 +125,7 @@ function sameSlot(a: Batter | Pitcher, b: Batter | Pitcher): boolean {
   return (roleOf(a) === 'starter') === (roleOf(b as Pitcher) === 'starter');
 }
 
-const strength = (p: Batter | Pitcher) => ('position' in p ? p.meet + p.power + 0.3 * p.speed + 0.3 * p.fielding : p.control + p.breaking + (p.velocity - 130) * 1.5);
+const strength = (p: Batter | Pitcher) => ('position' in p ? p.meet + p.power + 0.3 * p.speed + 0.3 * p.fielding : p.control + p.breaking + (p.velocity - 130) * 2.5);
 
 /** 背番号の空き（0〜69 で、首脳陣・選手が使っていないもの）。 */
 function freeNumber(t: TeamData, reg: Registration): number | null {
