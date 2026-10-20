@@ -33,11 +33,12 @@ test('勝敗・得失点・対戦回数を積み上げ、勝率順の順位表�
 });
 
 test('残りの球団は、対戦の少ない組から組み合わせる', () => {
-  const [a, b, c, d, e, f] = teams;
+  const six = teams.slice(0, 6);
+  const [a, b, c, d, e, f] = six;
   let p = emptyPennant();
   p = addGame(p, finished(c, d, 1, 0));
   p = addGame(p, finished(e, f, 1, 0));
-  const pairs = pairOthers(p, teams, [a.id, b.id], () => 0);
+  const pairs = pairOthers(p, six, [a.id, b.id], () => 0);
   assert.equal(pairs.length, 2);
   const keys = pairs.map((x) => x.map((t) => t.id).sort().join('|')).sort();
   assert.ok(!keys.includes([c.id, d.id].sort().join('|')));
