@@ -384,14 +384,14 @@
         { "id": "kmy-06", "name": "宗像 奏太", "number": 51, "position": "3B", "bats": "R", "meet": 72, "power": 92, "speed": 48, "arm": 78, "fielding": 67 },
         { "id": "kmy-07", "name": "水城 湊", "number": 22, "position": "RF", "bats": "L", "meet": 67, "power": 76, "speed": 60, "arm": 80, "fielding": 75 },
         { "id": "kmy-08", "name": "紫藤 誠也", "number": 58, "position": "C", "bats": "L", "meet": 51, "power": 66, "speed": 36, "arm": 83, "fielding": 82 },
-        { "id": "kmy-09", "name": "柳生 晴", "number": 65, "position": "LF", "bats": "R", "meet": 69, "power": 75, "speed": 67, "arm": 71, "fielding": 67 },
         { "id": "kmy-10", "name": "雪村 隼", "number": 53, "position": "C", "bats": "L", "meet": 59, "power": 57, "speed": 40, "arm": 81, "fielding": 88 },
         { "id": "kmy-11", "name": "霧島 律", "number": 33, "position": "SS", "bats": "R", "meet": 61, "power": 52, "speed": 77, "arm": 68, "fielding": 86 },
         { "id": "kmy-12", "name": "紫藤 悠真", "number": 8, "position": "RF", "bats": "R", "meet": 60, "power": 81, "speed": 69, "arm": 76, "fielding": 69 },
         { "id": "kmy-13", "name": "片桐 樹", "number": 62, "position": "C", "bats": "R", "meet": 57, "power": 56, "speed": 66, "arm": 64, "fielding": 84 },
         { "id": "kmy-14", "name": "樋口 奏太", "number": 18, "position": "SS", "bats": "R", "meet": 63, "power": 57, "speed": 47, "arm": 71, "fielding": 64 },
         { "id": "kmy-15", "name": "古賀 隼人", "number": 16, "position": "CF", "bats": "L", "meet": 60, "power": 39, "speed": 48, "arm": 80, "fielding": 70 },
-        { "id": "kmy-16", "name": "若林 海斗", "number": 38, "position": "1B", "bats": "R", "meet": 58, "power": 80, "speed": 51, "arm": 59, "fielding": 52 }
+        { "id": "kmy-17", "name": "吾和 司剣", "number": 5, "position": "1B", "bats": "R", "meet": 60, "power": 97, "speed": 35, "arm": 66, "fielding": 55 },
+        { "id": "kmy-18", "name": "福田 綾嗣", "number": 31, "position": "LF", "bats": "L", "meet": 82, "power": 88, "speed": 52, "arm": 72, "fielding": 64 }
       ],
       "pitchers": [
         { "id": "kmy-p1", "name": "橘 一真", "number": 17, "throws": "R", "velocity": 153, "control": 80, "stamina": 86, "breaking": 76, "pitches": ["fastball", "slider", "fork"], "arm": 81, "fielding": 56, "speed": 48, "role": "starter" },
@@ -417,7 +417,9 @@
           { "id": "kmy-f05", "name": "飛鳥 鷹斗", "number": 30, "position": "3B", "bats": "R", "meet": 58, "power": 41, "speed": 60, "arm": 87, "fielding": 55 },
           { "id": "kmy-f06", "name": "松田 健太", "number": 44, "position": "1B", "bats": "R", "meet": 53, "power": 76, "speed": 35, "arm": 50, "fielding": 55 },
           { "id": "kmy-f07", "name": "獅堂 渚", "number": 42, "position": "CF", "bats": "R", "meet": 74, "power": 61, "speed": 64, "arm": 56, "fielding": 69 },
-          { "id": "kmy-f08", "name": "不破 想", "number": 57, "position": "RF", "bats": "L", "meet": 58, "power": 49, "speed": 60, "arm": 75, "fielding": 60 }
+          { "id": "kmy-f08", "name": "不破 想", "number": 57, "position": "RF", "bats": "L", "meet": 58, "power": 49, "speed": 60, "arm": 75, "fielding": 60 },
+          { "id": "kmy-09", "name": "柳生 晴", "number": 65, "position": "LF", "bats": "R", "meet": 69, "power": 75, "speed": 67, "arm": 71, "fielding": 67 },
+          { "id": "kmy-16", "name": "若林 海斗", "number": 38, "position": "1B", "bats": "R", "meet": 58, "power": 80, "speed": 51, "arm": 59, "fielding": 52 }
         ],
         "pitchers": [
           { "id": "kmy-fp1", "name": "隼田 宗介", "number": 6, "throws": "R", "velocity": 144, "control": 63, "stamina": 80, "breaking": 48, "pitches": ["fastball", "fork"], "arm": 54, "fielding": 48, "speed": 48, "role": "starter" },
@@ -442,7 +444,7 @@
           { "id": "kmy-dp3", "name": "黛 迅", "number": 135, "throws": "R", "velocity": 149, "control": 43, "stamina": 46, "breaking": 51, "pitches": ["fastball", "curve", "slider", "fork"], "arm": 70, "fielding": 52, "speed": 50, "role": "reliever" }
         ]
       },
-      "lineup": ["kmy-01", "kmy-02", "kmy-03", "kmy-04", "kmy-05", "kmy-06", "kmy-07", "kmy-08", "kmy-09"],
+      "lineup": ["kmy-01", "kmy-02", "kmy-03", "kmy-18", "kmy-17", "kmy-06", "kmy-05", "kmy-07", "kmy-08"],
       "startingPitcher": "kmy-p1"
     },
     {
