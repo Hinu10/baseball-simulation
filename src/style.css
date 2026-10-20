@@ -928,3 +928,15 @@ button {
 .c-normal { background: #8a93a6; }
 .c-bad { background: #2a8bd6; }
 .c-worst { background: #3a3f8f; }
+
+.notice-table td.kind.up {
+  color: #1b7a3a;
+  font-weight: 700;
+}
+.notice-table td.kind.down {
+  color: #a33;
+}
+.notice-table td.kind.sign {
+  color: #1b3a8c;
+  font-weight: 700;
+}

@@ -1,8 +1,9 @@
 // ペナントの画面。順位表と、打撃・投手のタイトル争いを表で見せる。
-import { formatRate, gamesPlayed, SEASON_GAMES, seasonOver, standings, titleRaces, winPct, type Pennant, type TitleRace } from '../core/pennant.ts';
+import { formatRate, gamesPlayed, noticesOn, SEASON_GAMES, seasonOver, standings, titleRaces, winPct, type Pennant, type TitleRace } from '../core/pennant.ts';
+import { NOTICE_LABEL, type Notice } from '../core/registration.ts';
 import { teamStyle, type TeamData } from '../core/teams.ts';
 
-export const PENNANT_TABS = ['順位表', '打撃タイトル', '投手タイトル'] as const;
+export const PENNANT_TABS = ['順位表', '打撃タイトル', '投手タイトル', '公示'] as const;
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -48,9 +49,27 @@ function raceHtml(race: TitleRace, you: string): string {
   return `<div class="pennant-race"><h3>${race.label}${race.note ? `<small>${race.note}</small>` : ''}</h3><table class="roster-table">${rows}</table></div>`;
 }
 
-/** タブ（0 = 順位表、1 = 打撃、2 = 投手）の中身。you はあなたのチームの id（強調する）。 */
+/** 公示の一覧（新しい節から、節ごとにまとめる）。 */
+function noticesHtml(p: Pennant, teams: TeamData[], you: string, days = 30): string {
+  if (!p.notices.length) return '<p class="empty">まだ公示はありません。ペナントが進むと、各球団が出場選手登録を入れ替えます。</p>';
+  const byDay = new Map<number, Notice[]>();
+  for (const n of p.notices) byDay.set(n.day, [...(byDay.get(n.day) ?? []), n]);
+  const sections = [...byDay].reverse().slice(0, days).map(([day, list]) => {
+    const rows = list
+      .map((n) => {
+        const t = teams.find((x) => x.id === n.team);
+        return t ? `<tr class="${n.team === you ? 'current' : ''}"><td class="name">${teamName(t)}</td><td class="kind ${n.kind}">${NOTICE_LABEL[n.kind]}</td><td>${n.group}</td><td class="name">${esc(n.name)}<small>#${n.number}</small></td></tr>` : '';
+      })
+      .join('');
+    return `<h3>${day}日目のあと</h3><table class="roster-table notice-table">${rows}</table>`;
+  });
+  return `<div class="pennant-notices">${sections.join('')}</div>`;
+}
+
+/** タブ（0 = 順位表、1 = 打撃、2 = 投手、3 = 公示）の中身。you はあなたのチームの id（強調する）。 */
 export function pennantHtml(p: Pennant, teams: TeamData[], tab: number, you: string): string {
   if (tab === 0) return standingsHtml(p, teams, you);
+  if (tab === 3) return noticesHtml(p, teams, you);
   const races = titleRaces(p, teams);
   const list = tab === 1 ? races.batting : races.pitching;
   return `<div class="pennant-races">${list.map((r) => raceHtml(r, you)).join('')}</div>`;
@@ -67,5 +86,9 @@ export function pennantSummaryHtml(p: Pennant, teams: TeamData[], you: TeamData)
       return a && h ? `<span>${esc(a.shortName)} ${g.awayRuns}-${g.homeRuns} ${esc(h.shortName)}</span>` : '';
     })
     .join('');
-  return `<div class="pennant-summary"><div>ペナント <b>${rankOf(p, teams, you.id)}位</b>　${r.w}勝${r.l}敗${r.t ? `${r.t}分` : ''}（${pennantProgress(p, teams)}）</div>${others ? `<div class="others">他球場　${others}</div>` : ''}</div>`;
+  const short: Record<string, string> = { up: '登録', down: '抹消', sign: '支配下' };
+  const notices = noticesOn(p, p.day)
+    .map((n) => `<span>${esc(teams.find((t) => t.id === n.team)?.shortName ?? '')} ${short[n.kind]} ${esc(n.name)}</span>`)
+    .join('');
+  return `<div class="pennant-summary"><div>ペナント <b>${rankOf(p, teams, you.id)}位</b>　${r.w}勝${r.l}敗${r.t ? `${r.t}分` : ''}（${pennantProgress(p, teams)}）</div>${others ? `<div class="others">他球場　${others}</div>` : ''}${notices ? `<div class="others">公示　${notices}</div>` : ''}</div>`;
 }
