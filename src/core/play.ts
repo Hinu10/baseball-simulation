@@ -3,7 +3,7 @@
 
 import { cloneBall, createBall, PHYSICS_DT, predictPath, stepBall, type BallState, type PredictedPath } from './ballPhysics.ts';
 import { battedBallType } from './batting.ts';
-import { BASE_DISTANCE, basePos, DEFAULT_FIELD_POSITIONS, isFair } from './field.ts';
+import { BASE_DISTANCE, basePos, DEFAULT_FIELD_POSITIONS, isFair, type Park } from './field.ts';
 import type { GameState, TeamGameState } from './gameState.ts';
 import { add, clamp, copy, distXZ, lenXZ, lerp, moveTowardXZ, scale, v3, type Vec3 } from './math.ts';
 import type { Rng } from './rng.ts';
@@ -143,6 +143,8 @@ export interface PlayOptions {
   humanDefense: boolean;
   humanOffense: boolean;
   rng: Rng;
+  /** 試合をしている球場。省略は DEFAULT_PARK。 */
+  park?: Park;
 }
 
 export const runnerSpeed = (speed: number) => 6.0 + 2.8 * (speed / 100);
@@ -218,7 +220,7 @@ export class PlaySim {
     this.running = o.running;
     this.humanDefense = o.humanDefense;
     this.humanOffense = o.humanOffense;
-    this.ball = createBall(o.origin, o.velocity);
+    this.ball = createBall(o.origin, o.velocity, o.park);
     this.path = predictPath(this.ball);
 
     const players: { position: Position; id: string; name: string; speed: number; arm: number; fielding: number }[] = o.fielding.lineup
@@ -805,7 +807,7 @@ export class PlaySim {
     // 受け手がいない：ボールはベース付近を転がる。
     const dir = scale(v3(th.to.x - th.from.x, 0, th.to.z - th.from.z), 1 / Math.max(1, distXZ(th.from, th.to)));
     const roll = th.wild ? 8 : 4;
-    this.ball = createBall(v3(th.to.x, 0.4, th.to.z), v3(dir.x * roll, 0, dir.z * roll));
+    this.ball = createBall(v3(th.to.x, 0.4, th.to.z), v3(dir.x * roll, 0, dir.z * roll), this.ball.park);
     this.ball.bounces = 1;
     this.ball.rolling = true;
     this.ballMode = 'live';

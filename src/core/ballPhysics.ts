@@ -1,7 +1,7 @@
 // 打球・送球後のボールの物理。重力・簡易な空気抵抗・地面のバウンドと転がり・フェンスを扱う。
 // 固定時間刻みで積分し、守備AIの予測（predictPath）も同じ関数で先読みするので、予測と実際が一致する。
 
-import { FENCE, fenceDistance, inFoulStands, isFair, onDirt, sprayAngle } from './field.ts';
+import { DEFAULT_PARK, fenceDistance, inFoulStands, isFair, onDirt, sprayAngle, type Park } from './field.ts';
 import { copy, lenXZ, type Vec3 } from './math.ts';
 
 export const GRAVITY = 9.81;
@@ -25,17 +25,19 @@ export interface BallState {
   bounces: number;
   rolling: boolean;
   stopped: boolean;
+  /** 試合をしている球場（フェンス・ファウルスタンドの位置）。 */
+  park: Park;
 }
 
 /** homerun / ground-rule / foul-stands が出たらボールはそこで止まる（デッド）。 */
 export type BallEvent = 'bounce' | 'fence' | 'homerun' | 'ground-rule' | 'foul-stands';
 
-export function createBall(pos: Vec3, vel: Vec3): BallState {
-  return { pos: copy(pos), vel: copy(vel), bounces: 0, rolling: false, stopped: false };
+export function createBall(pos: Vec3, vel: Vec3, park: Park = DEFAULT_PARK): BallState {
+  return { pos: copy(pos), vel: copy(vel), bounces: 0, rolling: false, stopped: false, park };
 }
 
 export function cloneBall(b: BallState): BallState {
-  return { pos: copy(b.pos), vel: copy(b.vel), bounces: b.bounces, rolling: b.rolling, stopped: b.stopped };
+  return { pos: copy(b.pos), vel: copy(b.vel), bounces: b.bounces, rolling: b.rolling, stopped: b.stopped, park: b.park };
 }
 
 export const isTerminal = (e: BallEvent | null) => e === 'homerun' || e === 'ground-rule' || e === 'foul-stands';
@@ -86,8 +88,9 @@ export function stepBall(b: BallState, dt = PHYSICS_DT): BallEvent | null {
 
   // フェンス：越えれば本塁打（ワンバウンド以降ならエンタイトルツーベース）、低ければ跳ね返る。
   const r = lenXZ(p);
-  if (isFair(p) && r >= fenceDistance(sprayAngle(p))) {
-    if (p.y > FENCE.height) {
+  const park = b.park;
+  if (isFair(p) && r >= fenceDistance(sprayAngle(p), park)) {
+    if (p.y > park.fence.height) {
       b.stopped = true;
       return b.bounces === 0 ? 'homerun' : 'ground-rule';
     }
@@ -97,13 +100,13 @@ export function stepBall(b: BallState, dt = PHYSICS_DT): BallEvent | null {
     if (radial > 0) {
       v.x -= (1 + FENCE_RESTITUTION) * radial * nx;
       v.z -= (1 + FENCE_RESTITUTION) * radial * nz;
-      const back = fenceDistance(sprayAngle(p)) - 0.05;
+      const back = fenceDistance(sprayAngle(p), park) - 0.05;
       p.x = nx * back;
       p.z = nz * back;
       event = 'fence';
     }
   }
-  if (inFoulStands(p)) {
+  if (inFoulStands(p, park)) {
     b.stopped = true;
     return 'foul-stands';
   }

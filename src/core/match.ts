@@ -3,7 +3,7 @@
 
 import { choosePitch, DEFAULT_STRATEGY, DIFFICULTY_ERROR, planSwing, type Difficulty, type Strategy } from './ai.ts';
 import { batContact, EASY_TIMING_SCALE, evaluateSwing, STANCE_RANGE, SWING_DURATION, timingWindow, type BatContact, type SwingCommand, type SwingMode } from './batting.ts';
-import { BASE_DISTANCE } from './field.ts';
+import { BASE_DISTANCE, parkOf, type Park } from './field.ts';
 import { battingTeam, benchPitchers, createGameState, score, currentBatter, currentPitcher, EXTRA_INNINGS, fieldingTeam, type GameState, type Innings, type MatchMode, type TeamIndex } from './gameState.ts';
 import { clamp } from './math.ts';
 import { LEAD, NO_INPUT, PlaySim, runnerSpeed, stealMargin, type PlayInput } from './play.ts';
@@ -56,6 +56,8 @@ const CPU_RELIEF_FATIGUE = 0.85;
 
 export class Match {
   readonly state: GameState;
+  /** 試合をする球場（ホームの球団の本拠地）。 */
+  readonly park: Park;
   readonly humanTeam: TeamIndex;
   readonly difficulty: Difficulty;
   phase: Phase = 'pre-pitch';
@@ -113,6 +115,7 @@ export class Match {
     const innings = c.innings ?? 3;
     const extra = c.extraInnings ?? EXTRA_INNINGS[innings as Innings] ?? 0;
     this.state = createGameState(c.away, c.home, innings, c.mode ?? 'manual', extra);
+    this.park = parkOf(c.home.id);
     this.humanTeam = c.humanTeam ?? 1;
     this.difficulty = c.difficulty ?? 'normal';
     this.fielding = c.fielding ?? 'manual';
@@ -496,7 +499,8 @@ export class Match {
       stealing: Object.fromEntries(this.stealers.map((b) => [b, this.stealPosition(b) ?? b + LEAD])),
       humanDefense: this.humanFielding,
       humanOffense: this.isHuman(bt),
-      rng: this.rng
+      rng: this.rng,
+      park: this.park
     });
     this.setPhase('play');
   }

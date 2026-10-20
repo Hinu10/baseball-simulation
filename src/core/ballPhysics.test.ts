@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createBall, predictPath, stepBall, type BallEvent } from './ballPhysics.ts';
-import { fenceDistance, isFair, sprayAngle } from './field.ts';
+import { fenceDistance, HOME_PARKS, isFair, parkOf, sprayAngle } from './field.ts';
 import { lenXZ, rad, v3 } from './math.ts';
 
 /** 速さ speed（m/s）、角度 launch（度）、方向 spray（度、一塁側が +）の打球。 */
@@ -66,4 +66,21 @@ test('予測した着地点と実際の着地点が一致する', () => {
   }
   assert.ok(Math.abs(t - predicted.t) < 1e-6);
   assert.ok(Math.hypot(b.pos.x - predicted.pos.x, b.pos.z - predicted.pos.z) < 1e-6);
+});
+
+test('球場ごとにフェンスの距離が違い、狭い球場ほど本塁打が出やすい', () => {
+  const smarlins = HOME_PARKS.smarlins;
+  // 左右非対称：左翼（三塁側）が浅く、右翼が深い。
+  assert.ok(fenceDistance(rad(-45), smarlins) < fenceDistance(rad(45), smarlins));
+  assert.equal(fenceDistance(0, smarlins), smarlins.fence.center);
+  assert.equal(parkOf('no-such-team').id, 'skypark');
+  // 同じ打球が、狭い球場では本塁打、広い球場ではフェンス手前。
+  const fly = (park: string) => {
+    for (let speed = 30; speed < 60; speed += 0.25) {
+      const b = createBall(v3(0, 1.0, 0.5), v3(0, speed * Math.sin(rad(30)), speed * Math.cos(rad(30))), HOME_PARKS[park]);
+      if (run(b).includes('homerun')) return speed;
+    }
+    return Infinity;
+  };
+  assert.ok(fly('facrom') < fly('jogawa'));
 });
