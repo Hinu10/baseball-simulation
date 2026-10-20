@@ -58,7 +58,7 @@ const BALL_R = 0.037;
 
 /** ミートカーソルの大きさ（横・縦の半径 m）。ミート能力で大きく、強振で小さくなる。 */
 export function cursorSize(b: Batter, mode: SwingMode): { halfW: number; halfH: number } {
-  const r = (0.075 + 0.075 * (b.meet / 100)) * (mode === 'power' ? 0.62 : 1);
+  const r = (0.09 + 0.05 * (b.meet / 100)) * (mode === 'power' ? 0.62 : 1);
   return { halfW: r * 1.35, halfH: r * 0.85 };
 }
 
@@ -153,11 +153,11 @@ export function evaluateSwing(b: Batter, pitch: Pitch, swing: SwingCommand, rng:
   const spot = batSpot(b.bats, swing.stance ?? 0, pitch.plate.x);
   const sweet = off < 0.3 && Math.abs(nt) < 0.3 && batContact(spot) === 'sweet';
   const quality = clamp(1 - 0.5 * off * off - 0.35 * nt * nt, 0.15, 1) * batSpotPower(spot) * (sweet ? 1.06 : 1);
-  const base = (33 + 15 * (b.power / 100)) * (swing.mode === 'power' ? 1.1 : 0.96);
+  const base = (41.2 + 6.5 * (b.power / 100)) * (swing.mode === 'power' ? 1.04 : 0.97);
   const exitSpeed = Math.max(4, base * quality + (pitch.speedKmh / 3.6) * 0.08 + rng.gauss(0, 1));
 
   // カーソルの中心より球が上なら、バットが球の下をたたいて打球が上がる。
-  let launch = 11 + 40 * ny + (swing.mode === 'power' ? 4 : 0) + (b.power - 50) * 0.06 + rng.gauss(0, 4);
+  let launch = 11 + 40 * ny + (swing.mode === 'power' ? 4 : 0) + (b.power - 50) * 0.04 + rng.gauss(0, 4);
   // 根っこで詰まると、ボテボテのゴロか、差し込まれた小フライになりやすい。
   if (batContact(spot) === 'handle') launch += rng.chance(0.5) ? -12 : 14;
   // 早く振れば引っ張り、遅れれば流し方向。外角の球は流し方向に飛びやすい（右打者・左打者とも x の符号で同じ式になる）。
