@@ -164,7 +164,7 @@ export function parseTeams(raw: unknown): TeamData[] {
     for (const p of allPitchers(t)) {
       checkId(p);
       if (p.throws !== 'R' && p.throws !== 'L') fail(name, `${p.name} の throws は R か L です`);
-      if (typeof p.velocity !== 'number' || p.velocity < 100 || p.velocity > 170) fail(name, `${p.name} の velocity は 100〜170 km/h にしてください`);
+      if (typeof p.velocity !== 'number' || p.velocity < 100 || p.velocity > 190) fail(name, `${p.name} の velocity は 100〜190 km/h にしてください`);
       for (const k of PITCHER_RATINGS) checkRating(name, p.name, k, p[k]);
       if (!Array.isArray(p.pitches) || !p.pitches.includes('fastball')) fail(name, `${p.name} はストレート（fastball）を投げられる必要があります`);
       for (const pt of p.pitches) if (!PITCH_TYPES.includes(pt)) fail(name, `${p.name} の球種 ${pt} が不正です`);

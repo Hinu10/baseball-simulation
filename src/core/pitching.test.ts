@@ -97,3 +97,14 @@ test('軌道の予告は、プレートの位置からのリリースで始ま�
   const straightX = base[0].x + (target.x - base[0].x) * 0.5;
   assert.ok(Math.abs(mid.x - straightX) > 0.05);
 });
+
+test('増やした球種：スローボールは一番遅く、シュート・ツーシームはスライダーと逆に曲がる', () => {
+  for (const t of PITCH_TYPES) assert.ok(PITCHES[t].label, t);
+  assert.equal(Math.min(...PITCH_TYPES.map((t) => PITCHES[t].speed)), PITCHES.slowball.speed);
+  for (const t of ['shoot', 'twoseam'] as const) assert.ok(Math.sign(PITCHES[t].breakX) === -Math.sign(PITCHES.slider.breakX), t);
+  assert.ok(PITCHES.knucklecurve.breakY < PITCHES.curve.breakY, 'ナックルカーブはカーブより落ちる');
+  // 182km/h のストレートも投げられる。
+  const fast = { ...ace, velocity: 182 };
+  const p = createPitch(fast, { type: 'fastball', target: { x: 0, y: 0.8 } }, 0, new Rng(1));
+  assert.ok(p.speedKmh > 175);
+});

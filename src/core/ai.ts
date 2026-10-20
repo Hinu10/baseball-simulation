@@ -48,9 +48,12 @@ type Aim = 'heart' | 'edge' | 'chase';
 export function choosePitch(p: Pitcher, count: Count, strategy: PitchingStrategy, rng: Rng): PitchCommand {
   const fastWeight = count.balls >= 3 ? 80 : count.strikes >= 2 ? 35 : 50;
   const others = p.pitches.filter((t) => t !== 'fastball');
+  // スローボールは見せ球なので、ほかの変化球の半分ほど。
+  const share = (t: PitchType) => (t === 'slowball' ? 0.5 : 1);
+  const total = others.reduce((n, t) => n + share(t), 0);
   const type = rng.weighted<PitchType>([
     { value: 'fastball', weight: fastWeight },
-    ...others.map((t) => ({ value: t, weight: (100 - fastWeight) / others.length }))
+    ...others.map((t) => ({ value: t, weight: ((100 - fastWeight) * share(t)) / total }))
   ]);
   const w = { strike: { heart: 60, edge: 40, chase: 0 }, normal: { heart: 18, edge: 50, chase: 32 }, corner: { heart: 5, edge: 55, chase: 40 } }[strategy];
   const weights = { ...w };
@@ -86,8 +89,9 @@ export function choosePitch(p: Pitcher, count: Count, strategy: PitchingStrategy
       y = Z.bottom - rng.range(0.12, 0.25);
     }
   }
-  // フォークは低めに、カーブは少し高めから落とす。
-  if (type === 'fork') y -= 0.12;
+  // 落ちる球（フォーク・ナックルカーブ・パーム・チェンジアップ）は低めに、カーブは少し高めから落とす。
+  if (type === 'fork' || type === 'knucklecurve') y -= 0.12;
+  if (type === 'palm' || type === 'changeup') y -= 0.08;
   if (type === 'curve') y += 0.05;
   return { type, target: { x, y } };
 }
