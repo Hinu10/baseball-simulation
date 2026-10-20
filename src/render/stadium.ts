@@ -207,6 +207,10 @@ interface Roof {
   ring?: string;
   /** 屋根に桜の花びらの模様を散らす。 */
   petals?: string;
+  /** 屋根に小さな明かりを星のように散らす。 */
+  stars?: string;
+  /** 開閉式。試合ごとに、開いているか閉じているかが変わる（開いていれば中央が空く）。 */
+  retractable?: boolean;
 }
 
 /** 球場ごとの見た目。 */
@@ -370,6 +374,120 @@ const LOOKS: Record<string, Look> = {
     fill: 0.9,
     sky: '#a7e3ff',
     decorate: seaside
+  },
+  // 寛ブドーム：とにかく広い。白い大屋根にチームカラーの橙の骨組みと光の帯、段も多い。
+  kanbu: {
+    wall: '#1a1a1a',
+    rim: '#f5a300',
+    pole: '#f5a300',
+    seat: (row, seg, outfield) => (outfield ? (row % 2 ? '#c27f00' : '#d38c00') : seg % 7 === 3 ? '#2a2a2a' : row % 2 ? '#8c939b' : '#99a0a8'),
+    back: '#b9bec4',
+    screen: '#141414',
+    ground: '#8d949c',
+    track: DIRT,
+    rows: 20,
+    outfieldRows: 18,
+    rise: 0.5,
+    fill: 0.93,
+    sky: '#24211c',
+    roof: { panel: '#f4f1ea', line: '#f0b33c', meridians: 48, parallels: 9, height: 58, glow: '#ffd27a', wall: '#e2ddd3', band: '#f5a300', ring: '#ffe3a6' }
+  },
+  // 万山ドームスタジアム：漆黒の屋根に小さな明かりがぽつぽつ。開閉式で、開いている日は夜空が見える。
+  manyama: {
+    wall: '#111111',
+    rim: '#b8962e',
+    pole: '#b8962e',
+    seat: (row) => (row % 2 ? '#1e1e22' : '#26262b'),
+    back: '#161618',
+    screen: '#0a0a0a',
+    ground: '#2c2c30',
+    track: '#8a6a4a',
+    rows: 17,
+    outfieldRows: 16,
+    rise: 0.52,
+    fill: 0.9,
+    sky: '#07080d',
+    roof: { panel: '#0d0d10', line: '#1d1d24', meridians: 28, parallels: 6, height: 46, glow: '#b8962e', wall: '#121215', band: '#3a2f12', stars: '#ffe9b0', retractable: true, beams: 8 }
+  },
+  // オネタールスタジアム：一体感の球場。観客席の上をチームの旗がぐるりと囲む。
+  onetar: {
+    wall: '#2e7d6b',
+    rim: '#f2e8cf',
+    pole: '#f2e8cf',
+    seat: (row, seg) => (Math.floor(seg / 3) % 2 ? (row % 2 ? '#3f8f7c' : '#4a9a86') : row % 2 ? '#d9cfb4' : '#e4dbc2'),
+    back: '#cfc6ad',
+    screen: '#1f4f44',
+    ground: '#8d949c',
+    track: DIRT,
+    rows: 16,
+    outfieldRows: 15,
+    rise: 0.5,
+    fill: 0.92,
+    sky: '#8fd3ff',
+    decorate: (s) => flags(s, ['#2e7d6b', '#f2e8cf'])
+  },
+  // サックスターズスタジアム：照明塔と、バックスクリーンの大きな星。
+  sackstars: {
+    wall: '#3a4fa8',
+    rim: '#f7c948',
+    pole: '#f7c948',
+    seat: (row) => (row % 2 ? '#4a5fb3' : '#5669bb'),
+    back: '#a9b3d6',
+    screen: '#1d2a66',
+    ground: '#8d949c',
+    track: DIRT,
+    rows: 16,
+    outfieldRows: 14,
+    rise: 0.5,
+    fill: 0.86,
+    sky: '#8fd3ff',
+    decorate: (s) => {
+      lightTowers(s);
+      emblem(s, (g) => {
+        g.fillStyle = '#f7c948';
+        g.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const r = k % 2 ? 95 : 230;
+          const a = (k / 10) * Math.PI * 2 - Math.PI / 2;
+          g.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        g.fill();
+      });
+    }
+  },
+  // メリースタジアム：にぎやかな色の席と、外野の向こうの観覧車。
+  merry: {
+    wall: '#3b2a5a',
+    rim: '#d6457a',
+    pole: '#ffe1ec',
+    seat: (_row, seg) => ['#e76f9a', '#f2b544', '#6cc3d5', '#9b7fd1'][Math.floor(seg / 4) % 4],
+    back: '#f3dbe5',
+    screen: '#2a1d40',
+    ground: '#8d949c',
+    track: DIRT,
+    rows: 15,
+    outfieldRows: 13,
+    rise: 0.5,
+    fill: 0.8,
+    sky: '#9ad9ff',
+    decorate: ferrisWheel
+  },
+  // 金ノダンクドーム：くすんだ金色の屋根の、こぢんまりしたドーム。
+  kanenodunk: {
+    wall: '#2d2d2d',
+    rim: '#c9a640',
+    pole: '#c9a640',
+    seat: (row) => (row % 2 ? '#7a6a45' : '#857550'),
+    back: '#a39272',
+    screen: '#1d1b16',
+    ground: '#7c7668',
+    track: DIRT,
+    rows: 14,
+    outfieldRows: 13,
+    rise: 0.5,
+    fill: 0.78,
+    sky: '#221e14',
+    roof: { panel: '#d8c9a0', line: '#9c8550', meridians: 20, parallels: 5, height: 42, glow: '#ffe2a0', wall: '#bfae86', band: '#8a6d1f' }
   }
 };
 
@@ -643,6 +761,14 @@ function buildRoof(s: Shell, roof: Roof, floorY: number) {
         g.restore();
       }
     }
+    if (roof.stars) {
+      g.fillStyle = roof.stars;
+      for (let i = 0; i < 420; i++) {
+        g.globalAlpha = 0.25 + Math.random() * 0.75;
+        g.fillRect(Math.random() * 2048, 20 + Math.random() * 480, 2 + Math.random() * 2, 2 + Math.random() * 2);
+      }
+      g.globalAlpha = 1;
+    }
     g.strokeStyle = roof.line;
     g.lineWidth = roof.diagonal ? 5 : 3;
     const dx = 2048 / roof.meridians;
@@ -670,7 +796,9 @@ function buildRoof(s: Shell, roof: Roof, floorY: number) {
   });
   roofTex.wrapS = THREE.RepeatWrapping;
   // 屋根と壁は内向きで、半球ライトの地面の色（緑）に染まってしまうので、照明を受けない素材で描く（陰影はテクスチャに付ける）。
-  const cap = mesh(new THREE.SphereGeometry(1, 96, 32, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ map: roofTex, side: THREE.BackSide }), center.x, rimY, center.z);
+  // 開閉式の屋根が開いているときは、頂上のまわりが空いて夜空が見える。
+  const opening = roof.retractable && Math.random() < 0.5 ? 0.62 : 0;
+  const cap = mesh(new THREE.SphereGeometry(1, 96, 32, 0, Math.PI * 2, opening, Math.PI / 2 - opening), new THREE.MeshBasicMaterial({ map: roofTex, side: THREE.BackSide }), center.x, rimY, center.z);
   cap.scale.set(R, roof.height, R);
   s.group.add(cap);
 
@@ -680,7 +808,13 @@ function buildRoof(s: Shell, roof: Roof, floorY: number) {
   s.group.add(glow);
   /** 屋根の内側の、頂上からの角度 th（ラジアン）・方位 ph の点。 */
   const onRoof = (th: number, ph: number, k = 0.985) => new THREE.Vector3(center.x + Math.sin(th) * Math.cos(ph) * R * k, rimY + Math.cos(th) * roof.height * k, center.z + Math.sin(th) * Math.sin(ph) * R * k);
-  if (roof.ring) {
+  if (opening) {
+    // 開いた屋根の縁に沿う明かり。
+    const edge = mesh(new THREE.TorusGeometry(Math.sin(opening) * R * 0.99, 0.5, 8, 160), basic(roof.glow), center.x, rimY + Math.cos(opening) * roof.height * 0.99, center.z);
+    edge.rotation.x = Math.PI / 2;
+    s.group.add(edge);
+  }
+  if (roof.ring && !opening) {
     const th = 0.95;
     const halo = mesh(new THREE.TorusGeometry(Math.sin(th) * R * 0.97, 0.6, 8, 160), basic(roof.ring), center.x, rimY + Math.cos(th) * roof.height * 0.97, center.z);
     halo.rotation.x = Math.PI / 2;
@@ -774,6 +908,90 @@ function lightTowers(s: Shell) {
   s.group.add(lamps.mesh(new THREE.MeshBasicMaterial({ vertexColors: true })));
 }
 
+/** バックスクリーンに紋を描く。draw は 512×512 の中心を原点にして描く。 */
+function emblem(s: Shell, draw: (g: CanvasRenderingContext2D) => void, size = 9) {
+  const tex = canvasTexture(512, 512, (g) => {
+    g.translate(256, 256);
+    draw(g);
+  });
+  const sign = mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false }), 0, 7.5, s.park.fence.center + 0.35);
+  sign.rotation.y = Math.PI;
+  s.group.add(sign);
+}
+
+/** 観客席の後ろの壁の上に、旗を並べる（colors の色を交互に）。 */
+function flags(s: Shell, colors: string[]) {
+  const props = new Props();
+  const cloth = new Quads();
+  const flutter: { from: number }[] = [];
+  let k = 0;
+  for (let i = 0; i < s.rim.length; i += 3) {
+    const { p, top, outfield } = s.rim[i];
+    if (outfield && Math.abs(p.x) < 14) continue;
+    props.add(new THREE.CylinderGeometry(0.08, 0.08, 6, 5), '#e0e0e0', p.x, top + 3, p.z);
+    const c = new THREE.Color(colors[k++ % colors.length]);
+    const yaw = Math.atan2(s.center.x - p.x, s.center.z - p.z) + Math.PI / 2;
+    const dx = Math.sin(yaw) * 2.4;
+    const dz = Math.cos(yaw) * 2.4;
+    flutter.push({ from: cloth.pos.length });
+    cloth.quad({ x: p.x, y: top + 5.9, z: p.z }, { x: p.x + dx, y: top + 5.9, z: p.z + dz }, { x: p.x + dx, y: top + 4.3, z: p.z + dz }, { x: p.x, y: top + 4.3, z: p.z }, c);
+  }
+  s.group.add(props.mesh());
+  const geo = cloth.geometry();
+  s.group.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })));
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+  const base = Float32Array.from(pos.array as Float32Array);
+  // 旗の先（ポールから離れた2点）だけを、上下に揺らす。
+  return (_dt: number, time: number) => {
+    flutter.forEach(({ from }, n) => {
+      const wave = Math.sin(time * 3 + n) * 0.25;
+      for (const v of [1, 2, 4]) (pos.array as Float32Array)[from + v * 3 + 1] = base[from + v * 3 + 1] + wave;
+    });
+    pos.needsUpdate = true;
+  };
+}
+
+/** メリー：外野の向こうの観覧車。ゆっくり回る。 */
+function ferrisWheel(s: Shell) {
+  const R = 26;
+  const hub = new THREE.Vector3(-70, R + 6, s.park.fence.center + 45);
+  const stand = new Props();
+  for (const side of [-1, 1]) {
+    const foot = new THREE.Vector3(hub.x + side * 12, 0, hub.z);
+    const len = foot.distanceTo(hub);
+    stand.add(new THREE.CylinderGeometry(0.5, 0.7, len, 6), '#e0e0e8', (foot.x + hub.x) / 2, hub.y / 2, hub.z, { rz: Math.atan2(hub.x - foot.x, hub.y) * -1 });
+  }
+  s.group.add(stand.mesh());
+  const wheel = new THREE.Group();
+  wheel.position.copy(hub);
+  // 本塁のほうを向ける。
+  wheel.rotation.y = Math.atan2(-hub.x, -hub.z);
+  const frame = new Props();
+  frame.add(new THREE.TorusGeometry(R, 0.35, 6, 96), '#ffffff', 0, 0, 0);
+  frame.add(new THREE.TorusGeometry(R * 0.55, 0.25, 6, 64), '#ffffff', 0, 0, 0);
+  const n = 16;
+  for (let i = 0; i < n; i++) frame.add(new THREE.BoxGeometry(0.25, R, 0.25), '#f2f2f2', Math.sin((i / n) * Math.PI * 2) * (R / 2), Math.cos((i / n) * Math.PI * 2) * (R / 2), 0, { rz: -(i / n) * Math.PI * 2 });
+  wheel.add(frame.mesh());
+  const colors = ['#e76f9a', '#f2b544', '#6cc3d5', '#9b7fd1'];
+  const cars: THREE.Mesh[] = [];
+  for (let i = 0; i < n; i++) {
+    const car = mesh(new THREE.BoxGeometry(2.2, 2.4, 2.2), mat(colors[i % 4]), Math.sin((i / n) * Math.PI * 2) * R, Math.cos((i / n) * Math.PI * 2) * R - 1.5, 0);
+    cars.push(car);
+    wheel.add(car);
+  }
+  s.group.add(wheel);
+  return (_dt: number, time: number) => {
+    const a = time * 0.08;
+    wheel.rotation.z = a;
+    // ゴンドラは回っても下を向いたまま。
+    cars.forEach((c, i) => {
+      const t = (i / n) * Math.PI * 2;
+      c.position.set(Math.sin(t) * R, Math.cos(t) * R - 1.5, 0);
+      c.rotation.z = -a;
+    });
+  };
+}
+
 /** 花桜ドーム：ドームの中をゆっくり舞う花びら。 */
 function sakura(s: Shell) {
   const N = 500;
@@ -798,8 +1016,7 @@ function sakura(s: Shell) {
   points.frustumCulled = false;
   s.group.add(points);
   // バックスクリーンに大きな桜の紋。
-  const emblem = canvasTexture(512, 512, (g) => {
-    g.translate(256, 256);
+  emblem(s, (g) => {
     for (let k = 0; k < 5; k++) {
       g.save();
       g.rotate((k / 5) * Math.PI * 2);
@@ -818,9 +1035,6 @@ function sakura(s: Shell) {
     g.arc(0, 0, 34, 0, Math.PI * 2);
     g.fill();
   });
-  const sign = mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshBasicMaterial({ map: emblem, transparent: true, side: THREE.DoubleSide, depthWrite: false }), 0, 7.5, s.park.fence.center + 0.35);
-  sign.rotation.y = Math.PI;
-  s.group.add(sign);
   return (dt: number, time: number) => {
     for (let i = 0; i < N; i++) {
       pos[i * 3] += Math.sin(time * 0.7 + drift[i]) * 0.6 * dt;
