@@ -663,11 +663,11 @@
       ],
       "pitchers": [
         { "id": "myg-p6", "name": "武摂 啓夛", "number": 44, "throws": "R", "velocity": 160, "control": 88, "stamina": 92, "breaking": 92, "pitches": ["fastball", "twoseam", "cutter", "curve", "slider", "fork", "changeup"], "arm": 80, "fielding": 66, "speed": 55, "role": "starter" },
+        { "id": "myg-p4", "name": "常原 凌牙", "number": 60, "throws": "L", "velocity": 157, "control": 72, "stamina": 86, "breaking": 84, "pitches": ["fastball", "curve", "slider", "fork", "changeup"], "arm": 74, "fielding": 58, "speed": 52, "role": "starter" },
         { "id": "myg-p3", "name": "九頭竜 斬", "number": 39, "throws": "L", "velocity": 149, "control": 60, "stamina": 74, "breaking": 82, "pitches": ["fastball", "curve", "slider"], "arm": 66, "fielding": 56, "speed": 50, "role": "starter" },
         { "id": "myg-p5", "name": "鉄丸 迅", "number": 18, "throws": "R", "velocity": 150, "control": 55, "stamina": 58, "breaking": 79, "pitches": ["fastball", "curve", "slider"], "arm": 55, "fielding": 38, "speed": 39, "role": "starter" },
         { "id": "myg-p2", "name": "獅子王 将", "number": 3, "throws": "L", "velocity": 154, "control": 47, "stamina": 73, "breaking": 77, "pitches": ["fastball", "curve", "slider"], "arm": 60, "fielding": 63, "speed": 34, "role": "starter" },
         { "id": "myg-p1", "name": "豪徳寺 牙", "number": 14, "throws": "R", "velocity": 155, "control": 49, "stamina": 81, "breaking": 72, "pitches": ["fastball", "slider"], "arm": 78, "fielding": 64, "speed": 46, "role": "starter" },
-        { "id": "myg-p4", "name": "鷹森 牙", "number": 60, "throws": "R", "velocity": 151, "control": 52, "stamina": 87, "breaking": 71, "pitches": ["fastball", "curve", "slider", "fork"], "arm": 54, "fielding": 49, "speed": 61, "role": "starter" },
         { "id": "myg-p7", "name": "獅子王 剣", "number": 6, "throws": "R", "velocity": 153, "control": 82, "stamina": 35, "breaking": 65, "pitches": ["fastball", "curve", "knucklecurve", "slider", "fork"], "arm": 77, "fielding": 50, "speed": 57, "role": "reliever" },
         { "id": "myg-p9", "name": "修羅 剛", "number": 63, "throws": "R", "velocity": 158, "control": 61, "stamina": 47, "breaking": 76, "pitches": ["fastball", "fork"], "arm": 66, "fielding": 42, "speed": 46, "role": "reliever" },
         { "id": "myg-p8", "name": "獅子王 仁", "number": 67, "throws": "R", "velocity": 150, "control": 77, "stamina": 47, "breaking": 70, "pitches": ["fastball", "fork"], "arm": 50, "fielding": 38, "speed": 58, "role": "reliever" },
