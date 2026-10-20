@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { initialRegistration, REREGISTER_DAYS, registeredTeam, rosterMoves } from './registration.ts';
+import { FRAGILITY, initialRegistration, injuryChance, INJURY_DAYS, REREGISTER_DAYS, registeredTeam, rosterMoves } from './registration.ts';
 import { parseTeams, roleOf } from './teams.ts';
 
 const teams = parseTeams(raw);
 const t = teams[0];
-/** いつも当たる乱数（入れ替え・支配下登録が必ず起きる）。 */
-const always = () => 0;
+/** 入れ替え・支配下登録は必ず起き、ふつうの選手は故障しない乱数。 */
+const always = () => 0.002;
 
 test('開幕時の登録は teams.json のとおり', () => {
   const r = registeredTeam(t, initialRegistration(t));
@@ -57,4 +57,29 @@ test('入れ替えはたまにしか起きない', () => {
   const never = () => 0.99;
   const { notices } = rosterMoves({}, teams, Object.fromEntries(teams.flatMap((x) => x.batters.map((b) => [b.id, -1]))), 1, never);
   assert.equal(notices.length, 0);
+});
+
+test('故障しやすい選手ほど故障しやすく、故障すると抹消されて代わりが上がり、治ると戻る', () => {
+  assert.ok(injuryChance({ fragility: 95 }) > 15 * injuryChance({}));
+  assert.equal(injuryChance({}), FRAGILITY.perDay);
+  const ace = t.pitchers.find((p) => p.id === t.startingPitcher)!;
+  const fragile = { ...t, pitchers: t.pitchers.map((p) => (p.id === ace.id ? { ...p, fragility: 100 } : p)) };
+  // 故障しやすさ 100 の投手だけが故障する乱数（ほかの選手の確率よりは大きく、その投手の確率よりは小さい）。
+  const hurt = rosterMoves({}, [fragile], {}, 1, () => injuryChance({ fragility: 60 }));
+  const down = hurt.notices.find((n) => n.kind === 'down')!;
+  assert.equal(down.id, ace.id);
+  assert.equal(down.reason, '故障');
+  const up = hurt.notices.find((n) => n.kind === 'up')!;
+  const r = registeredTeam(fragile, hurt.registrations[t.id], 2);
+  const inFarm = r.farm!.pitchers.find((p) => p.id === ace.id)!;
+  assert.ok(inFarm.injured! >= INJURY_DAYS.min - 1, '2軍で故障の残り日数を持つ');
+  assert.notEqual(r.startingPitcher, ace.id);
+  // 治るまでは戻らず、治ったら代わりの選手と入れ替わって1軍に戻る。
+  const until = hurt.registrations[t.id].injuredUntil![ace.id];
+  const never = () => 0.99;
+  const still = rosterMoves(hurt.registrations, [fragile], {}, until - 1, never);
+  assert.ok(!still.registrations[t.id].active.includes(ace.id));
+  const back = rosterMoves(hurt.registrations, [fragile], {}, until, never);
+  assert.ok(back.registrations[t.id].active.includes(ace.id));
+  assert.ok(!back.registrations[t.id].active.includes(up.id));
 });

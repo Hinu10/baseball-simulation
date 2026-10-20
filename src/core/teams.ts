@@ -52,6 +52,10 @@ export interface Batter {
   fielding: number;
   /** 今日の調子（-1〜1）。調子を反映した選手だけが持つ（core/condition.ts）。 */
   condition?: number;
+  /** 故障しやすさ（0〜100、省略は 30）。core/registration.ts。 */
+  fragility?: number;
+  /** 故障で出られない残りの日数。登録の状態を反映した選手だけが持つ。 */
+  injured?: number;
 }
 
 export type PitcherRole = 'starter' | 'reliever' | 'closer';
@@ -75,6 +79,10 @@ export interface Pitcher {
   role?: PitcherRole;
   /** 今日の調子（-1〜1）。調子を反映した選手だけが持つ（core/condition.ts）。 */
   condition?: number;
+  /** 故障しやすさ（0〜100、省略は 30）。core/registration.ts。 */
+  fragility?: number;
+  /** 故障で出られない残りの日数。登録の状態を反映した選手だけが持つ。 */
+  injured?: number;
 }
 
 /** 野手と投手のまとまり（2軍・育成）。 */
@@ -160,12 +168,14 @@ export function parseTeams(raw: unknown): TeamData[] {
       if (!LINEUP_POSITIONS.includes(b.position)) fail(name, `${b.name} の守備位置 ${b.position} が不正です`);
       if (b.bats !== 'R' && b.bats !== 'L') fail(name, `${b.name} の bats は R か L です`);
       for (const k of RATINGS) checkRating(name, b.name, k, b[k]);
+      if (b.fragility !== undefined) checkRating(name, b.name, 'fragility', b.fragility);
     }
     for (const p of allPitchers(t)) {
       checkId(p);
       if (p.throws !== 'R' && p.throws !== 'L') fail(name, `${p.name} の throws は R か L です`);
       if (typeof p.velocity !== 'number' || p.velocity < 100 || p.velocity > 190) fail(name, `${p.name} の velocity は 100〜190 km/h にしてください`);
       for (const k of PITCHER_RATINGS) checkRating(name, p.name, k, p[k]);
+      if (p.fragility !== undefined) checkRating(name, p.name, 'fragility', p.fragility);
       if (!Array.isArray(p.pitches) || !p.pitches.includes('fastball')) fail(name, `${p.name} はストレート（fastball）を投げられる必要があります`);
       for (const pt of p.pitches) if (!PITCH_TYPES.includes(pt)) fail(name, `${p.name} の球種 ${pt} が不正です`);
       if (p.role !== undefined && !(p.role in ROLE_LABEL)) fail(name, `${p.name} の role は starter・reliever・closer のどれかです`);

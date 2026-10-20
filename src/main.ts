@@ -317,7 +317,7 @@ class App {
 
   /** 出場選手登録（公示）を反映した球団。1軍・2軍・育成が入れ替わっている。 */
   private registered(t: TeamData): TeamData {
-    return registeredTeam(t, this.pennant.registrations[t.id]);
+    return registeredTeam(t, this.pennant.registrations[t.id], this.pennant.day);
   }
 
   /** ローテーションで次に投げる先発（その球団のこれまでの試合数で決まる）。 */

@@ -15,6 +15,10 @@ export interface Registration {
   signed: Record<string, number>;
   /** 抹消された日（節）。再登録できるのは REREGISTER_DAYS たってから。 */
   removedOn: Record<string, number>;
+  /** 故障した選手と、治る日（節）。 */
+  injuredUntil?: Record<string, number>;
+  /** 故障で1軍を外れた選手と、代わりに上がった選手（治ったら入れ替えて戻す）。 */
+  replacedBy?: Record<string, string>;
 }
 
 export type Registrations = Record<string, Registration>;
@@ -24,6 +28,8 @@ export const NOTICE_LABEL: Record<NoticeKind, string> = { up: '出場選手登�
 
 /** 公示。day はその節（何日目のあとか）。 */
 export interface Notice {
+  /** 抹消の理由（故障）。 */
+  reason?: string;
   day: number;
   team: string;
   kind: NoticeKind;
@@ -44,6 +50,11 @@ export const SIGN_CHANCE = 0.008;
 const SLUMP = -0.5;
 /** 上げる2軍の選手は、これより調子がよいこと。 */
 const READY = -0.1;
+/** 故障しやすさの標準（省略したとき）と、その選手が1日に故障する確率。故障しやすさ 95 ならおよそ 18 倍。 */
+export const FRAGILITY = { normal: 30, perDay: 0.0015 };
+/** 故障で出られない日数（この範囲で決まる）。再登録できるまでの日数より長い。 */
+export const INJURY_DAYS = { min: REREGISTER_DAYS, max: 40 };
+export const injuryChance = (p: { fragility?: number }) => FRAGILITY.perDay * ((p.fragility ?? FRAGILITY.normal) / FRAGILITY.normal) ** 2.5;
 /** 保存しておく公示の数。 */
 const KEEP_NOTICES = 300;
 
@@ -55,19 +66,25 @@ export function initialRegistration(t: TeamData): Registration {
   return { active: [...t.batters, ...t.pitchers].map((p) => p.id), signed: {}, removedOn: {} };
 }
 
-const withNumber = <T extends Batter | Pitcher>(p: T, reg: Registration): T => (p.id in reg.signed ? { ...p, number: reg.signed[p.id] } : p);
+/** 背番号（支配下登録で変わる）と、故障の残り日数（day を渡したとき）を付ける。 */
+function withRegistration<T extends Batter | Pitcher>(p: T, reg: Registration, day?: number): T {
+  const until = reg.injuredUntil?.[p.id];
+  const injured = day !== undefined && until !== undefined && until > day ? until - day : undefined;
+  if (!(p.id in reg.signed) && injured === undefined) return p;
+  return { ...p, ...(p.id in reg.signed && { number: reg.signed[p.id] }), ...(injured !== undefined && { injured }) };
+}
 
 /**
  * 登録の状態を反映した球団。1軍（batters・pitchers）・2軍（farm）・育成（development）に分け直し、
  * 打順や先発が抹消された選手なら、同じ守備位置の1軍の選手・ローテーションの先発に代える。
  */
-export function registeredTeam(t: TeamData, reg: Registration | undefined): TeamData {
+export function registeredTeam(t: TeamData, reg: Registration | undefined, day?: number): TeamData {
   if (!reg) return t;
   const active = new Set(reg.active);
   const dev = new Set([...(t.development?.batters ?? []), ...(t.development?.pitchers ?? [])].map((p) => p.id));
   const contracted = (p: { id: string }) => !dev.has(p.id) || p.id in reg.signed;
-  const bats = allBatters(t).map((b) => withNumber(b, reg));
-  const arms = allPitchers(t).map((p) => withNumber(p, reg));
+  const bats = allBatters(t).map((b) => withRegistration(b, reg, day));
+  const arms = allPitchers(t).map((p) => withRegistration(p, reg, day));
   const batters = bats.filter((b) => active.has(b.id));
   const pitchers = arms.filter((p) => active.has(p.id));
   const hitting = (b: Batter) => b.meet + b.power + 0.3 * b.speed;
@@ -128,21 +145,52 @@ export function rosterMoves(
   const next: Registrations = { ...regs };
   const notices: Notice[] = [];
   const cond = (p: { id: string }) => conditions[p.id] ?? 0;
-  const notice = (t: TeamData, kind: NoticeKind, p: Batter | Pitcher) => notices.push({ day, team: t.id, kind, id: p.id, name: p.name, number: p.number, group: groupOf(p) });
+  const notice = (t: TeamData, kind: NoticeKind, p: Batter | Pitcher, reason?: string) =>
+    notices.push({ day, team: t.id, kind, id: p.id, name: p.name, number: p.number, group: groupOf(p), ...(reason && { reason }) });
   for (const t of teams) {
     let reg = regs[t.id] ?? initialRegistration(t);
+    const hurt = (p: { id: string }) => (reg.injuredUntil?.[p.id] ?? -Infinity) > day;
+    const canRegister = (p: { id: string }) => !hurt(p) && day - (reg.removedOn[p.id] ?? -Infinity) >= REREGISTER_DAYS;
+    const swap = (out: Batter | Pitcher, up: Batter | Pitcher, reason?: string) => {
+      reg = { ...reg, active: [...reg.active.filter((id) => id !== out.id), up.id], removedOn: { ...reg.removedOn, [out.id]: day } };
+      notice(t, 'up', up);
+      notice(t, 'down', out, reason);
+    };
+    // 治った選手は、故障で外れたときに代わりに上がった選手と入れ替えて1軍に戻す。
+    for (const [id, sub] of Object.entries(reg.replacedBy ?? {})) {
+      if (hurt({ id })) continue;
+      const team = registeredTeam(t, reg);
+      const back = [...team.farm!.batters, ...team.farm!.pitchers].find((p) => p.id === id);
+      const { [id]: _, ...rest } = reg.replacedBy!;
+      reg = { ...reg, replacedBy: rest };
+      if (!back || !canRegister(back)) continue;
+      // 代わりの選手がもう1軍にいなければ、同じ守備位置・役割でいちばん力の落ちる選手と入れ替える。
+      const slot = [...team.batters, ...team.pitchers].filter((p) => sameSlot(back, p));
+      const out = slot.find((p) => p.id === sub) ?? slot.reduce<Batter | Pitcher | null>((a, p) => (!a || strength(p) < strength(a) ? p : a), null);
+      if (out && (out.id === sub || strength(back) > strength(out))) swap(out, back);
+    }
+    // 故障：1軍の選手がまれに故障し、同じ守備位置・役割の2軍の選手と入れ替わる。
+    for (const p of (() => {
+      const team = registeredTeam(t, reg);
+      return [...team.batters, ...team.pitchers];
+    })()) {
+      if (hurt(p) || random() >= injuryChance(p)) continue;
+      const team = registeredTeam(t, reg);
+      const subs = [...team.farm!.batters, ...team.farm!.pitchers].filter((x) => sameSlot(p, x) && canRegister(x));
+      if (!subs.length) continue;
+      const up = subs.reduce((a, x) => (strength(x) + 30 * cond(x) > strength(a) + 30 * cond(a) ? x : a));
+      const days = INJURY_DAYS.min + Math.floor(random() * (INJURY_DAYS.max - INJURY_DAYS.min + 1));
+      reg = { ...reg, injuredUntil: { ...reg.injuredUntil, [p.id]: day + days }, replacedBy: { ...reg.replacedBy, [p.id]: up.id } };
+      swap(p, up, '故障');
+    }
     const team = registeredTeam(t, reg);
     if (random() < SWAP_CHANCE) {
       const down = [...team.batters, ...team.pitchers].filter((p) => cond(p) <= SLUMP).sort((a, b) => cond(a) - cond(b));
       for (const out of down) {
-        const ready = [...team.farm!.batters, ...team.farm!.pitchers].filter(
-          (p) => sameSlot(out, p) && cond(p) > READY && day - (reg.removedOn[p.id] ?? -Infinity) >= REREGISTER_DAYS
-        );
+        const ready = [...team.farm!.batters, ...team.farm!.pitchers].filter((p) => sameSlot(out, p) && cond(p) > READY && canRegister(p));
         if (!ready.length) continue;
         const up = ready.reduce((a, p) => (strength(p) + 30 * cond(p) > strength(a) + 30 * cond(a) ? p : a));
-        reg = { ...reg, active: [...reg.active.filter((id) => id !== out.id), up.id], removedOn: { ...reg.removedOn, [out.id]: day } };
-        notice(t, 'up', up);
-        notice(t, 'down', out);
+        swap(out, up);
         break;
       }
     }

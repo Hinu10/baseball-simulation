@@ -29,6 +29,9 @@ export function conditionBadge(c: number | undefined): string {
   return `<span class="condition ${l.cls}" title="調子：${l.label}">${l.mark}${l.label}</span>`;
 }
 
+/** 故障中の印。 */
+const injuryBadge = (p: { injured?: number }) => (p.injured ? `<em class="injured">故障 あと${p.injured}日</em>` : '');
+
 const stat = (v: number) => `<td class="stat r-${rank(v)}"><b>${rank(v)}</b>${v}</td>`;
 
 /** 試合中の様子。試合前（メインメニュー）は省く。 */
@@ -45,7 +48,7 @@ function batterRow(b: Batter, order: string, pos: LineupPosition | null, live: R
         .join('、') || '―'
     : '';
   const cls = current ? 'current' : removed ? 'removed' : '';
-  return `<tr class="${cls}"><td class="order">${order}</td><td class="pos">${pos ? POSITION_LABEL[pos] : removed ? '退' : ''}</td><td class="name">${esc(b.name)}<small>#${b.number}</small></td><td>${HAND[b.bats]}</td><td>${conditionBadge(b.condition)}</td>${stat(b.meet)}${stat(b.power)}${stat(b.speed)}${stat(b.arm)}${stat(b.fielding)}${live ? `<td class="today">${today}</td>` : ''}</tr>`;
+  return `<tr class="${cls}"><td class="order">${order}</td><td class="pos">${pos ? POSITION_LABEL[pos] : removed ? '退' : ''}</td><td class="name">${esc(b.name)}<small>#${b.number}</small>${injuryBadge(b)}</td><td>${HAND[b.bats]}</td><td>${conditionBadge(b.condition)}</td>${stat(b.meet)}${stat(b.power)}${stat(b.speed)}${stat(b.arm)}${stat(b.fielding)}${live ? `<td class="today">${today}</td>` : ''}</tr>`;
 }
 
 function pitcherRow(p: Pitcher, live: RosterLive | undefined, onMound: boolean, pitchCount: number, removed: boolean) {
@@ -53,7 +56,7 @@ function pitcherRow(p: Pitcher, live: RosterLive | undefined, onMound: boolean, 
   const note = live ? `<td class="today">${onMound ? `登板中（${pitchCount}球）` : removed ? '降板' : ''}</td>` : '';
   const tag = !live && onMound ? '<em>先発</em>' : '';
   const role = `<td class="role">${ROLE_LABEL[roleOf(p)]}</td>`;
-  return `<tr class="${onMound ? 'current' : removed ? 'removed' : ''}"><td class="name">${esc(p.name)}<small>#${p.number}</small>${tag}</td>${role}<td>${HAND[p.throws]}</td><td>${conditionBadge(p.condition)}</td><td class="speed">${p.velocity}<small>km/h</small></td>${stat(p.control)}${stat(p.stamina)}${stat(p.breaking)}<td class="pitches">${pitches}</td>${note}</tr>`;
+  return `<tr class="${onMound ? 'current' : removed ? 'removed' : ''}"><td class="name">${esc(p.name)}<small>#${p.number}</small>${tag}${injuryBadge(p)}</td>${role}<td>${HAND[p.throws]}</td><td>${conditionBadge(p.condition)}</td><td class="speed">${p.velocity}<small>km/h</small></td>${stat(p.control)}${stat(p.stamina)}${stat(p.breaking)}<td class="pitches">${pitches}</td>${note}</tr>`;
 }
 
 export const RANK_NOTE = 'S 90〜 ／ A 80〜 ／ B 70〜 ／ C 60〜 ／ D 50〜 ／ E 40〜 ／ F 20〜 ／ G 〜19　能力は今日の調子を反映';

@@ -572,7 +572,7 @@
         { "id": "kbt-16", "name": "ミラー", "number": 45, "position": "DH", "bats": "L", "meet": 64, "power": 82, "speed": 33, "arm": 49, "fielding": 46 }
       ],
       "pitchers": [
-        { "id": "kbt-p1", "name": "風嵐 柊弥", "number": 66, "throws": "R", "velocity": 161, "control": 98, "stamina": 95, "breaking": 98, "pitches": ["fastball", "slowball", "twoseam", "cutter", "knucklecurve", "slider", "fork", "palm"], "arm": 62, "fielding": 54, "speed": 48, "role": "starter" },
+        { "id": "kbt-p1", "name": "風嵐 柊弥", "number": 66, "throws": "R", "velocity": 161, "control": 98, "stamina": 95, "breaking": 98, "pitches": ["fastball", "slowball", "twoseam", "cutter", "knucklecurve", "slider", "fork", "palm"], "arm": 62, "fielding": 54, "speed": 48, "role": "starter", "fragility": 95 },
         { "id": "kbt-p2", "name": "サスン", "number": 22, "throws": "L", "velocity": 156, "control": 91, "stamina": 88, "breaking": 93, "pitches": ["fastball", "cutter", "curve", "slider", "changeup"], "arm": 62, "fielding": 54, "speed": 48, "role": "starter" },
         { "id": "kbt-p3", "name": "灘木 英世", "number": 53, "throws": "R", "velocity": 182, "control": 91, "stamina": 86, "breaking": 91, "pitches": ["fastball", "twoseam", "slider", "fork"], "arm": 62, "fielding": 54, "speed": 48, "role": "starter" },
         { "id": "kbt-p4", "name": "吉良 迅士楼", "number": 47, "throws": "R", "velocity": 151, "control": 87, "stamina": 82, "breaking": 87, "pitches": ["fastball", "shoot", "curve", "fork"], "arm": 62, "fielding": 54, "speed": 48, "role": "starter" },
