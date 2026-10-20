@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
+import { DEFAULT_PARK, parkOf } from './field.ts';
 import { allBatters, glowColor, inkOn, lineupOf, luminance, managerOf, parseTeams, roleOf, rotationStarter, TeamDataError, textColor } from './teams.ts';
 
 const clone = () => structuredClone(raw) as { teams: any[] };
@@ -97,4 +98,9 @@ test('寛ブタイガーの主力：4人がスタメンで、開幕投手は風�
   for (const n of ['中座 玲', '畑見 一樹', '川鷺 尤輔', '大森 龍之介']) assert.ok(names.includes(n), n);
   assert.equal(t.pitchers.find((p) => p.id === t.startingPitcher)!.name, '風嵐 翔真');
   assert.ok(!allBatters(t).some((b) => b.name.startsWith('淵野')));
+});
+
+test('12球団すべてに本拠地の球場がある', () => {
+  for (const t of parseTeams(raw)) assert.notEqual(parkOf(t.id), DEFAULT_PARK, t.shortName);
+  assert.ok(parkOf('kanbu').fence.center > Math.max(...parseTeams(raw).filter((t) => t.id !== 'kanbu').map((t) => parkOf(t.id).fence.center)), '寛ブドームが一番広い');
 });

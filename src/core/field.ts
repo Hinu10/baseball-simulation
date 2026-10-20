@@ -100,6 +100,56 @@ export const HOME_PARKS: Readonly<Record<string, Park>> = {
     fence: { left: 89, right: 99, center: 115, height: 3.2 },
     foul: { side: 15, backstop: 17 },
     dome: false
+  },
+  kanbu: {
+    id: 'kanbu',
+    name: 'Kanbu Dome',
+    nameJa: '寛ブドーム',
+    // とにかく広い。
+    fence: { left: 102, right: 102, center: 127, height: 3.6 },
+    foul: { side: 22, backstop: 24 },
+    dome: true
+  },
+  manyama: {
+    id: 'manyama',
+    name: 'Manyama Dome Stadium',
+    nameJa: '万山ドームスタジアム',
+    // 開閉式の屋根（開くかどうかは試合ごと）。
+    fence: { left: 95, right: 95, center: 118, height: 4.0 },
+    foul: { side: 16, backstop: 18 },
+    dome: true
+  },
+  onetar: {
+    id: 'onetar',
+    name: 'Onetar Stadium',
+    nameJa: 'オネタールスタジアム',
+    fence: { left: 93, right: 93, center: 114, height: 3.2 },
+    foul: { side: 16, backstop: 18 },
+    dome: false
+  },
+  sackstars: {
+    id: 'sackstars',
+    name: 'Sack Stars Stadium',
+    nameJa: 'サックスターズスタジアム',
+    fence: { left: 92, right: 92, center: 113, height: 3.0 },
+    foul: { side: 15, backstop: 17 },
+    dome: false
+  },
+  merry: {
+    id: 'merry',
+    name: 'Merry Stadium',
+    nameJa: 'メリースタジアム',
+    fence: { left: 91, right: 91, center: 112, height: 3.0 },
+    foul: { side: 15, backstop: 17 },
+    dome: false
+  },
+  kanenodunk: {
+    id: 'kanenodunk',
+    name: 'Kanenodunk Dome',
+    nameJa: '金ノダンクドーム',
+    fence: { left: 92, right: 92, center: 113, height: 3.4 },
+    foul: { side: 16, backstop: 18 },
+    dome: true
   }
 };
 
