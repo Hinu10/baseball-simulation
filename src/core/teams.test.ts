@@ -95,7 +95,7 @@ test('各球団に2軍と育成の選手がいて、育成の背番号は3桁', 
 test('寛ブタイガーの主力：4人がスタメンで、開幕投手は風嵐。海外に移った淵野はいない', () => {
   const t = parseTeams(raw).find((x) => x.id === 'kanbu')!;
   const names = lineupOf(t).map((b) => b.name);
-  for (const n of ['中座 玲', '畑見 一樹', '川鷺 尤輔', '大森 龍之介']) assert.ok(names.includes(n), n);
+  for (const n of ['中座 玲', '畑見 一樹', '川鷺 尤輔', '大森 煌大']) assert.ok(names.includes(n), n);
   assert.equal(t.pitchers.find((p) => p.id === t.startingPitcher)!.name, '風嵐 柊弥');
   assert.ok(!allBatters(t).some((b) => b.name.startsWith('淵野')));
 });
