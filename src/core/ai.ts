@@ -140,8 +140,8 @@ export function planSwing(b: Batter, pitch: Pitch, sit: BatterSituation, strateg
   // ストレートのつもりで待つので、遅い球にはタイミングが早くなる。
   const fastFlight = RELEASE_POINT.z / (sit.pitcherVelocity / 3.6) / PITCH_TIME_SCALE;
   const bias = -(pitch.flightTime - fastFlight) * 0.3 * (1 - skill * 0.4);
-  const timeErr = (0.085 - 0.04 * skill) * errorScale;
-  const cursorErr = (0.085 - 0.04 * skill) * errorScale;
+  const timeErr = (0.075 - 0.02 * skill) * errorScale;
+  const cursorErr = (0.075 - 0.02 * skill) * errorScale;
   // 長打を狙う打者は球の少し下にカーソルを置いて打ち上げる。
   const lift = mode === 'power' ? 0.025 : 0.005;
   return {
