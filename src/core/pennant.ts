@@ -6,8 +6,24 @@ import { nextConditions, type Conditions } from './condition.ts';
 import { addNotices, rosterMoves, type Notice, type Registrations } from './registration.ts';
 import { allBatters, allPitchers, type TeamData } from './teams.ts';
 
-/** 1シーズンの試合数（各球団）。 */
-export const SEASON_GAMES = 30;
+/** 1シーズンの試合数（各球団）。同じリーグの5球団と25試合ずつ（125試合）、交流戦で他リーグの6球団と3試合ずつ（18試合）。 */
+export const SEASON_GAMES = 143;
+/** 交流戦の期間（何日目から何日間か。日は0から数える）。 */
+export const INTERLEAGUE = { from: 60, days: 18 };
+/** その日（day 日目、0 から）が交流戦か。 */
+export const isInterleague = (day: number) => day >= INTERLEAGUE.from && day < INTERLEAGUE.from + INTERLEAGUE.days;
+
+/** リーグごとの球団（teams.json に出てくる順）。 */
+export function leagues(teams: TeamData[]): { name: string; teams: TeamData[] }[] {
+  const names = [...new Set(teams.map((t) => t.league))];
+  return names.map((name) => ({ name, teams: teams.filter((t) => t.league === name) }));
+}
+
+/** その球団と同じリーグの球団。 */
+export const leagueTeams = (teams: TeamData[], id: string) => {
+  const league = teams.find((t) => t.id === id)?.league;
+  return teams.filter((t) => t.league === league);
+};
 
 export interface TeamRecord {
   w: number;
@@ -110,24 +126,56 @@ export function advanceDay(p: Pennant, teams: TeamData[], games: GameState[], ra
 /** その節（day）に出た公示。 */
 export const noticesOn = (p: Pennant, day: number) => p.notices.filter((n) => n.day === day);
 
+/** その日に組みたい相手か（交流戦なら他リーグ、ふだんは同じリーグ）。 */
+const wanted = (day: number, a: TeamData, b: TeamData) => (a.league === b.league) !== isInterleague(day);
+
+/** 1シーズンの、同じリーグの球団・他リーグの球団それぞれとの対戦数。 */
+export const MEETINGS = { league: 25, interleague: 3 };
+
 /**
- * あなたの試合と同じ節に行う、残りの球団どうしの組み合わせ。対戦の少ない組を優先し、
- * 試合数の少ない球団から組む。random は先攻・後攻と同点のときの選び方に使う。
+ * あなたの試合と同じ節に行う、残りの球団どうしの組み合わせ。ふだんは同じリーグ、交流戦の期間は他リーグの球団と組む。
+ * 組み方を全通り調べ、対戦数がそろう（決まった対戦数を越えない・少ない組を優先する）ものを選ぶ。
+ * その日に組みたい相手と組めない球団（あなたの試合で数が合わないとき）は、ほかの相手と組む。
+ * random は先攻・後攻と同点のときの選び方に使う。
  */
 export function pairOthers(p: Pennant, teams: TeamData[], playing: string[], random: () => number = Math.random): [TeamData, TeamData][] {
-  let rest = teams.filter((t) => !playing.includes(t.id));
+  const rest = teams.filter((t) => !playing.includes(t.id));
+  const cost = (a: TeamData, b: TeamData) => {
+    const m = p.meetings[pairKey(a.id, b.id)] ?? 0;
+    const cap = a.league === b.league ? MEETINGS.league : MEETINGS.interleague;
+    return (wanted(p.day, a, b) ? 0 : 10000) + (m >= cap ? 1000 : 0) + m * m;
+  };
+  let best: [TeamData, TeamData][] = [];
+  let bestCost = Infinity;
+  let ties = 0;
+  const search = (left: TeamData[], acc: [TeamData, TeamData][], sum: number) => {
+    if (sum > bestCost) return;
+    if (left.length < 2) {
+      // 同じ点のときは、出てきた順に等しい確率で選ぶ。
+      if (sum < bestCost) {
+        bestCost = sum;
+        best = [...acc];
+        ties = 1;
+      } else if (random() < 1 / ++ties) best = [...acc];
+      return;
+    }
+    const [a, ...others] = left;
+    for (const b of others) {
+      acc.push([a, b]);
+      search(others.filter((t) => t !== b), acc, sum + cost(a, b));
+      acc.pop();
+    }
+  };
+  search(rest, [], 0);
+  return best.map(([a, b]) => (random() < 0.5 ? [a, b] : [b, a]));
+}
+
+/** 日程どおりの次の相手（その日に組みたい相手のうち、対戦の少ない球団。同じなら試合数の少ない球団）。 */
+export function nextOpponent(p: Pennant, teams: TeamData[], mine: TeamData): TeamData {
+  const pool = teams.filter((t) => t !== mine && wanted(p.day, mine, t));
+  const meet = (t: TeamData) => p.meetings[pairKey(mine.id, t.id)] ?? 0;
   const played = (t: TeamData) => gamesPlayed(p.teams[t.id] ?? emptyRecord());
-  const pairs: [TeamData, TeamData][] = [];
-  while (rest.length >= 2) {
-    const a = rest.reduce((x, y) => (played(y) < played(x) ? y : x));
-    const others = rest.filter((t) => t !== a);
-    const fewest = Math.min(...others.map((t) => p.meetings[pairKey(a.id, t.id)] ?? 0));
-    const candidates = others.filter((t) => (p.meetings[pairKey(a.id, t.id)] ?? 0) === fewest);
-    const b = candidates[Math.floor(random() * candidates.length)];
-    pairs.push(random() < 0.5 ? [a, b] : [b, a]);
-    rest = rest.filter((t) => t !== a && t !== b);
-  }
-  return pairs;
+  return (pool.length ? pool : teams.filter((t) => t !== mine)).reduce((a, t) => (meet(t) < meet(a) || (meet(t) === meet(a) && played(t) < played(a)) ? t : a));
 }
 
 export interface StandingRow {

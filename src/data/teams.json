@@ -6,6 +6,7 @@
       "nameJa": "マイカイスピーカー",
       "shortName": "マイカイ",
       "abbr": "MKS",
+      "league": "Aリーグ",
       "colors": { "primary": "#3f8f2f", "secondary": "#a4d65e", "uniform": "#f6faf2", "cap": "#2e6b22" },
       "staff": [
         { "role": "監督", "name": "考田 慎之介", "number": 78 },
@@ -93,6 +94,7 @@
       "nameJa": "ジョガワコーク",
       "shortName": "ジョガワ",
       "abbr": "JGC",
+      "league": "Aリーグ",
       "colors": { "primary": "#c8102e", "secondary": "#1a1a1a", "uniform": "#fdf6f0", "cap": "#1a1a1a" },
       "staff": [
         { "role": "監督", "name": "元新 静雄", "number": 70 },
@@ -181,6 +183,7 @@
       "nameJa": "スマーリンズ",
       "shortName": "スマーリンズ",
       "abbr": "SML",
+      "league": "Aリーグ",
       "colors": { "primary": "#a9dcf2", "secondary": "#4a8db7", "uniform": "#f9fdff", "cap": "#a9dcf2" },
       "staff": [
         { "role": "監督", "name": "澤 海人", "number": 75 },
@@ -270,6 +273,7 @@
       "nameJa": "花桜",
       "shortName": "花桜",
       "abbr": "HNZ",
+      "league": "Aリーグ",
       "colors": { "primary": "#c48a9a", "secondary": "#6e3550", "uniform": "#fcf7f8", "cap": "#c48a9a" },
       "staff": [
         { "role": "監督", "name": "上尾 雅臣", "number": 77 },
@@ -359,6 +363,7 @@
       "nameJa": "神山国",
       "shortName": "神山国",
       "abbr": "KMY",
+      "league": "Aリーグ",
       "colors": { "primary": "#f2c300", "secondary": "#1f2a44", "uniform": "#fffdf3", "cap": "#f2c300" },
       "staff": [
         { "role": "監督", "name": "河卿田 剛", "number": 88 },
@@ -446,6 +451,7 @@
       "nameJa": "ファクロムエックス",
       "shortName": "ファクロム",
       "abbr": "FCX",
+      "league": "Aリーグ",
       "colors": { "primary": "#0a1a4a", "secondary": "#b8c2d6", "uniform": "#eef1f7", "cap": "#0a1a4a" },
       "staff": [
         { "role": "監督", "name": "加野尾 拓真", "number": 89 },
@@ -535,6 +541,7 @@
       "nameJa": "寛ブタイガー",
       "shortName": "寛ブ",
       "abbr": "KBT",
+      "league": "Bリーグ",
       "colors": { "primary": "#f5a300", "secondary": "#1a1a1a", "uniform": "#fffaf0", "cap": "#1a1a1a" },
       "staff": [
         { "role": "監督", "name": "竜胆 豪", "number": 77 },
@@ -624,6 +631,7 @@
       "nameJa": "万山グース",
       "shortName": "万山",
       "abbr": "MYG",
+      "league": "Bリーグ",
       "colors": { "primary": "#2b2b2b", "secondary": "#b8962e", "uniform": "#f4f1ea", "cap": "#2b2b2b" },
       "staff": [
         { "role": "監督", "name": "鬼頭 龍三", "number": 77 },
@@ -713,6 +721,7 @@
       "nameJa": "オネタール",
       "shortName": "オネタール",
       "abbr": "ONT",
+      "league": "Bリーグ",
       "colors": { "primary": "#2e7d6b", "secondary": "#f2e8cf", "uniform": "#fbfaf5", "cap": "#2e7d6b" },
       "staff": [
         { "role": "監督", "name": "和泉 結人", "number": 77 },
@@ -802,6 +811,7 @@
       "nameJa": "サックスターズ",
       "shortName": "サックス",
       "abbr": "SKS",
+      "league": "Bリーグ",
       "colors": { "primary": "#3a4fa8", "secondary": "#f7c948", "uniform": "#f7f9ff", "cap": "#3a4fa8" },
       "staff": [
         { "role": "監督", "name": "星川 宙", "number": 77 },
@@ -891,6 +901,7 @@
       "nameJa": "メリークッスーズ",
       "shortName": "メリー",
       "abbr": "MRK",
+      "league": "Bリーグ",
       "colors": { "primary": "#d6457a", "secondary": "#3b2a5a", "uniform": "#fff7fa", "cap": "#3b2a5a" },
       "staff": [
         { "role": "監督", "name": "陽気 晴彦", "number": 77 },
@@ -980,6 +991,7 @@
       "nameJa": "金ノダンク",
       "shortName": "金ノダンク",
       "abbr": "KND",
+      "league": "Bリーグ",
       "colors": { "primary": "#8a6d1f", "secondary": "#2d2d2d", "uniform": "#fbf8ef", "cap": "#2d2d2d" },
       "staff": [
         { "role": "監督", "name": "金城 聡", "number": 77 },
