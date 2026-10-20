@@ -1,7 +1,7 @@
 // 試合の進行。投球前 → 投球動作 → 投球 → インプレー → 結果表示 をくり返す。
 // どのモードでも同じ流れを通り、違うのは「どちらのチームを人が操作するか」だけ。判定は rules.ts に任せる。
 
-import { choosePitch, DEFAULT_STRATEGY, DIFFICULTY_ERROR, planSwing, type Difficulty, type Strategy } from './ai.ts';
+import { choosePitch, decideSteal, DEFAULT_STRATEGY, DIFFICULTY_ERROR, planSwing, type Difficulty, type Strategy } from './ai.ts';
 import { batContact, EASY_TIMING_SCALE, evaluateSwing, STANCE_RANGE, SWING_DURATION, timingWindow, type BatContact, type SwingCommand, type SwingMode } from './batting.ts';
 import { BASE_DISTANCE, parkOf, type Park } from './field.ts';
 import { battingTeam, benchPitchers, createGameState, score, currentBatter, currentPitcher, EXTRA_INNINGS, fieldingTeam, type GameState, type Innings, type MatchMode, type TeamIndex } from './gameState.ts';
@@ -413,6 +413,22 @@ export class Match {
   private startWindup(cmd: PitchCommand) {
     this.pitchCmd = cmd;
     this.setPhase('windup');
+    if (!this.humanBatting) this.cpuSteal();
+  }
+
+  /** CPU の攻撃の盗塁。先の走者が走れそうなら、投球動作と同時にスタートする（後ろの走者もつられて走る）。 */
+  private cpuSteal() {
+    const s = this.state;
+    const from = this.stealCandidates();
+    if (!from.length) return;
+    const lead = Math.max(...from) as 1 | 2;
+    const runner = s.teams[battingTeam(s)].team.batters.find((b) => b.id === s.bases[lead])!;
+    const team = s.teams[fieldingTeam(s)];
+    const catcher = team.lineup[team.positions.indexOf('C')];
+    const go = decideSteal({ speed: runner.speed, catcherArm: catcher.arm, from: lead, outs: s.outs, balls: s.balls, strikes: s.strikes, running: this.strategyOf(battingTeam(s)).running }, this.rng);
+    if (!go) return;
+    this.stealers = from;
+    this.stealStart = null;
   }
 
   private release() {

@@ -4,7 +4,7 @@
 import { SWING_DURATION, type SwingCommand, type SwingMode } from './batting.ts';
 import { RELEASE_POINT } from './field.ts';
 import { clamp } from './math.ts';
-import type { RunningStrategy } from './play.ts';
+import { stealMargin, type RunningStrategy } from './play.ts';
 import { DEFAULT_ZONE, PITCH_TIME_SCALE, PITCHES, type Pitch, type PitchCommand } from './pitching.ts';
 import type { Rng } from './rng.ts';
 import type { Batter, Pitcher } from './teams.ts';
@@ -171,3 +171,32 @@ export function planSwing(b: Batter, pitch: Pitch, sit: BatterSituation, strateg
 }
 
 export const pitchLabel = (t: PitchType) => PITCHES[t].label;
+
+/** 標準正規分布の累積分布（盗塁の成功率の見積もりに使う）。 */
+function normalCdf(z: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(z));
+  const d = 0.3989423 * Math.exp((-z * z) / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return z > 0 ? 1 - p : p;
+}
+
+/** 盗塁の成否のばらつき（match.ts の resolveSteal と同じ）。 */
+export const STEAL_SPREAD = 0.18;
+/**
+ * CPU の盗塁。投球ごとに、成功しそうなら（走塁方針で決まる見込み以上）一定の割合で走る。
+ * 足の速い走者・肩の弱い捕手ほど成功しそうになる。2ストライクで追い込まれた・3ボールのとき、2アウトの三盗はしない。
+ */
+export const STEAL = {
+  minChance: { aggressive: 0.6, normal: 0.68, careful: 0.8 },
+  tryRate: { aggressive: 0.75, normal: 0.5, careful: 0.2 }
+};
+export function stealChance(o: { speed: number; catcherArm: number; from: 1 | 2 }): number {
+  return normalCdf(stealMargin({ ...o, breaking: false, jump: 0 }) / STEAL_SPREAD);
+}
+export function decideSteal(
+  o: { speed: number; catcherArm: number; from: 1 | 2; outs: number; balls: number; strikes: number; running: RunningStrategy },
+  rng: Rng
+): boolean {
+  if (o.balls === 3 || o.strikes === 2 || (o.from === 2 && o.outs === 2)) return false;
+  return stealChance(o) >= STEAL.minChance[o.running] && rng.chance(STEAL.tryRate[o.running]);
+}
