@@ -77,6 +77,12 @@ export interface Pitcher {
   condition?: number;
 }
 
+/** 野手と投手のまとまり（2軍・育成）。 */
+export interface Squad {
+  batters: Batter[];
+  pitchers: Pitcher[];
+}
+
 /** 首脳陣（監督・コーチ）。 */
 export interface StaffMember {
   role: string;
@@ -98,8 +104,10 @@ export interface TeamData {
   /** 打順（野手の id を9人）。 */
   lineup: string[];
   startingPitcher: string;
-  /** 今日は2軍にいる選手（CPU の監督の采配、core/manager.ts）。試合には出ない。 */
-  farm?: { batters: Batter[]; pitchers: Pitcher[] };
+  /** 2軍の選手（支配下登録で、1軍に登録されていない）。CPU の監督が不調で落とした選手もここに入る（core/manager.ts）。試合には出ない。 */
+  farm?: Squad;
+  /** 育成選手（背番号は3桁）。支配下登録されるまで1軍には上がれない。 */
+  development?: Squad;
 }
 
 const RATINGS = ['meet', 'power', 'speed', 'arm', 'fielding'] as const;
@@ -133,17 +141,26 @@ export function parseTeams(raw: unknown): TeamData[] {
     for (const m of t.staff) if (!m.name || !m.role || typeof m.number !== 'number') fail(name, '首脳陣は role・name・number を書いてください');
     if (!Array.isArray(t.batters) || t.batters.length < 9) fail(name, '野手は9人以上必要です');
     if (!Array.isArray(t.pitchers) || t.pitchers.length < 1) fail(name, '投手が必要です');
+    for (const key of ['farm', 'development'] as const) {
+      const sq = t[key];
+      if (sq !== undefined && (!Array.isArray(sq.batters) || !Array.isArray(sq.pitchers))) fail(name, `${key} は batters・pitchers の配列を持ってください`);
+    }
     const playerIds = new Set<string>();
-    for (const b of t.batters) {
-      if (!b.id || playerIds.has(b.id)) fail(name, `選手 id が重複しています（${b.id}）`);
-      playerIds.add(b.id);
+    const numbers = new Map<number, string>(t.staff.map((m) => [m.number, m.name]));
+    const checkId = (p: { id: string; name: string; number: number }) => {
+      if (!p.id || playerIds.has(p.id)) fail(name, `選手 id が重複しています（${p.id}）`);
+      playerIds.add(p.id);
+      if (numbers.has(p.number)) fail(name, `背番号 ${p.number} が ${numbers.get(p.number)} と ${p.name} で重なっています`);
+      numbers.set(p.number, p.name);
+    };
+    for (const b of allBatters(t)) {
+      checkId(b);
       if (!LINEUP_POSITIONS.includes(b.position)) fail(name, `${b.name} の守備位置 ${b.position} が不正です`);
       if (b.bats !== 'R' && b.bats !== 'L') fail(name, `${b.name} の bats は R か L です`);
       for (const k of RATINGS) checkRating(name, b.name, k, b[k]);
     }
-    for (const p of t.pitchers) {
-      if (!p.id || playerIds.has(p.id)) fail(name, `選手 id が重複しています（${p.id}）`);
-      playerIds.add(p.id);
+    for (const p of allPitchers(t)) {
+      checkId(p);
       if (p.throws !== 'R' && p.throws !== 'L') fail(name, `${p.name} の throws は R か L です`);
       if (typeof p.velocity !== 'number' || p.velocity < 100 || p.velocity > 170) fail(name, `${p.name} の velocity は 100〜170 km/h にしてください`);
       for (const k of PITCHER_RATINGS) checkRating(name, p.name, k, p[k]);
@@ -151,6 +168,7 @@ export function parseTeams(raw: unknown): TeamData[] {
       for (const pt of p.pitches) if (!PITCH_TYPES.includes(pt)) fail(name, `${p.name} の球種 ${pt} が不正です`);
       if (p.role !== undefined && !(p.role in ROLE_LABEL)) fail(name, `${p.name} の role は starter・reliever・closer のどれかです`);
     }
+    for (const p of [...(t.development?.batters ?? []), ...(t.development?.pitchers ?? [])]) if (p.number < 100) fail(name, `育成選手 ${p.name} の背番号は3桁にしてください`);
     if (!Array.isArray(t.lineup) || t.lineup.length !== 9) fail(name, '打順は9人です');
     if (new Set(t.lineup).size !== 9) fail(name, '打順に同じ選手が2回入っています');
     const lineup = t.lineup.map((id) => t.batters.find((b) => b.id === id) ?? fail(name, `打順の ${id} が野手にいません`));
@@ -160,6 +178,10 @@ export function parseTeams(raw: unknown): TeamData[] {
   }
   return teams as TeamData[];
 }
+
+/** 1軍・2軍・育成のすべての野手・投手。 */
+export const allBatters = (t: TeamData): Batter[] => [...t.batters, ...(t.farm?.batters ?? []), ...(t.development?.batters ?? [])];
+export const allPitchers = (t: TeamData): Pitcher[] => [...t.pitchers, ...(t.farm?.pitchers ?? []), ...(t.development?.pitchers ?? [])];
 
 export function lineupOf(team: TeamData): Batter[] {
   return team.lineup.map((id) => team.batters.find((b) => b.id === id)!);

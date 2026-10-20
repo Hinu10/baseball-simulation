@@ -78,3 +78,14 @@ test('各球団の首脳陣：先頭が監督で、背番号は選手と重な�
     for (const m of t.staff) assert.ok(!players.has(m.number), `${t.shortName} ${m.name}`);
   }
 });
+
+test('各球団に2軍と育成の選手がいて、育成の背番号は3桁', () => {
+  for (const t of parseTeams(raw)) {
+    assert.ok(t.farm!.batters.length >= 6 && t.farm!.pitchers.length >= 6, t.shortName);
+    assert.ok(t.development!.batters.length && t.development!.pitchers.length, t.shortName);
+    for (const p of [...t.development!.batters, ...t.development!.pitchers]) assert.ok(p.number >= 100, p.name);
+  }
+  const c = clone();
+  c.teams[0].development.batters[0].number = 5;
+  assert.throws(() => parseTeams(c), TeamDataError);
+});

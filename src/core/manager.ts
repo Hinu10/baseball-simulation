@@ -74,7 +74,7 @@ export function managedTeam(t: TeamData): { team: TeamData; moves: ManagerMove[]
       pitchers: t.pitchers.filter((p) => !farmPitchers.includes(p)),
       lineup: lineup.map((b) => b.id),
       startingPitcher,
-      farm: { batters: farmBatters, pitchers: farmPitchers }
+      farm: { batters: [...farmBatters, ...(t.farm?.batters ?? [])], pitchers: [...farmPitchers, ...(t.farm?.pitchers ?? [])] }
     },
     moves
   };

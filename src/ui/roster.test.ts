@@ -53,10 +53,15 @@ test('シーズン成績：全選手が並び、記録のある選手は打率�
   assert.ok(rosterHtml(away, undefined, { batting: {}, pitching: {} }).includes('今季の打撃成績'));
 });
 
-test('2軍で調整中の選手を出し、成績の表にも残す', () => {
+test('2軍・育成の選手を表に出し、今季に出場した2軍の選手は成績の表にも残す', () => {
   const down = away.batters.find((b) => !away.lineup.includes(b.id))!;
-  const t = { ...away, batters: away.batters.filter((b) => b !== down), farm: { batters: [{ ...down, condition: -1 }], pitchers: [] } };
-  const html = rosterHtml(t, undefined, { batting: {}, pitching: {} });
-  assert.ok(html.includes('2軍で調整中'));
-  assert.ok(html.slice(html.indexOf('今季の打撃成績')).includes(down.name));
+  const t = { ...away, batters: away.batters.filter((b) => b !== down), farm: { batters: [{ ...down, condition: -1 }, ...away.farm!.batters], pitchers: away.farm!.pitchers } };
+  const line = { g: 1, pa: 4, ab: 4, h: 1, hr: 0, rbi: 0, bb: 0, so: 1, sb: 0 };
+  const html = rosterHtml(t, undefined, { batting: { [down.id]: line }, pitching: {} });
+  const farm = html.slice(html.indexOf('<h3>2軍</h3>'), html.indexOf('<h3>育成</h3>'));
+  assert.ok(farm.includes(down.name) && farm.includes(away.farm!.pitchers[0].name));
+  assert.ok(html.slice(html.indexOf('<h3>育成</h3>')).includes(away.development!.batters[0].name));
+  const stats = html.slice(html.indexOf('今季の打撃成績'));
+  assert.ok(stats.includes(down.name), '出場した2軍の選手は成績に残る');
+  assert.ok(!stats.includes(away.farm!.batters[0].name), '出場していない2軍の選手は成績に出さない');
 });
