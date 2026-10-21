@@ -645,6 +645,7 @@
         { "role": "バッテリーコーチ", "name": "蛇川 仁", "number": 82 },
         { "role": "二軍監督", "name": "獄門 勝", "number": 90 }
       ],
+      "executives": [{ "role": "最高顧問", "name": "本宮 玄蔵", "note": "元監督" }],
       "batters": [
         { "id": "myg-01", "name": "刃金 拳", "number": 48, "position": "C", "bats": "R", "meet": 50, "power": 60, "speed": 42, "arm": 71, "fielding": 65 },
         { "id": "myg-02", "name": "牙城 剛", "number": 21, "position": "C", "bats": "R", "meet": 55, "power": 73, "speed": 45, "arm": 67, "fielding": 73 },

@@ -615,8 +615,15 @@ button {
   font-size: 11px;
   color: #667;
 }
-.staff span:first-child {
+.staff .manager,
+.staff .exec {
   font-weight: 700;
+}
+/* 最高顧問などは、監督より上の役職として少し目立たせる。 */
+.staff .exec {
+  padding: 0 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
 }
 .roster-table {
   width: 100%;
