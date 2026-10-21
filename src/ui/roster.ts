@@ -118,9 +118,10 @@ export function squadHtml(title: string, sq: Squad | undefined): string {
     <div class="roster-scroll"><table class="roster-table squad-table">${PITCHER_HEAD}${sq.pitchers.map((p) => pitcherRow(p, undefined, false, 0, false)).join('')}</table></div>`;
 }
 
-/** 首脳陣（監督・コーチ）の一覧。 */
+/** 首脳陣（監督・コーチ）の一覧。最高顧問などの役職があれば、監督より先に出す。 */
 export function staffHtml(team: TeamData): string {
-  return `<h3>首脳陣</h3><p class="staff">${team.staff.map((m) => `<span><small>${esc(m.role)}</small>${esc(m.name)}<small>#${m.number}</small></span>`).join('')}</p>`;
+  const execs = (team.executives ?? []).map((m) => `<span class="exec"><small>${esc(m.role)}</small>${esc(m.name)}${m.note ? `<small>${esc(m.note)}</small>` : ''}</span>`);
+  return `<h3>首脳陣</h3><p class="staff">${[...execs, ...team.staff.map((m, i) => `<span${i === 0 ? ' class="manager"' : ''}><small>${esc(m.role)}</small>${esc(m.name)}<small>#${m.number}</small></span>`)].join('')}</p>`;
 }
 
 /** 1チーム分の表。live があれば試合中の打順・投手を使う。season があれば、その下にシーズン成績を出す。 */

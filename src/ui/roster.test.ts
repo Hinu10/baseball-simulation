@@ -3,9 +3,10 @@ import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { Match } from '../core/match.ts';
 import { parseTeams } from '../core/teams.ts';
-import { rank, rosterHtml, seasonStatsHtml } from './roster.ts';
+import { rank, rosterHtml, seasonStatsHtml, staffHtml } from './roster.ts';
 
-const [away, home] = parseTeams(raw);
+const teams = parseTeams(raw);
+const [away, home] = teams;
 
 test('能力のランクは 95 以上が S、85 以上が A、19 以下が G', () => {
   assert.deepEqual([100, 95, 94, 85, 84, 75, 65, 55, 54, 40, 20, 19, 0].map(rank), ['S', 'S', 'A', 'A', 'B', 'B', 'C', 'D', 'E', 'E', 'F', 'G', 'G']);
@@ -64,4 +65,11 @@ test('2軍・育成の選手を表に出し、今季に出場した2軍の選手
   const stats = html.slice(html.indexOf('今季の打撃成績'));
   assert.ok(stats.includes(down.name), '出場した2軍の選手は成績に残る');
   assert.ok(!stats.includes(away.farm!.batters[0].name), '出場していない2軍の選手は成績に出さない');
+});
+
+test('最高顧問などの役職は、首脳陣の監督より先に出る', () => {
+  const manyama = teams.find((t) => t.id === 'manyama')!;
+  const html = staffHtml(manyama);
+  assert.ok(html.indexOf('最高顧問') >= 0 && html.indexOf('最高顧問') < html.indexOf(manyama.staff[0].name));
+  assert.ok(html.includes('本宮 玄蔵') && html.includes('元監督'));
 });

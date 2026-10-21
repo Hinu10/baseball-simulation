@@ -98,6 +98,13 @@ export interface StaffMember {
   number: number;
 }
 
+/** 首脳陣の上に立つ球団の役職（最高顧問など）。ユニフォームは着ないので背番号はない。note は「元監督」などの補足。 */
+export interface Executive {
+  role: string;
+  name: string;
+  note?: string;
+}
+
 export interface TeamData {
   id: string;
   name: string;
@@ -109,6 +116,8 @@ export interface TeamData {
   colors: TeamColors;
   /** 首脳陣。先頭が監督。 */
   staff: StaffMember[];
+  /** 首脳陣の上の役職（省略可）。試合の采配には関わらない。 */
+  executives?: Executive[];
   batters: Batter[];
   pitchers: Pitcher[];
   /** 打順（野手の id を9人）。 */
@@ -149,6 +158,7 @@ export function parseTeams(raw: unknown): TeamData[] {
     }
     if (!Array.isArray(t.staff) || t.staff[0]?.role !== '監督') fail(name, '首脳陣（staff）の先頭に監督が必要です');
     for (const m of t.staff) if (!m.name || !m.role || typeof m.number !== 'number') fail(name, '首脳陣は role・name・number を書いてください');
+    for (const m of t.executives ?? []) if (!m.name || !m.role) fail(name, '球団の役職（executives）は role・name を書いてください');
     if (!Array.isArray(t.batters) || t.batters.length < 9) fail(name, '野手は9人以上必要です');
     if (!Array.isArray(t.pitchers) || t.pitchers.length < 1) fail(name, '投手が必要です');
     for (const key of ['farm', 'development'] as const) {
