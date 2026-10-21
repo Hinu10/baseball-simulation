@@ -138,7 +138,8 @@
         { "id": "osw-p11", "name": "前川 直人", "number": 28, "throws": "R", "velocity": 150, "control": 48, "stamina": 47, "breaking": 77, "pitches": ["fastball", "slider"], "arm": 61, "fielding": 67, "speed": 56, "role": "reliever" },
         { "id": "osw-p12", "name": "小野寺 和真", "number": 40, "throws": "R", "velocity": 151, "control": 69, "stamina": 34, "breaking": 54, "pitches": ["fastball", "curve", "knucklecurve", "fork"], "arm": 65, "fielding": 45, "speed": 56, "role": "reliever" },
         { "id": "osw-p13", "name": "平良 圭", "number": 30, "throws": "L", "velocity": 155, "control": 71, "stamina": 35, "breaking": 75, "pitches": ["fastball", "curve", "slider", "changeup"], "arm": 57, "fielding": 65, "speed": 44, "role": "reliever" },
-        { "id": "osw-p14", "name": "松永 勇気", "number": 37, "throws": "L", "velocity": 144, "control": 69, "stamina": 41, "breaking": 62, "pitches": ["fastball", "curve"], "arm": 56, "fielding": 69, "speed": 39, "role": "reliever" }
+        { "id": "osw-p14", "name": "松永 勇気", "number": 37, "throws": "L", "velocity": 144, "control": 69, "stamina": 41, "breaking": 62, "pitches": ["fastball", "curve"], "arm": 56, "fielding": 69, "speed": 39, "role": "reliever" },
+        { "id": "osw-p15", "name": "池上 帝毅", "number": 17, "throws": "L", "velocity": 147, "control": 76, "stamina": 80, "breaking": 74, "pitches": ["fastball", "curve", "slider", "changeup"], "arm": 64, "fielding": 66, "speed": 48, "role": "starter" }
       ],
       "farm": {
         "batters": [
@@ -175,7 +176,7 @@
         ]
       },
       "lineup": ["osw-01", "osw-02", "osw-03", "osw-04", "osw-05", "osw-06", "osw-07", "osw-08", "osw-09"],
-      "startingPitcher": "osw-p1"
+      "startingPitcher": "osw-p15"
     },
     {
       "id": "smarlins",
@@ -458,7 +459,8 @@
       "staff": [
         { "role": "監督", "name": "加野尾 拓真", "number": 89 },
         { "role": "ヘッドコーチ", "name": "黒鉄 浩", "number": 80 },
-        { "role": "投手コーチ", "name": "紺野 冬馬", "number": 72 },
+        { "role": "投手コーチ", "name": "森永 和宏", "number": 71 },
+        { "role": "ブルペンコーチ", "name": "紺野 冬馬", "number": 72 },
         { "role": "打撃コーチ", "name": "銀城 亮", "number": 73 },
         { "role": "内野守備走塁コーチ", "name": "藍沢 武史", "number": 75 },
         { "role": "外野守備走塁コーチ", "name": "星影 透", "number": 86 },
