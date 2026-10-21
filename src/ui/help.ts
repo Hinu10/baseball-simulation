@@ -24,7 +24,7 @@ export const HELP_HTML = `
     <p class="note">3秒操作しないと CPU が代わりに動きます。メニューやポーズで「守備：オート」にすると、守備はずっと CPU に任せられます。</p></section>
   <section><h3>走塁（打ったあと）</h3>
     <p><kbd>J</kbd> 進塁　<kbd>K</kbd> 帰塁　<kbd>L</kbd> 指示する走者を切り替え（全員 → 1人ずつ）</p>
-    <p class="note">指示しない走者は CPU が判断して走ります。</p></section>
+    <p class="note">走塁が「オート」なら、指示しない走者は CPU が状況を見て走ります。「手動」なら、フォースで進む・飛球で戻る以外は指示した走者だけが動きます（設定・ポーズで切り替え）。</p></section>
   <section><h3>試合中</h3>
     <p><kbd>Tab</kbd> モード切替（手動 → 監督 → 自動。次の投球から）</p>
     <p><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 監督モードの方針（攻撃・投球・走塁）</p>

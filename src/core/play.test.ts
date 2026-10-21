@@ -18,6 +18,8 @@ interface Setup {
   outs?: number;
   running?: RunningStrategy;
   humanDefense?: boolean;
+  humanOffense?: boolean;
+  autoRunning?: boolean;
   seed?: number;
 }
 
@@ -41,7 +43,8 @@ function play(o: Setup) {
     bunt: false,
     running: o.running ?? 'normal',
     humanDefense: o.humanDefense ?? false,
-    humanOffense: false,
+    humanOffense: o.humanOffense ?? false,
+    autoRunning: o.autoRunning,
     rng: new Rng(o.seed ?? 7)
   });
   const events: string[] = [];
@@ -200,4 +203,32 @@ test('盗塁は足が速いほど、捕手の肩が弱いほど、スタート�
   assert.ok(stealMargin({ ...base, catcherArm: 30 }) > stealMargin({ ...base, catcherArm: 90 }));
   assert.ok(stealMargin(base) > stealMargin({ ...base, jump: 0.3 }));
   assert.ok(stealMargin({ ...base, breaking: true }) > stealMargin(base), '変化球は走りやすい');
+});
+
+test('走塁が手動なら、指示しない走者はフォースのない次の塁を狙わない', () => {
+  const auto = play({ speed: 44, launch: 20, spray: 14, bases: [2], humanOffense: true });
+  assert.equal(auto.result.runs.length, 1);
+  const manual = play({ speed: 44, launch: 20, spray: 14, bases: [2], humanOffense: true, autoRunning: false });
+  assert.equal(manual.result.runs.length, 0);
+  assert.equal(manual.sim.runners.find((r) => r.origin === 2)!.u, 2);
+  assert.equal(manual.sim.batterRunner.u, 1);
+});
+
+test('オートの走者は、送球とぎりぎりになる先の塁を狙って刺されることが少ない', () => {
+  const rng = new Rng(11);
+  const configs: (1 | 2 | 3)[][] = [[1], [2], [1, 2], [1, 3], [1, 2, 3]];
+  let plays = 0;
+  let caught = 0;
+  for (let i = 0; i < 400; i++) {
+    const speed = 30 + rng.next() * 14;
+    const launch = 2 + rng.next() * 22;
+    const spray = -40 + rng.next() * 80;
+    const { sim, result } = play({ speed, launch, spray, bases: configs[i % configs.length], outs: i % 3, seed: i });
+    if (result.foul || sim.homeRun) continue;
+    plays++;
+    // フォースで進む先（元の塁＋1）より先の塁でタッチアウトになった走者を数える。
+    caught += sim.runners.filter((r) => r.state === 'out' && !r.mustReturn && Math.ceil(r.u) > r.origin + 1 && result.outs.find((o) => o.playerId === r.playerId)?.kind === 'tag').length;
+  }
+  // 見直す前の判断では 400 球で 4 人刺されていた。
+  assert.ok(caught <= 1, `${caught} / ${plays}`);
 });
