@@ -500,7 +500,7 @@
         { "id": "fcx-p12", "name": "本郷 秀斗", "number": 61, "throws": "R", "velocity": 152, "control": 54, "stamina": 32, "breaking": 62, "pitches": ["fastball", "curve", "slider", "palm"], "arm": 70, "fielding": 57, "speed": 57, "role": "reliever" },
         { "id": "fcx-p13", "name": "千葉 輝", "number": 34, "throws": "L", "velocity": 148, "control": 48, "stamina": 32, "breaking": 66, "pitches": ["fastball", "curve", "fork"], "arm": 72, "fielding": 54, "speed": 39, "role": "reliever" },
         { "id": "fcx-p14", "name": "遠山 慎也", "number": 24, "throws": "R", "velocity": 152, "control": 72, "stamina": 38, "breaking": 48, "pitches": ["fastball", "slider", "fork"], "arm": 62, "fielding": 66, "speed": 56, "role": "reliever" },
-        { "id": "fcx-p16", "name": "駆橋 優", "number": 35, "throws": "R", "velocity": 157, "control": 92, "stamina": 44, "breaking": 93, "pitches": ["fastball", "cutter", "slider", "fork"], "arm": 70, "fielding": 62, "speed": 50, "role": "reliever" }
+        { "id": "fcx-p16", "name": "駆橋 優", "number": 35, "throws": "R", "velocity": 166, "control": 95, "stamina": 52, "breaking": 97, "pitches": ["fastball", "cutter", "slider", "fork"], "arm": 70, "fielding": 62, "speed": 50, "role": "reliever" }
       ],
       "farm": {
         "batters": [
