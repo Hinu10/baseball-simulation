@@ -6,6 +6,8 @@ import { score } from '../core/gameState.ts';
 import { glowColor } from '../core/teams.ts';
 import { Crowd, type Seat } from './crowd.ts';
 import { basic, mat, mesh } from './materials.ts';
+import { canvasTexture, LEAVES, Props, Quads, tree } from './parts.ts';
+import { castleTown, city, combine, desert, GROUND_RADIUS, highland, islands, mountainForest, SCENERY_Z, themePark } from './surroundings.ts';
 
 const GRASS = '#4caf50';
 const GRASS_DARK = '#43a047';
@@ -103,86 +105,9 @@ function offsetLoop(pts: P2[], d: number): P2[] {
   });
 }
 
-/** 平らな四角形・縦の四角形を三角形で積む。色を渡すと頂点色も積む。 */
-class Quads {
-  readonly pos: number[] = [];
-  readonly colors: number[] = [];
-  quad(a: THREE.Vector3Like, b: THREE.Vector3Like, c: THREE.Vector3Like, d: THREE.Vector3Like, color?: THREE.Color) {
-    for (const p of [a, b, c, a, c, d]) {
-      this.pos.push(p.x, p.y, p.z);
-      if (color) this.colors.push(color.r, color.g, color.b);
-    }
-  }
-  /** 折れ線 inner・outer の間（高さはそれぞれ yi・yo）を帯にする。 */
-  ribbon(inner: P2[], outer: P2[], yi: (i: number) => number, yo: (i: number) => number, closed = true) {
-    const n = inner.length;
-    for (let i = 0; i < (closed ? n : n - 1); i++) {
-      const j = (i + 1) % n;
-      this.quad(
-        { x: inner[i].x, y: yi(i), z: inner[i].z },
-        { x: inner[j].x, y: yi(j), z: inner[j].z },
-        { x: outer[j].x, y: yo(j), z: outer[j].z },
-        { x: outer[i].x, y: yo(i), z: outer[i].z }
-      );
-    }
-  }
-  geometry(): THREE.BufferGeometry {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
-    if (this.colors.length) g.setAttribute('color', new THREE.Float32BufferAttribute(this.colors, 3));
-    g.computeVertexNormals();
-    return g;
-  }
-}
-
-/** 木・照明塔などの小物を、頂点色つきの1つの形にまとめて描く（描画の回数を減らす）。 */
-class Props {
-  private readonly parts: THREE.BufferGeometry[] = [];
-  add(geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number, o: { rx?: number; ry?: number; rz?: number; s?: number | [number, number, number] } = {}) {
-    const g = geo.index ? geo.toNonIndexed() : geo.clone();
-    const s = o.s ?? 1;
-    const scale = typeof s === 'number' ? new THREE.Vector3(s, s, s) : new THREE.Vector3(...s);
-    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(o.rx ?? 0, o.ry ?? 0, o.rz ?? 0, 'YXZ'));
-    g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), q, scale));
-    const c = new THREE.Color(color);
-    const n = g.getAttribute('position').count;
-    const col = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
-    this.parts.push(g);
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  }
-  mesh(material: THREE.Material = new THREE.MeshLambertMaterial({ vertexColors: true })): THREE.Mesh {
-    const pos: number[] = [];
-    const nor: number[] = [];
-    const col: number[] = [];
-    for (const g of this.parts) {
-      pos.push(...(g.getAttribute('position').array as Float32Array));
-      nor.push(...(g.getAttribute('normal').array as Float32Array));
-      col.push(...(g.getAttribute('color').array as Float32Array));
-      g.dispose();
-    }
-    const out = new THREE.BufferGeometry();
-    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    return new THREE.Mesh(out, material);
-  }
-}
-
 /** 地面に貼る面。重なっても ちらつかないよう、order が大きいほど手前に描く。 */
 function decal(color: string, order: number): THREE.MeshLambertMaterial {
   return new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -order, polygonOffsetUnits: -order * 4 });
-}
-
-function canvasTexture(w: number, h: number, draw: (g: CanvasRenderingContext2D) => void): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
-  draw(c.getContext('2d')!);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
 }
 
 /** ドームの屋根。 */
@@ -261,13 +186,15 @@ const LOOKS: Record<string, Look> = {
     seat: gray,
     back: '#9aa3ad',
     screen: '#1d3b2c',
-    ground: '#8d949c',
+    ground: '#7fae5a',
     track: DIRT,
     rows: 16,
     outfieldRows: 16,
     rise: 0.5,
     fill: 0.9,
-    sky: '#8fd3ff'
+    sky: '#8fd3ff',
+    // 高原の草原：遠くに雪山、まわりに丘と風車と羊。
+    decorate: highland
   },
   // 花桜ドーム：白い膜屋根に桜色の骨組み。席は桜色と白のブロック、屋根には光の輪と天窓、ドームの中を花びらが舞う。
   hanazakura: {
@@ -339,7 +266,8 @@ const LOOKS: Record<string, Look> = {
     rise: 0.5,
     fill: 0.88,
     sky: '#8fd3ff',
-    decorate: greenery
+    // 山あいの森：重なる山並みと、外に広がる針葉樹の森。
+    decorate: combine(greenery, mountainForest)
   },
   // ファクロムスタジアム：狭い敷地に急な段をぎっしり積んだ、客の多い球場。上段は銀色、照明塔つき。
   facrom: {
@@ -349,14 +277,15 @@ const LOOKS: Record<string, Look> = {
     seat: (row) => (row < 14 ? (row % 2 ? '#2a3760' : '#33416d') : row % 2 ? '#8e99b0' : '#9ea8bd'),
     back: '#5b6478',
     screen: '#0b1330',
-    ground: '#8a9099',
+    ground: '#5a5e64',
     track: DIRT,
     rows: 24,
     outfieldRows: 20,
     rise: 0.62,
     fill: 0.985,
     sky: '#8fd3ff',
-    decorate: lightTowers
+    // 都会のど真ん中：高層ビルと看板、観客席の外をまわる高架の電車。
+    decorate: combine(lightTowers, city)
   },
   // スマーリンズスタジアム：海辺の球場。外野席は低く、その先は砂浜と海。帆の形の屋根、灯台、ヨット。
   smarlins: {
@@ -373,7 +302,7 @@ const LOOKS: Record<string, Look> = {
     rise: 0.5,
     fill: 0.9,
     sky: '#a7e3ff',
-    decorate: seaside
+    decorate: combine(seaside, islands)
   },
   // 寛ブドーム：とにかく広い。白い大屋根にチームカラーの橙の骨組みと光の帯、段も多い。
   kanbu: {
@@ -417,14 +346,15 @@ const LOOKS: Record<string, Look> = {
     seat: (row, seg) => (Math.floor(seg / 3) % 2 ? (row % 2 ? '#3f8f7c' : '#4a9a86') : row % 2 ? '#d9cfb4' : '#e4dbc2'),
     back: '#cfc6ad',
     screen: '#1f4f44',
-    ground: '#8d949c',
+    ground: '#8e9878',
     track: DIRT,
     rows: 16,
     outfieldRows: 15,
     rise: 0.5,
     fill: 0.92,
     sky: '#8fd3ff',
-    decorate: (s) => flags(s, ['#2e7d6b', '#f2e8cf'])
+    // 城下町：石垣の上の天守閣、五重塔、瓦屋根の町並み。
+    decorate: combine((s: Shell) => flags(s, ['#2e7d6b', '#f2e8cf']), castleTown)
   },
   // サックスターズスタジアム：照明塔と、バックスクリーンの大きな星。
   sackstars: {
@@ -434,15 +364,15 @@ const LOOKS: Record<string, Look> = {
     seat: (row) => (row % 2 ? '#4a5fb3' : '#5669bb'),
     back: '#a9b3d6',
     screen: '#1d2a66',
-    ground: '#8d949c',
+    ground: '#c98d5a',
     track: DIRT,
     rows: 16,
     outfieldRows: 14,
     rise: 0.5,
     fill: 0.86,
     sky: '#8fd3ff',
-    decorate: (s) => {
-      lightTowers(s);
+    // 荒野：赤い台地とサボテン。
+    decorate: combine(lightTowers, desert, (s: Shell) => {
       emblem(s, (g) => {
         g.fillStyle = '#f7c948';
         g.beginPath();
@@ -453,7 +383,7 @@ const LOOKS: Record<string, Look> = {
         }
         g.fill();
       });
-    }
+    })
   },
   // メリースタジアム：にぎやかな色の席と、外野の向こうの観覧車。
   merry: {
@@ -463,14 +393,15 @@ const LOOKS: Record<string, Look> = {
     seat: (_row, seg) => ['#e76f9a', '#f2b544', '#6cc3d5', '#9b7fd1'][Math.floor(seg / 4) % 4],
     back: '#f3dbe5',
     screen: '#2a1d40',
-    ground: '#8d949c',
+    ground: '#d9cdb5',
     track: DIRT,
     rows: 15,
     outfieldRows: 13,
     rise: 0.5,
     fill: 0.8,
     sky: '#9ad9ff',
-    decorate: ferrisWheel
+    // テーマパーク：観覧車、城、ジェットコースター、メリーゴーラウンド、フリーフォール、熱気球。
+    decorate: combine(ferrisWheel, themePark)
   },
   // 金ノダンクドーム：くすんだ金色の屋根の、こぢんまりしたドーム。
   kanenodunk: {
@@ -528,7 +459,7 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
   // 球場の外の地面と、グラウンドの中だけ芝。
   // 海辺の球場は、地面のかわりに砂浜と海を敷く（seaside）。
   if (look.decorate !== seaside) {
-    const base = mesh(new THREE.CircleGeometry(320, 64), mat(look.ground), 0, -0.05, 40);
+    const base = mesh(new THREE.CircleGeometry(GROUND_RADIUS, 64), mat(look.ground), 0, -0.05, SCENERY_Z);
     base.rotation.x = -Math.PI / 2;
     group.add(base);
   }
@@ -848,15 +779,6 @@ function buildRoof(s: Shell, roof: Roof, floorY: number) {
     s.group.add(lamps.mesh(new THREE.MeshBasicMaterial({ vertexColors: true })));
   }
 }
-
-/** 木を1本植える。round は広葉樹、cone は針葉樹。 */
-function tree(props: Props, x: number, z: number, h: number, kind: 'round' | 'cone', leaf: string) {
-  props.add(new THREE.CylinderGeometry(0.25 * h * 0.08 + 0.15, 0.35 * h * 0.08 + 0.2, h * 0.45, 6), '#6d4c35', x, h * 0.225, z);
-  if (kind === 'round') props.add(new THREE.IcosahedronGeometry(h * 0.3, 0), leaf, x, h * 0.65, z, { ry: x * 0.7, s: [1, 0.85, 1] });
-  else props.add(new THREE.ConeGeometry(h * 0.24, h * 0.75, 7), leaf, x, h * 0.6, z, { ry: z });
-}
-
-const LEAVES = ['#3f7d3a', '#4a8f3f', '#356b32', '#5b9a46', '#2f6a3a'];
 
 /** マイカイ：外の木立ち、バックスクリーンの上の植え込み、ところどころの観客席の花壇。 */
 function greenery(s: Shell) {
