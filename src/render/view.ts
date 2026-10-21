@@ -131,8 +131,11 @@ export class MatchView {
     a.figure.pose({ name: pose, t, bats, throws });
   }
 
-  /** メニュー表示中：球場の上をゆっくり回る。 */
-  idle(dt: number) {
+  /**
+   * メニュー表示中：球場の上をゆっくり回る。
+   * tour（球場を見る画面）なら、屋外の球場は周りの景色まで見えるよう、引いて高い所から回る（ドームは屋根の中から）。
+   */
+  idle(dt: number, tour = false) {
     this.time += dt;
     this.match = null;
     this.stadium.update(dt);
@@ -142,8 +145,10 @@ export class MatchView {
     this.overlays.group.visible = false;
     this.crowd.setBatter(null);
     const a = this.time * 0.06;
-    this.camera.position.set(-Math.sin(a) * 70, 38, 45 - Math.cos(a) * 70);
-    this.camera.lookAt(0, 0, 45);
+    const wide = tour && !this.stadium.park.dome;
+    const r = wide ? 185 : 70;
+    this.camera.position.set(-Math.sin(a) * r, wide ? 70 : 38, 45 - Math.cos(a) * r);
+    this.camera.lookAt(0, wide ? 8 : 0, 45);
     this.scoreboard.update(null);
   }
 
