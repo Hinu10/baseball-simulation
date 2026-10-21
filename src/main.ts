@@ -9,7 +9,7 @@ import { conditionedTeam, initialConditions } from './core/condition.ts';
 import { managedTeam } from './core/manager.ts';
 import { registeredTeam } from './core/registration.ts';
 import { parkOf } from './core/field.ts';
-import { addGame, advanceDay, emptyPennant, emptyRecord, gamesPlayed, leagues, nextOpponent, pairOthers, seasonOver, standings, syncRosters, type GameResult, type Pennant } from './core/pennant.ts';
+import { SEASON_YEAR, addGame, advanceDay, emptyPennant, emptyRecord, gamesPlayed, leagues, nextOpponent, pairOthers, seasonOver, standings, syncRosters, type GameResult, type Pennant } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase, type RunningControl } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
 import { parseTeams, roleOf, rotationStarter, teamStyle, type TeamData } from './core/teams.ts';
@@ -475,7 +475,7 @@ class App {
   private renderProgress() {
     const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
     const rank = this.pennant.teams[mine.id] ? `　${mine.shortName} ${mine.league} ${rankOf(this.pennant, teams, mine.id)}位` : '';
-    this.progressEl.textContent = `ペナント ${pennantProgress(this.pennant, teams)}${rank}`;
+    this.progressEl.textContent = `${SEASON_YEAR} ペナント ${pennantProgress(this.pennant, teams)}${rank}`;
   }
 
   private showPennant(open: boolean) {
@@ -492,7 +492,7 @@ class App {
     const over = seasonOver(this.pennant, teams);
     const champion = over ? `<p class="pennant-champion">${leagues(teams).map((l) => `🏆 ${l.name} ${standings(this.pennant, l.teams)[0].team.nameJa} 優勝！`).join('　')}</p>` : '';
     const reset = this.resetArmed ? 'もう一度押すとリセット' : '新しいシーズンを始める';
-    this.pennantEl.innerHTML = `<div class="panel help-card roster-card pennant-card"><h2>ペナント<small>${pennantProgress(this.pennant, teams)}</small></h2>${champion}<div class="roster-tabs pennant-tabs">${tabs}</div>${pennantHtml(this.pennant, teams, this.pennantTab, you)}<p class="note">あなたの試合が終わるたびに、ほかの10球団も1試合ずつ行い（ふだんは同じリーグどうし、交流戦の期間は他リーグと）、各球団はたまに出場選手登録を入れ替えます（公示）。勝率は引き分けを除いて計算し、失点はすべて自責点として扱います。　A/D でタブ切り替え</p><div class="pennant-buttons"><button class="reset${this.resetArmed ? ' armed' : ''}">${reset}</button><button class="close">とじる（Esc）</button></div></div>`;
+    this.pennantEl.innerHTML = `<div class="panel help-card roster-card pennant-card"><h2>${SEASON_YEAR} ペナント<small>${pennantProgress(this.pennant, teams)}</small></h2>${champion}<div class="roster-tabs pennant-tabs">${tabs}</div>${pennantHtml(this.pennant, teams, this.pennantTab, you)}<p class="note">あなたの試合が終わるたびに、ほかの10球団も1試合ずつ行い（ふだんは同じリーグどうし、交流戦の期間は他リーグと）、各球団はたまに出場選手登録を入れ替えます（公示）。勝率は引き分けを除いて計算し、失点はすべて自責点として扱います。　A/D でタブ切り替え</p><div class="pennant-buttons"><button class="reset${this.resetArmed ? ' armed' : ''}">${reset}</button><button class="close">とじる（Esc）</button></div></div>`;
     this.pennantEl.querySelectorAll<HTMLButtonElement>('.pennant-tabs button').forEach((b) =>
       b.addEventListener('click', () => {
         this.pennantTab = Number(b.dataset.i);
