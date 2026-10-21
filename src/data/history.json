@@ -1,0 +1,488 @@
+{
+  "seed": 2025,
+  "seasons": [
+    {
+      "year": 2025,
+      "leagues": [
+        {
+          "name": "コスモ・リーグ",
+          "rows": [
+            {
+              "team": "kamiyama",
+              "w": 87,
+              "l": 51,
+              "t": 5,
+              "rs": 579,
+              "ra": 462,
+              "gb": 0
+            },
+            {
+              "team": "facrom",
+              "w": 72,
+              "l": 58,
+              "t": 13,
+              "rs": 471,
+              "ra": 412,
+              "gb": 11
+            },
+            {
+              "team": "hanazakura",
+              "w": 66,
+              "l": 68,
+              "t": 9,
+              "rs": 406,
+              "ra": 405,
+              "gb": 19
+            },
+            {
+              "team": "maikai",
+              "w": 66,
+              "l": 69,
+              "t": 8,
+              "rs": 485,
+              "ra": 461,
+              "gb": 19.5
+            },
+            {
+              "team": "jogawa",
+              "w": 59,
+              "l": 77,
+              "t": 7,
+              "rs": 370,
+              "ra": 470,
+              "gb": 27
+            },
+            {
+              "team": "smarlins",
+              "w": 43,
+              "l": 94,
+              "t": 6,
+              "rs": 303,
+              "ra": 520,
+              "gb": 43.5
+            }
+          ]
+        },
+        {
+          "name": "ガイア・リーグ",
+          "rows": [
+            {
+              "team": "kanbu",
+              "w": 85,
+              "l": 56,
+              "t": 2,
+              "rs": 587,
+              "ra": 441,
+              "gb": 0
+            },
+            {
+              "team": "manyama",
+              "w": 80,
+              "l": 61,
+              "t": 2,
+              "rs": 594,
+              "ra": 455,
+              "gb": 5
+            },
+            {
+              "team": "onetar",
+              "w": 79,
+              "l": 61,
+              "t": 3,
+              "rs": 512,
+              "ra": 435,
+              "gb": 5.5
+            },
+            {
+              "team": "sackstars",
+              "w": 77,
+              "l": 62,
+              "t": 4,
+              "rs": 564,
+              "ra": 507,
+              "gb": 7
+            },
+            {
+              "team": "kanenodunk",
+              "w": 61,
+              "l": 79,
+              "t": 3,
+              "rs": 484,
+              "ra": 595,
+              "gb": 23.5
+            },
+            {
+              "team": "merry",
+              "w": 51,
+              "l": 90,
+              "t": 2,
+              "rs": 448,
+              "ra": 640,
+              "gb": 34
+            }
+          ]
+        }
+      ],
+      "titles": [
+        {
+          "league": "コスモ・リーグ",
+          "label": "首位打者",
+          "leaders": [
+            {
+              "name": "福田 綾嗣",
+              "team": "kamiyama",
+              "value": ".323"
+            },
+            {
+              "name": "岸本 大和",
+              "team": "maikai",
+              "value": ".283"
+            },
+            {
+              "name": "宇佐美 鉄平",
+              "team": "kamiyama",
+              "value": ".280"
+            }
+          ]
+        },
+        {
+          "league": "コスモ・リーグ",
+          "label": "本塁打王",
+          "leaders": [
+            {
+              "name": "福田 綾嗣",
+              "team": "kamiyama",
+              "value": "50"
+            },
+            {
+              "name": "有馬 創",
+              "team": "hanazakura",
+              "value": "42"
+            },
+            {
+              "name": "大門 獅童",
+              "team": "jogawa",
+              "value": "37"
+            }
+          ]
+        },
+        {
+          "league": "コスモ・リーグ",
+          "label": "打点王",
+          "leaders": [
+            {
+              "name": "福田 綾嗣",
+              "team": "kamiyama",
+              "value": "133"
+            },
+            {
+              "name": "有馬 創",
+              "team": "hanazakura",
+              "value": "110"
+            },
+            {
+              "name": "岸本 大和",
+              "team": "maikai",
+              "value": "101"
+            }
+          ]
+        },
+        {
+          "league": "コスモ・リーグ",
+          "label": "最多安打",
+          "leaders": [
+            {
+              "name": "福田 綾嗣",
+              "team": "kamiyama",
+              "value": "186"
+            },
+            {
+              "name": "星野 翔",
+              "team": "maikai",
+              "value": "167"
+            },
+            {
+              "name": "宇佐美 鉄平",
+              "team": "kamiyama",
+              "value": "167"
+            }
+          ]
+        },
+        {
+          "league": "コスモ・リーグ",
+          "label": "最優秀防御率",
+          "leaders": [
+            {
+              "name": "夏目 誠",
+              "team": "facrom",
+              "value": "2.54"
+            },
+            {
+              "name": "樋口 匠",
+              "team": "jogawa",
+              "value": "2.64"
+            },
+            {
+              "name": "野口 晃",
+              "team": "maikai",
+              "value": "3.16"
+            }
+          ]
+        },
+        {
+          "league": "コスモ・リーグ",
+          "label": "最多勝",
+          "leaders": [
+            {
+              "name": "岩城 奏太",
+              "team": "kamiyama",
+              "value": "14"
+            },
+            {
+              "name": "上杉 健太",
+              "team": "kamiyama",
+              "value": "12"
+            },
+            {
+              "name": "春日 奏太",
+              "team": "facrom",
+              "value": "12"
+            }
+          ]
+        },
+        {
+          "league": "コスモ・リーグ",
+          "label": "最多奪三振",
+          "leaders": [
+            {
+              "name": "夏目 誠",
+              "team": "facrom",
+              "value": "193"
+            },
+            {
+              "name": "春日 奏太",
+              "team": "facrom",
+              "value": "191"
+            },
+            {
+              "name": "久留米津 煌",
+              "team": "hanazakura",
+              "value": "179"
+            }
+          ]
+        },
+        {
+          "league": "ガイア・リーグ",
+          "label": "首位打者",
+          "leaders": [
+            {
+              "name": "大森 煌大",
+              "team": "kanbu",
+              "value": ".383"
+            },
+            {
+              "name": "中座 玲",
+              "team": "kanbu",
+              "value": ".344"
+            },
+            {
+              "name": "白虎 豪真",
+              "team": "manyama",
+              "value": ".342"
+            }
+          ]
+        },
+        {
+          "league": "ガイア・リーグ",
+          "label": "本塁打王",
+          "leaders": [
+            {
+              "name": "大森 煌大",
+              "team": "kanbu",
+              "value": "58"
+            },
+            {
+              "name": "物垣 龍司",
+              "team": "manyama",
+              "value": "50"
+            },
+            {
+              "name": "迫田 史弥",
+              "team": "sackstars",
+              "value": "50"
+            }
+          ]
+        },
+        {
+          "league": "ガイア・リーグ",
+          "label": "打点王",
+          "leaders": [
+            {
+              "name": "大森 煌大",
+              "team": "kanbu",
+              "value": "141"
+            },
+            {
+              "name": "白虎 豪真",
+              "team": "manyama",
+              "value": "128"
+            },
+            {
+              "name": "迫田 史弥",
+              "team": "sackstars",
+              "value": "117"
+            }
+          ]
+        },
+        {
+          "league": "ガイア・リーグ",
+          "label": "最多安打",
+          "leaders": [
+            {
+              "name": "大森 煌大",
+              "team": "kanbu",
+              "value": "228"
+            },
+            {
+              "name": "中座 玲",
+              "team": "kanbu",
+              "value": "201"
+            },
+            {
+              "name": "剣持 蒼生",
+              "team": "kanenodunk",
+              "value": "194"
+            }
+          ]
+        },
+        {
+          "league": "ガイア・リーグ",
+          "label": "最優秀防御率",
+          "leaders": [
+            {
+              "name": "鏑木 楓真",
+              "team": "onetar",
+              "value": "1.67"
+            },
+            {
+              "name": "武摂 啓夛",
+              "team": "manyama",
+              "value": "2.37"
+            },
+            {
+              "name": "蒔田 一徹",
+              "team": "sackstars",
+              "value": "2.76"
+            }
+          ]
+        },
+        {
+          "league": "ガイア・リーグ",
+          "label": "最多勝",
+          "leaders": [
+            {
+              "name": "武摂 啓夛",
+              "team": "manyama",
+              "value": "12"
+            },
+            {
+              "name": "鉄丸 迅",
+              "team": "manyama",
+              "value": "12"
+            },
+            {
+              "name": "都築 葵生",
+              "team": "kanenodunk",
+              "value": "12"
+            }
+          ]
+        },
+        {
+          "league": "ガイア・リーグ",
+          "label": "最多奪三振",
+          "leaders": [
+            {
+              "name": "灘木 英世",
+              "team": "kanbu",
+              "value": "211"
+            },
+            {
+              "name": "武摂 啓夛",
+              "team": "manyama",
+              "value": "206"
+            },
+            {
+              "name": "吉良 迅士楼",
+              "team": "kanbu",
+              "value": "176"
+            }
+          ]
+        }
+      ],
+      "series": {
+        "name": "ニーマシリーズ",
+        "teams": [
+          "kamiyama",
+          "kanbu"
+        ],
+        "wins": [
+          3,
+          4
+        ],
+        "ties": 0,
+        "winner": "kanbu",
+        "games": [
+          {
+            "n": 1,
+            "away": "kanbu",
+            "home": "kamiyama",
+            "awayRuns": 5,
+            "homeRuns": 13
+          },
+          {
+            "n": 2,
+            "away": "kanbu",
+            "home": "kamiyama",
+            "awayRuns": 3,
+            "homeRuns": 5
+          },
+          {
+            "n": 3,
+            "away": "kamiyama",
+            "home": "kanbu",
+            "awayRuns": 1,
+            "homeRuns": 3
+          },
+          {
+            "n": 4,
+            "away": "kamiyama",
+            "home": "kanbu",
+            "awayRuns": 0,
+            "homeRuns": 5
+          },
+          {
+            "n": 5,
+            "away": "kamiyama",
+            "home": "kanbu",
+            "awayRuns": 6,
+            "homeRuns": 7
+          },
+          {
+            "n": 6,
+            "away": "kanbu",
+            "home": "kamiyama",
+            "awayRuns": 0,
+            "homeRuns": 1
+          },
+          {
+            "n": 7,
+            "away": "kanbu",
+            "home": "kamiyama",
+            "awayRuns": 4,
+            "homeRuns": 3
+          }
+        ]
+      }
+    }
+  ]
+}

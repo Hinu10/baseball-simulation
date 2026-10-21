@@ -8,6 +8,8 @@ import { allBatters, allPitchers, type TeamData } from './teams.ts';
 
 /** 1シーズンの試合数（各球団）。同じリーグの5球団と25試合ずつ（125試合）、交流戦で他リーグの6球団と3試合ずつ（18試合）。 */
 export const SEASON_GAMES = 143;
+/** いま遊んでいるシーズンの年。前の年までの結果は core/history.ts（src/data/history.json）。 */
+export const SEASON_YEAR = 2026;
 /** 交流戦の期間（何日目から何日間か。日は0から数える）。 */
 export const INTERLEAGUE = { from: 60, days: 18 };
 /** その日（day 日目、0 から）が交流戦か。 */
