@@ -151,6 +151,17 @@ await page.keyboard.press('Escape');
 await page.waitForTimeout(150);
 check(!(await visible('.roster-screen')) && (await visible('.title-screen')), 'Esc で選手・打順を閉じる');
 
+await page.click('.title-screen >> text=球場を見る');
+await page.waitForTimeout(300);
+const park0 = await page.textContent('.parks-name');
+check((await visible('.parks-card')) && !(await visible('.title-screen')) && !!park0, 'メニューから球場を見る画面を開ける');
+await page.keyboard.press('KeyD');
+await page.waitForTimeout(300);
+check((await page.textContent('.parks-name')) !== park0 && /2 \/ 12|\d+ \/ 12/.test((await page.textContent('.parks-count')) ?? ''), 'D で次の球場に切り替わる');
+await page.keyboard.press('Escape');
+await page.waitForTimeout(200);
+check(!(await visible('.parks-card')) && (await visible('.title-screen')), 'Esc で球場を見る画面を閉じる');
+
 // ---- 手動・後攻：1回表は人が投げて守る ----
 await startFromMenu('home', 'manual');
 let s = await waitFor(page, (x) => x.phase === 'pre-pitch');

@@ -950,3 +950,73 @@ button {
   font-size: 11px;
   font-style: normal;
 }
+
+/* 球場を見る：球場が見えるよう、名前のカードは下に小さく置く。 */
+#ui .parks-screen {
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 22px;
+  pointer-events: none;
+}
+.parks-screen button,
+.parks-card {
+  pointer-events: auto;
+}
+.parks-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(560px, 100%);
+  padding: 12px 14px;
+  border-top: 5px solid var(--team);
+}
+.parks-info {
+  flex: 1;
+  text-align: center;
+}
+.parks-name {
+  font-size: 24px;
+  font-weight: 800;
+}
+.parks-team {
+  font-weight: 700;
+  color: var(--team);
+}
+.parks-size,
+.parks-count {
+  font-size: 13px;
+  color: #556;
+}
+.parks-card .step {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: #1b3a8c;
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+.parks-hint {
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(10, 30, 60, 0.55);
+  color: #fff;
+  font-size: 13px;
+}
+.parks-hint .close {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  color: #1b3a8c;
+  font-weight: 700;
+  cursor: pointer;
+}
+@media (max-width: 560px) {
+  .parks-name {
+    font-size: 19px;
+  }
+}

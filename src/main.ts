@@ -49,6 +49,9 @@ class App {
   helpOpen = false;
   rosterOpen = false;
   pennantOpen = false;
+  /** 球場を見る画面と、いま見ている球団（teams の何番目か）。 */
+  parksOpen = false;
+  parksIndex = 0;
   /** ペナントの画面で表示しているタブ（PENNANT_TABS の添字）。 */
   pennantTab = 0;
   /** 「新しいシーズン」を一度押した（もう一度押すとリセット）。 */
@@ -80,6 +83,7 @@ class App {
   private readonly helpEl = document.createElement('div');
   private readonly rosterEl = document.createElement('div');
   private readonly pennantEl = document.createElement('div');
+  private readonly parksEl = document.createElement('div');
   private readonly progressEl = document.createElement('div');
   private readonly subs = new SubstitutionPanel();
   private readonly menu: MenuList;
@@ -170,6 +174,7 @@ class App {
       { kind: 'button', label: 'プレイボール！', primary: true, action: () => this.start() },
       { kind: 'button', label: 'ペナント（順位・タイトル）', action: () => this.showPennant(true) },
       { kind: 'button', label: '選手・打順', action: () => this.showRoster(true) },
+      { kind: 'button', label: '球場を見る', action: () => this.showParks(true) },
       { kind: 'button', label: '操作説明', action: () => this.showHelp(true) }
     ];
     this.menu = new MenuList(mainItems);
@@ -243,12 +248,20 @@ class App {
 
     this.subs.onClose = () => this.showSubs(false);
 
-    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl, this.pennantEl, this.subs.el);
+    this.parksEl.className = 'screen parks-screen';
+    this.parksEl.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest('button');
+      if (b?.dataset.step) this.stepPark(Number(b.dataset.step));
+      else if (b?.classList.contains('close')) this.showParks(false);
+    });
+
+    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl, this.pennantEl, this.parksEl, this.subs.el);
     window.addEventListener('resize', () => this.resize());
     this.resize();
     this.showHelp(false);
     this.showRoster(false);
     this.showPennant(false);
+    this.showParks(false);
     this.showSubs(false);
     this.showScreen('menu');
     requestAnimationFrame((t) => this.loop(t));
@@ -300,6 +313,50 @@ class App {
       this.menu.render();
       this.dressCrowd();
     }
+  }
+
+  /** 球場を見る画面。メニューを隠して、球場の上をカメラが回る。閉じたら次の試合の球場にもどす。 */
+  private showParks(open: boolean) {
+    this.parksOpen = open;
+    this.parksEl.style.display = open ? '' : 'none';
+    if (this.screen === 'menu') this.menuEl.style.display = open ? 'none' : '';
+    if (open) {
+      this.parksIndex = Math.max(0, teams.findIndex((t) => t.id === this.matchup(this.settings)[1].id));
+      this.renderParks();
+    } else if (this.screen === 'menu') this.dressCrowd();
+  }
+
+  private stepPark(d: number) {
+    this.parksIndex = (this.parksIndex + d + teams.length) % teams.length;
+    this.renderParks();
+  }
+
+  private renderParks() {
+    const t = teams[this.parksIndex];
+    const p = parkOf(t.id);
+    this.view.setPark(p, [t.colors, t.colors]);
+    const size = p.fence.left === p.fence.right ? `両翼 ${p.fence.left}m` : `左翼 ${p.fence.left}m・右翼 ${p.fence.right}m`;
+    this.parksEl.innerHTML = `<div class="panel parks-card" style="--team:${t.colors.primary}">
+      <button class="step" data-step="-1" aria-label="前の球場">‹</button>
+      <div class="parks-info">
+        <div class="parks-name">${p.nameJa}</div>
+        <div class="parks-team">${t.nameJa}の本拠地</div>
+        <div class="parks-size">${size}・中堅 ${p.fence.center}m・${p.dome ? 'ドーム' : '屋外'}</div>
+        <div class="parks-count">${this.parksIndex + 1} / ${teams.length}</div>
+      </div>
+      <button class="step" data-step="1" aria-label="次の球場">›</button>
+    </div>
+    <div class="parks-hint">A/D・←/→ 球場を切り替え　<button class="close">もどる（Esc）</button></div>`;
+  }
+
+  private handleParks(f: InputFrame) {
+    if (f.pressed.pause || f.pressed.secondary) {
+      this.showParks(false);
+      return;
+    }
+    const x = Math.abs(f.move.x) > 0.5 ? Math.sign(f.move.x) : 0;
+    if (x && x !== this.rosterMoveX) this.stepPark(x);
+    this.rosterMoveX = x;
   }
 
   private showHelp(open: boolean) {
@@ -641,6 +698,8 @@ class App {
       this.handleRoster(f);
     } else if (this.pennantOpen) {
       this.handlePennant(f);
+    } else if (this.parksOpen) {
+      this.handleParks(f);
     } else if (this.subsOpen) {
       this.subs.handle(f, dt);
     } else if (this.screen === 'menu') {
@@ -676,7 +735,7 @@ class App {
       this.view.update(this.paused ? 0 : dt);
       if (this.screen === 'match') this.hud.update(this.match, this.view, w, h, this.speed);
     } else {
-      this.view.idle(dt);
+      this.view.idle(dt, this.parksOpen);
     }
     this.renderer.render(this.view.scene, this.view.camera);
     requestAnimationFrame((t) => this.loop(t));
