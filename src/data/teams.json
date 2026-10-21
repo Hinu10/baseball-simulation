@@ -500,7 +500,7 @@
         { "id": "fcx-p12", "name": "本郷 秀斗", "number": 61, "throws": "R", "velocity": 152, "control": 54, "stamina": 32, "breaking": 62, "pitches": ["fastball", "curve", "slider", "palm"], "arm": 70, "fielding": 57, "speed": 57, "role": "reliever" },
         { "id": "fcx-p13", "name": "千葉 輝", "number": 34, "throws": "L", "velocity": 148, "control": 48, "stamina": 32, "breaking": 66, "pitches": ["fastball", "curve", "fork"], "arm": 72, "fielding": 54, "speed": 39, "role": "reliever" },
         { "id": "fcx-p14", "name": "遠山 慎也", "number": 24, "throws": "R", "velocity": 152, "control": 72, "stamina": 38, "breaking": 48, "pitches": ["fastball", "slider", "fork"], "arm": 62, "fielding": 66, "speed": 56, "role": "reliever" },
-        { "id": "fcx-p15", "name": "広瀬 慎也", "number": 31, "throws": "R", "velocity": 151, "control": 48, "stamina": 37, "breaking": 52, "pitches": ["fastball", "curve"], "arm": 70, "fielding": 49, "speed": 52, "role": "reliever" }
+        { "id": "fcx-p16", "name": "駆橋 優", "number": 35, "throws": "R", "velocity": 153, "control": 80, "stamina": 42, "breaking": 84, "pitches": ["fastball", "cutter", "slider", "fork"], "arm": 70, "fielding": 62, "speed": 50, "role": "reliever" }
       ],
       "farm": {
         "batters": [
@@ -515,6 +515,7 @@
         ],
         "pitchers": [
           { "id": "fcx-fp1", "name": "蘭 樹生", "number": 2, "throws": "R", "velocity": 147, "control": 52, "stamina": 80, "breaking": 71, "pitches": ["fastball", "curve", "fork", "palm"], "arm": 60, "fielding": 57, "speed": 60, "role": "starter" },
+        { "id": "fcx-p15", "name": "広瀬 慎也", "number": 31, "throws": "R", "velocity": 151, "control": 48, "stamina": 37, "breaking": 52, "pitches": ["fastball", "curve"], "arm": 70, "fielding": 49, "speed": 52, "role": "reliever" },
           { "id": "fcx-fp2", "name": "琴平 柾", "number": 59, "throws": "R", "velocity": 146, "control": 61, "stamina": 87, "breaking": 63, "pitches": ["fastball", "shoot", "curve"], "arm": 56, "fielding": 54, "speed": 38, "role": "starter" },
           { "id": "fcx-fp3", "name": "巴 樹生", "number": 30, "throws": "L", "velocity": 138, "control": 49, "stamina": 72, "breaking": 65, "pitches": ["fastball", "fork"], "arm": 69, "fielding": 52, "speed": 56, "role": "starter" },
           { "id": "fcx-fp4", "name": "久保 錬", "number": 55, "throws": "R", "velocity": 143, "control": 71, "stamina": 85, "breaking": 58, "pitches": ["fastball", "curve", "slider"], "arm": 54, "fielding": 59, "speed": 49, "role": "starter" },
