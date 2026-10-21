@@ -48,18 +48,27 @@ function pitcherLine(s: GameState): PitchingLine {
   return (s.pitching[s.teams[fieldingTeam(s)].pitcher.id] ??= emptyPitchingLine());
 }
 
-function addRuns(s: GameState, runs: number) {
+/** いまの打者を、マウンドの投手が出した走者として覚える（打者が出塁・生還したときの失点の責任）。 */
+function holdResponsible(s: GameState) {
+  (s.responsible ??= {})[currentBatter(s).id] = s.teams[fieldingTeam(s)].pitcher.id;
+}
+
+/** 生還した走者 scorers の得点を足す。失点は、その走者を出塁させた投手につける（記録がなければマウンドの投手）。 */
+function addRuns(s: GameState, scorers: string[]) {
   const bat = battingTeam(s);
   const t = s.teams[bat];
   while (t.runsByInning.length < s.inning) t.runsByInning.push(0);
-  if (!runs) return;
   const lead = () => score(s, bat) - score(s, (1 - bat) as TeamIndex);
-  const before = lead();
-  t.runsByInning[s.inning - 1] += runs;
-  // 失点はマウンドの投手につける（前の投手が残した走者も含めて簡単に扱う）。
-  pitcherLine(s).r += runs;
-  // リードを奪ったら、そのときの両チームの投手が勝利・敗戦投手の候補になる。
-  if (before <= 0 && lead() > 0) s.decision = { win: t.pitcher.id, lose: s.teams[fieldingTeam(s)].pitcher.id };
+  const mound = s.teams[fieldingTeam(s)].pitcher.id;
+  for (const id of scorers) {
+    const before = lead();
+    t.runsByInning[s.inning - 1] += 1;
+    const pid = s.responsible?.[id] ?? mound;
+    (s.pitching[pid] ??= emptyPitchingLine()).r += 1;
+    if (s.responsible) delete s.responsible[id];
+    // リードを奪ったら、攻撃側の投手が勝利投手、その得点の走者を出した投手が敗戦投手の候補になる。
+    if (before <= 0 && lead() > 0) s.decision = { win: t.pitcher.id, lose: pid };
+  }
 }
 
 function endGame(s: GameState, reason: GameState['endReason']) {
@@ -96,6 +105,7 @@ export function endHalfInning(s: GameState) {
   s.balls = 0;
   s.strikes = 0;
   s.bases = [null, null, null, null];
+  s.responsible = {};
   // 0 点のイニングもラインスコアに残す。
   const t = s.teams[battingTeam(s)];
   while (t.runsByInning.length < s.inning) t.runsByInning.push(0);
@@ -144,13 +154,14 @@ export function applySteal(s: GameState, attempts: { from: 1 | 2; safe: boolean 
 }
 
 /** 四球・死球：打者が一塁へ。押し出しで詰まった走者だけが進む。 */
-function forceAdvanceBatter(s: GameState): number {
+function forceAdvanceBatter(s: GameState): string[] {
   const b = s.bases;
   const batter = currentBatter(s).id;
-  let runs = 0;
+  const runs: string[] = [];
+  holdResponsible(s);
   if (b[1]) {
     if (b[2]) {
-      if (b[3]) runs = 1;
+      if (b[3]) runs.push(b[3]);
       b[3] = b[2];
     }
     b[2] = b[1];
@@ -185,11 +196,12 @@ export function pitchCall(s: GameState, call: PitchCall): PlateAppearanceEnd {
   if (call === 'ball') {
     s.balls += 1;
     if (s.balls < 4) return null;
-    const runs = forceAdvanceBatter(s);
+    const scorers = forceAdvanceBatter(s);
+    const runs = scorers.length;
     pitcherLine(s).bb += 1;
     log(s, runs ? '四球（押し出し）' : '四球', runs);
     recordPlateAppearance(s, { rbi: runs, bb: 1 });
-    addRuns(s, runs);
+    addRuns(s, scorers);
     if (!checkWalkoff(s)) nextBatter(s);
     return 'walk';
   }
@@ -226,7 +238,8 @@ export function applyPlay(s: GameState, r: PlayResult) {
   const p = pitcherLine(s);
   p.outs += Math.min(r.outs.length, 3 - s.outs);
   if (r.hit) p.h += 1;
-  addRuns(s, runs.length);
+  holdResponsible(s);
+  addRuns(s, runs.map((run) => run.playerId));
   if (r.hit) s.teams[battingTeam(s)].hits += 1;
   log(s, r.text, runs.length);
   // 犠打・犠飛は打数に数えない。失策と併殺の得点は打点にしない。
@@ -281,4 +294,7 @@ export function substitute(s: GameState, team: TeamIndex, sub: Substitution) {
   t.removed.push(out.id);
   t.lineup[sub.slot] = t.team.batters.find((b) => b.id === sub.playerId)!;
   for (const b of [1, 2, 3] as const) if (s.bases[b] === out.id) s.bases[b] = sub.playerId;
+  // 代走は、元の走者を出した投手の責任を引き継ぐ。
+  const pid = s.responsible?.[out.id];
+  if (pid) s.responsible![sub.playerId] = pid;
 }

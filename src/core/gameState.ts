@@ -102,6 +102,8 @@ export interface GameState {
   teams: [TeamGameState, TeamGameState];
   /** 塁上の走者（選手 id）。添字 1〜3 が一塁〜三塁。0 は使わない。 */
   bases: [null, string | null, string | null, string | null];
+  /** 走者（選手 id）を出塁させた投手の id。その走者がかえったら、この投手の失点にする。以前の保存データには無い。 */
+  responsible?: Record<string, string>;
   mode: MatchMode;
   over: boolean;
   /** 勝ったチーム。引き分けは null。 */
@@ -138,6 +140,7 @@ export function createGameState(away: TeamData, home: TeamData, innings = 3, mod
     strikes: 0,
     teams: [team(away), team(home)],
     bases: [null, null, null, null],
+    responsible: {},
     mode,
     over: false,
     winner: null,
