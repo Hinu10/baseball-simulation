@@ -23,7 +23,7 @@ interface Setup {
   seed?: number;
 }
 
-function play(o: Setup) {
+function start(o: Setup) {
   const s = createGameState(away, home, 3);
   s.outs = o.outs ?? 0;
   // 塁には先攻の下位打線を置く。
@@ -47,6 +47,11 @@ function play(o: Setup) {
     autoRunning: o.autoRunning,
     rng: new Rng(o.seed ?? 7)
   });
+  return { sim, s };
+}
+
+function play(o: Setup) {
+  const { sim, s } = start(o);
   const events: string[] = [];
   const texts: string[] = [];
   while (!sim.done) {
@@ -231,4 +236,26 @@ test('オートの走者は、送球とぎりぎりになる先の塁を狙っ�
   }
   // 見直す前の判断では 400 球で 4 人刺されていた。
   assert.ok(caught <= 1, `${caught} / ${plays}`);
+});
+
+test('フライを捕った瞬間に「〜フライ」が決まり、プレーが終わるより前に出せる', () => {
+  const { sim } = start({ speed: 36, launch: 38, spray: 0, bases: [1] });
+  let at = -1;
+  while (!sim.done) {
+    sim.tick(1 / 60, NO_INPUT);
+    if (at < 0 && sim.call) at = sim.time;
+  }
+  assert.equal(sim.call, 'センターフライ');
+  assert.ok(at > 0 && sim.time - at > 0.5, `決まった ${at.toFixed(2)} 秒、終わった ${sim.time.toFixed(2)} 秒`);
+  assert.equal(sim.result().text, 'センターフライ');
+});
+
+test('ゴロで一塁アウトになった瞬間に「〜ゴロ」が決まる', () => {
+  const { sim } = start({ speed: 30, launch: -6, spray: -18 });
+  let call: string | null = null;
+  while (!sim.done && !call) {
+    sim.tick(1 / 60, NO_INPUT);
+    call = sim.call;
+  }
+  assert.equal(call, 'ショートゴロ');
 });

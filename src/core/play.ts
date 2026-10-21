@@ -1138,10 +1138,28 @@ export class PlaySim {
 
   // ---- 結果 ------------------------------------------------------------------
 
+  /** 打者がアウトになったときの文言（「センターフライ」「ショートゴロ」など）。 */
+  private batterOutText(out: PlayOut): string {
+    const fielder = this.firstFielder ? POSITION_NAME[this.firstFielder] : '';
+    if (out.kind === 'fly') return `${fielder}${battedBallType(this.launch) === 'liner' ? 'ライナー' : 'フライ'}`;
+    return `${fielder}${this.bunt ? 'へのバント' : 'ゴロ'}`;
+  }
+
+  /**
+   * プレーの途中でも決まった打撃結果（打者のアウトと本塁打）。決まるまでは null。
+   * 画面はこれをすぐに出し、併殺・得点などはプレーが終わってから result() の文言で出し直す。バントは送りバントかどうかが最後まで決まらないので出さない。
+   */
+  get call(): string | null {
+    if (this.foul) return null;
+    if (this.homeRun) return 'ホームラン！';
+    if (this.bunt) return null;
+    const out = this.outs.find((o) => o.playerId === this.batterRunner.playerId);
+    return out ? this.batterOutText(out) : null;
+  }
+
   result(): PlayResult & { foul: boolean } {
     const bases: PlayResult['bases'] = [null, null, null, null];
     if (this.foul) return { outs: [], runs: [], bases, hit: 0, text: 'ファウル', foul: true };
-    const kind = battedBallType(this.launch);
     const fielder = this.firstFielder ? POSITION_NAME[this.firstFielder] : '';
 
     if (this.homeRun) {
@@ -1175,7 +1193,7 @@ export class PlaySim {
     let text: string;
     if (batterOut) {
       const out = this.outs.find((o) => o.playerId === batter.playerId)!;
-      text = out.kind === 'fly' ? `${fielder}${kind === 'liner' ? 'ライナー' : 'フライ'}` : `${fielder}${this.bunt ? 'へのバント' : 'ゴロ'}`;
+      text = this.batterOutText(out);
       if (this.outs.length >= 2) text += this.outs.length >= 3 ? '（トリプルプレー）' : '（併殺）';
       // バントで打者だけがアウトになり、走者が進めば送りバント（犠打）。
       const advanced = this.runners.some((r) => !r.isBatter && (r.state === 'scored' || (r.state === 'active' && Math.round(r.u) > r.origin)));
