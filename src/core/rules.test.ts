@@ -404,3 +404,34 @@ test('盗塁：成功なら次の塁へ、失敗ならアウト。3つ目のア�
   assert.equal(s.half, 'bottom');
   assert.deepEqual(s.bases, [null, null, null, null]);
 });
+
+test('前の投手が出した走者がかえったら、失点は前の投手につく（責任投手）', () => {
+  const s = newGame();
+  const starter = s.teams[1].pitcher.id;
+  walk(s);
+  walk(s);
+  const relief = benchPitchers(s.teams[1])[0].id;
+  substitute(s, 1, { kind: 'pitcher', playerId: relief });
+  // 中継ぎが打たれた本塁打：2人は先発の走者、打者は中継ぎの責任。
+  hit(s, 4);
+  assert.equal(s.pitching[starter].r, 2);
+  assert.equal(s.pitching[relief].r, 1);
+  assert.equal(score(s, 0), 3);
+  // リードを奪った得点（1点目）の走者を出したのは先発なので、敗戦投手の候補は先発。
+  assert.equal(s.decision?.lose, starter);
+});
+
+test('代走は元の走者の責任を引き継ぎ、攻守交代で責任はリセットされる', () => {
+  const s = newGame();
+  const starter = s.teams[1].pitcher.id;
+  walk(s);
+  const runner = s.bases[1]!;
+  const slot = s.teams[0].lineup.findIndex((b) => b.id === runner);
+  const pinch = benchBatters(s.teams[0])[0].id;
+  substitute(s, 0, { kind: 'batter', slot, playerId: pinch });
+  substitute(s, 1, { kind: 'pitcher', playerId: benchPitchers(s.teams[1])[0].id });
+  hit(s, 4);
+  assert.equal(s.pitching[starter].r, 1);
+  threeOuts(s);
+  assert.deepEqual(s.responsible, {});
+});
