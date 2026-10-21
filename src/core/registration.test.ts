@@ -34,11 +34,13 @@ test('ひどい不調の1軍の選手を抹消し、同じ守備位置の2軍の
 test('抹消された選手は10日たつまで再登録できない', () => {
   const out = t.pitchers.find((p) => roleOf(p) === 'starter' && p.id !== t.startingPitcher)!;
   const first = rosterMoves({}, [t], { [out.id]: -1 }, 1, always);
-  const up = first.notices.find((n) => n.kind === 'up')!;
+  // 故障しやすい野手の入れ替えもありうるので、投手の昇格だけを見る。
+  const pitcherUp = (n: { kind: string; group: string }) => n.kind === 'up' && n.group === '投手';
+  const up = first.notices.find(pitcherUp)!;
   // 上がった投手が不調になっても、2軍に落ちた投手はまだ戻れない（ほかの2軍の先発が上がる）。
   for (const day of [2, 1 + REREGISTER_DAYS]) {
     const again = rosterMoves(first.registrations, [t], { [up.id]: -1, [out.id]: 1 }, day, always);
-    const back = again.notices.find((n) => n.kind === 'up')!;
+    const back = again.notices.find(pitcherUp)!;
     assert.equal(back.id === out.id, day >= 1 + REREGISTER_DAYS, `${day}日目`);
   }
 });
