@@ -1,7 +1,7 @@
 // 設定だけを端末に保存する（試合の途中経過は保存しない）。
 import type { Difficulty } from '../core/ai.ts';
 import type { Innings, MatchMode } from '../core/gameState.ts';
-import type { BattingControl, FieldingControl } from '../core/match.ts';
+import type { BattingControl, FieldingControl, RunningControl } from '../core/match.ts';
 
 export interface Settings {
   team: string;
@@ -14,6 +14,8 @@ export interface Settings {
   fielding: FieldingControl;
   /** 手動モードの打撃。 */
   batting: BattingControl;
+  /** 手動モードの走塁。 */
+  running: RunningControl;
   difficulty: Difficulty;
   /** 規定イニング。延長の回数はこれで決まる。 */
   innings: Innings;
@@ -21,7 +23,7 @@ export interface Settings {
 }
 
 const KEY = 'baseball-simulation.settings';
-export const DEFAULT_SETTINGS: Settings = { team: 'maikai', opponent: 'jogawa', side: 'home', mode: 'manual', fielding: 'manual', batting: 'easy', difficulty: 'normal', innings: 3, sound: true };
+export const DEFAULT_SETTINGS: Settings = { team: 'maikai', opponent: 'jogawa', side: 'home', mode: 'manual', fielding: 'manual', batting: 'easy', running: 'auto', difficulty: 'normal', innings: 3, sound: true };
 
 export function loadSettings(): Settings {
   try {

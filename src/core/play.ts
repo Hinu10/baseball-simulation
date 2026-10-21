@@ -4,7 +4,7 @@
 import { cloneBall, createBall, PHYSICS_DT, predictPath, stepBall, type BallState, type PredictedPath } from './ballPhysics.ts';
 import { battedBallType } from './batting.ts';
 import { BASE_DISTANCE, basePos, DEFAULT_FIELD_POSITIONS, isFair, type Park } from './field.ts';
-import type { GameState, TeamGameState } from './gameState.ts';
+import { battingTeam, fieldingTeam, score, type GameState, type TeamGameState } from './gameState.ts';
 import { add, clamp, copy, distXZ, lenXZ, lerp, moveTowardXZ, scale, v3, type Vec3 } from './math.ts';
 import type { Rng } from './rng.ts';
 import type { PlayOut, PlayResult, PlayRun } from './rules.ts';
@@ -43,7 +43,12 @@ const DIVE_LOOKAHEAD = 0.4;
 const FORCE_RADIUS = 1.0;
 const TAG_RADIUS = 1.2;
 const OUTFIELD = new Set<Position>(['LF', 'CF', 'RF']);
-const RUN_MARGIN: Record<RunningStrategy, number> = { aggressive: -0.1, normal: 0.35, careful: 0.8 };
+/** 次の塁を狙うのに求める余裕（秒）。積極でも、送球とほぼ同時になる塁には行かない。 */
+const RUN_MARGIN: Record<RunningStrategy, number> = { aggressive: 0.15, normal: 0.4, careful: 0.75 };
+/** 塁を回って次の塁へ向かうときに落ちる時間（秒）。 */
+const TURN_TIME = 0.15;
+/** まだ誰も捕っていない打球では、守備の見込みがずれやすいので余裕を足す（秒）。 */
+const LIVE_BALL_DOUBT = 0.15;
 /** 塁上の走者のリード（塁間に対する割合、約3.3m）。 */
 export const LEAD = 0.12;
 /** ベースカバーの候補（先頭から、打球を追っていない選手を選ぶ）。 */
@@ -143,6 +148,8 @@ export interface PlayOptions {
   humanDefense: boolean;
   humanOffense: boolean;
   rng: Rng;
+  /** 人が攻撃するとき、指示していない走者も CPU が判断して次の塁を狙うか（既定は true）。false ならフォースと帰塁だけ自動。 */
+  autoRunning?: boolean;
   /** 試合をしている球場。省略は DEFAULT_PARK。 */
   park?: Park;
 }
@@ -199,6 +206,11 @@ export class PlaySim {
   private readonly running: RunningStrategy;
   private readonly humanDefense: boolean;
   private readonly humanOffense: boolean;
+  private readonly autoRunning: boolean;
+  /** プレー開始時の攻撃側の点差（攻撃側 − 守備側）。 */
+  private readonly lead: number;
+  /** 終盤（規定回の 8 割から先）か。 */
+  private readonly late: boolean;
   private touched = false;
   private settledFair = false;
   private firstFielder: Position | null = null;
@@ -220,6 +232,9 @@ export class PlaySim {
     this.running = o.running;
     this.humanDefense = o.humanDefense;
     this.humanOffense = o.humanOffense;
+    this.autoRunning = o.autoRunning ?? true;
+    this.lead = score(o.state, battingTeam(o.state)) - score(o.state, fieldingTeam(o.state));
+    this.late = o.state.inning >= Math.ceil(o.state.innings * 0.8);
     this.ball = createBall(o.origin, o.velocity, o.park);
     this.path = predictPath(this.ball);
 
@@ -456,6 +471,32 @@ export class PlaySim {
     return Math.max(0, r.startDelay) + (Math.abs(base - r.u) * BASE_DISTANCE) / r.speed;
   }
 
+  /**
+   * タッチプレーになる塁へ着くまでの見込み。ベースの手前でタッチされる距離と、途中の塁を回るぶんを足す。
+   */
+  private tagEta(r: PlayRunner, base: number) {
+    const rounds = Math.max(0, Math.ceil(base - ON_BASE) - Math.floor(r.u + ON_BASE) - 1);
+    const reach = base >= 4 ? 0 : TAG_RADIUS / r.speed;
+    return this.runnerEta(r, base) + rounds * TURN_TIME - reach;
+  }
+
+  /**
+   * 状況による余裕の上乗せ（秒、正ほど慎重）。
+   * 0・2アウトで三塁を狙う（三塁で憤死しない）、2アウトの本塁は勝負、終盤に同点・勝ち越しの走者は勝負、大差なら無理をしない。
+   */
+  private situationMargin(base: number): number {
+    const outs = this.outCount();
+    const lead = this.lead + this.runs.length;
+    let m = 0;
+    if (base === 3) m += outs === 1 ? 0 : 0.25;
+    if (base === 4) {
+      if (outs >= 2) m -= 0.15;
+      if (this.late && lead >= -1 && lead <= 0) m -= 0.15;
+    }
+    if (Math.abs(lead) >= 4) m += 0.2;
+    return m;
+  }
+
   private baseTaken(r: PlayRunner, base: number): boolean {
     if (base >= 4) return false;
     return this.runners.some((x) => x !== r && x.state === 'active' && x.origin > r.origin && (Math.round(x.target) <= base || x.u <= base));
@@ -484,21 +525,23 @@ export class PlaySim {
       r.target = Math.max(r.target, forced);
       return;
     }
-    // 2アウトなら走者がアウトになっても失うものが少ないので、積極的に走る。
-    const margin = RUN_MARGIN[this.running] - (this.outCount() >= 2 && !r.isBatter ? 0.35 : 0);
-    const safety = (base: number) => this.ballEtaTo(base) - this.runnerEta(r, base);
+    // 走塁が手動なら、指示していない走者は次の塁を狙わない（リードからは塁へ戻る）。
+    const auto = !this.humanOffense || this.autoRunning;
+    const doubt = this.ballMode === 'live' ? LIVE_BALL_DOUBT : 0;
+    const margin = (base: number) => RUN_MARGIN[this.running] + this.situationMargin(base) + doubt;
+    const safety = (base: number) => this.ballEtaTo(base) - this.tagEta(r, base);
     if (Math.abs(r.u - r.target) < ON_BASE) {
       // 止まっている（塁上かリードの位置）：次の塁へ行けるなら行き、行けないならリードから塁へ戻る。
       const last = Math.floor(r.u + ON_BASE);
       const next = last + 1;
-      if (next <= 4 && !this.baseTaken(r, next) && safety(next) > margin) r.target = next;
+      if (auto && next <= 4 && !this.baseTaken(r, next) && safety(next) > margin(next)) r.target = next;
       else if (!this.onBase(r)) r.target = Math.max(last, r.isBatter ? 1 : r.origin);
       return;
     }
-    if (r.target > r.u && r.target < 4 && r.target - r.u < 0.3 && Number.isInteger(r.target)) {
+    if (auto && r.target > r.u && r.target < 4 && r.target - r.u < 0.3 && Number.isInteger(r.target)) {
       // 塁の手前（約8m）で、止まらずに次の塁を狙うか決める。
       const next = r.target + 1;
-      if (!this.baseTaken(r, next) && safety(next) > margin + 0.2) {
+      if (!this.baseTaken(r, next) && safety(next) > margin(next) + 0.2) {
         r.target = next;
         return;
       }
@@ -511,9 +554,10 @@ export class PlaySim {
         r.target = back;
         return;
       }
-      // 次の塁が間に合わないなら、戻る塁のほうが余裕をもって着けるときだけ引き返す（挟まれたら近いほうへ）。
+      if (!auto) return;
+      // 次の塁が間に合わなさそうなら、戻る塁のほうが余裕をもって着けるときに早めに引き返す（挟まれたら近いほうへ）。
       const ahead = safety(r.target);
-      if (ahead < -0.15 && safety(back) > ahead + 0.3) r.target = back;
+      if (ahead < 0.05 && safety(back) > ahead + 0.2) r.target = back;
     }
   }
 

@@ -17,6 +17,8 @@ import { POSITION_LABEL, type PitchType } from './types.ts';
 export type FieldingControl = 'manual' | 'auto';
 /** 人が打つときの操作。標準はミートカーソル＋タイミング、かんたんはタイミングだけ。 */
 export type BattingControl = 'standard' | 'easy';
+/** 手動モードで人が攻撃するとき、指示していない走者を CPU が判断して走らせるか。手動ならフォースと帰塁だけ自動。 */
+export type RunningControl = 'manual' | 'auto';
 
 export type Phase = 'pre-pitch' | 'windup' | 'pitch' | 'play' | 'result' | 'over';
 
@@ -33,6 +35,8 @@ export interface MatchConfig {
   fielding?: FieldingControl;
   /** 人が打つときの操作（既定は標準）。 */
   batting?: BattingControl;
+  /** 手動モードの走塁（既定はオート）。 */
+  running?: RunningControl;
   difficulty?: Difficulty;
   seed?: number;
 }
@@ -100,6 +104,8 @@ export class Match {
   fielding: FieldingControl;
   /** 人が打つときの操作。変えると次の投球から反映される。 */
   batting: BattingControl;
+  /** 手動モードの走塁。変えると次の打球から反映される。 */
+  running: RunningControl;
 
   /** 次の投球前に切り替えるモード。 */
   pendingMode: MatchMode | null = null;
@@ -122,6 +128,7 @@ export class Match {
     this.difficulty = c.difficulty ?? 'normal';
     this.fielding = c.fielding ?? 'manual';
     this.batting = c.batting ?? 'standard';
+    this.running = c.running ?? 'auto';
     this.rng = new Rng(c.seed ?? Date.now() % 2 ** 31);
     this.enterPrePitch();
   }
@@ -530,6 +537,7 @@ export class Match {
       stealing: Object.fromEntries(this.stealers.map((b) => [b, this.stealPosition(b) ?? b + LEAD])),
       humanDefense: this.humanFielding,
       humanOffense: this.isHuman(bt),
+      autoRunning: this.running === 'auto',
       rng: this.rng,
       park: this.park
     });

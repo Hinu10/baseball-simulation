@@ -10,7 +10,7 @@ import { managedTeam } from './core/manager.ts';
 import { registeredTeam } from './core/registration.ts';
 import { parkOf } from './core/field.ts';
 import { addGame, advanceDay, emptyPennant, emptyRecord, gamesPlayed, leagues, nextOpponent, pairOthers, seasonOver, standings, syncRosters, type GameResult, type Pennant } from './core/pennant.ts';
-import { Match, type BattingControl, type FieldingControl, type Phase } from './core/match.ts';
+import { Match, type BattingControl, type FieldingControl, type Phase, type RunningControl } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
 import { parseTeams, roleOf, rotationStarter, teamStyle, type TeamData } from './core/teams.ts';
 import { InputMap, type InputFrame } from './input/actions.ts';
@@ -31,6 +31,10 @@ const withConditions = (p: Pennant): Pennant => (Object.keys(p.condition).length
 const MODES: MatchMode[] = ['manual', 'manager', 'auto'];
 const SPEEDS = [1, 2, 4];
 const FIELDING_OPTIONS = [
+  { value: 'manual', label: '手動' },
+  { value: 'auto', label: 'オート' }
+];
+const RUNNING_OPTIONS = [
   { value: 'manual', label: '手動' },
   { value: 'auto', label: 'オート' }
 ];
@@ -154,6 +158,14 @@ class App {
       },
       {
         kind: 'choice',
+        label: '走塁',
+        options: RUNNING_OPTIONS,
+        get: () => this.settings.running,
+        set: (v) => this.set({ running: v as RunningControl }),
+        hidden: () => this.settings.mode !== 'manual'
+      },
+      {
+        kind: 'choice',
         label: 'CPU の強さ',
         options: (['easy', 'normal', 'hard'] as const).map((d) => ({ value: d, label: DIFFICULTY_LABEL[d] })),
         get: () => this.settings.difficulty,
@@ -208,6 +220,17 @@ class App {
         set: (v) => {
           if (this.match) this.match.batting = v as BattingControl;
           this.set({ batting: v as BattingControl });
+        },
+        hidden: () => this.match?.nextMode !== 'manual'
+      },
+      {
+        kind: 'choice',
+        label: '走塁',
+        options: RUNNING_OPTIONS,
+        get: () => this.match?.running ?? 'auto',
+        set: (v) => {
+          if (this.match) this.match.running = v as RunningControl;
+          this.set({ running: v as RunningControl });
         },
         hidden: () => this.match?.nextMode !== 'manual'
       },
@@ -509,7 +532,7 @@ class App {
     const st = { ...this.settings, ...overrides };
     const humanTeam = st.side === 'home' ? 1 : 0;
     const [away, home] = this.matchup(st).map((t) => this.today(t));
-    this.match = new Match({ away, home, innings: st.innings, mode: st.mode, fielding: st.fielding, batting: st.batting, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
+    this.match = new Match({ away, home, innings: st.innings, mode: st.mode, fielding: st.fielding, batting: st.batting, running: st.running, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
     this.heardPlay = null;
     this.heardEvents = 0;
     this.hud.season = this.pennant.batting;

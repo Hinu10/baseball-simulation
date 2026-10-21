@@ -190,7 +190,7 @@ export class Hud {
       g.push(f.hasBall ? 'J＋方向 送球（W 二塁・D 一塁・A 三塁・S 本塁、J だけ＝おすすめ）' : 'WASD 移動', 'K ダイブ', 'L 選手切替');
     } else if (play && m.isHuman(battingTeam(s))) {
       const sel = play.selectedRunner < 0 ? '全員' : play.runners[play.selectedRunner]?.name ?? '全員';
-      g.push(`J 進塁`, `K 帰塁`, `L 走者切替（いま：${esc(sel)}）`);
+      g.push(`J 進塁`, `K 帰塁`, `L 走者切替（いま：${esc(sel)}）`, `走塁：${m.running === 'auto' ? 'オート' : '手動'}`);
     } else if (m.humanPitching && m.phase === 'pre-pitch') {
       g.push('WASD コース', 'Q/E プレートの位置', 'L 球種', 'J 投球');
     } else if (m.humanBatting && (m.phase === 'pre-pitch' || m.phase === 'windup' || m.phase === 'pitch')) {
