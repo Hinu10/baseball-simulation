@@ -158,6 +158,8 @@ interface Look {
   fill: number;
   sky: string;
   roof?: Roof;
+  /** 観客の明るさ（省略は 1 = ふつう）。下げると客席が暗くなり、シルエットだけ見える。 */
+  crowdLight?: number;
   /** 飾りを足す。毎フレームの動きがあれば関数を返す。 */
   decorate?: (s: Shell) => ((dt: number, time: number) => void) | void;
 }
@@ -169,6 +171,8 @@ interface Shell {
   look: Look;
   /** 区間ごとの最上段の後ろの壁の位置（区間の始点）と、その上端の高さ。 */
   rim: { p: P2; top: number; outfield: boolean }[];
+  /** 観客の席。 */
+  seats: Seat[];
   /** 球場全体を囲む円（上から見て）。 */
   center: P2;
   radius: number;
@@ -336,7 +340,10 @@ const LOOKS: Record<string, Look> = {
     rise: 0.52,
     fill: 0.9,
     sky: '#07080d',
-    roof: { panel: '#0d0d10', line: '#1d1d24', meridians: 28, parallels: 6, height: 46, glow: '#b8962e', wall: '#121215', band: '#3a2f12', stars: '#ffe9b0', retractable: true, beams: 8 }
+    roof: { panel: '#0d0d10', line: '#1d1d24', meridians: 28, parallels: 6, height: 46, glow: '#b8962e', wall: '#121215', band: '#3a2f12', stars: '#ffe9b0', retractable: true, beams: 8 },
+    // 客席は人がいるのに、ほぼ真っ暗。ところどころの小さな明かりと、最上段の縁の常夜灯だけが灯る。
+    crowdLight: 0.018,
+    decorate: darkStands
   },
   // オネタールスタジアム：一体感の球場。観客席の上をチームの旗がぐるりと囲む。
   onetar: {
@@ -587,6 +594,7 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
   group.add(new THREE.Mesh(steps.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })));
   group.add(new THREE.Mesh(back.geometry(), new THREE.MeshLambertMaterial({ color: look.back, side: THREE.DoubleSide })));
   const crowd = new Crowd(seats);
+  if (look.crowdLight !== undefined) crowd.dim(look.crowdLight);
   group.add(crowd.group);
 
   // バックスクリーン：中堅の観客席の部分を壁でふさぐ。
@@ -620,7 +628,7 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
   let radius = Math.hypot(22, scoreboardZ + 2 - center.z);
   for (const { p } of rimPts) radius = Math.max(radius, Math.hypot(p.x - center.x, p.z - center.z));
   radius += 5;
-  const shell: Shell = { group, park, look, rim: rimPts, center, radius, scoreboardZ };
+  const shell: Shell = { group, park, look, rim: rimPts, seats, center, radius, scoreboardZ };
   const standTop = backTop(mid, look.outfieldRows);
   if (look.roof) buildRoof(shell, look.roof, domeFloor);
   const animate = look.decorate?.(shell);
@@ -911,6 +919,71 @@ function ferrisWheel(s: Shell) {
       c.position.set(Math.sin(t) * R, Math.cos(t) * R - 1.5, 0);
       c.rotation.z = -a;
     });
+  };
+}
+
+/** 万山：暗い客席に、ペンライトやスマホのような小さな明かり（ゆっくりまたたく）と、最上段の縁の常夜灯。 */
+function darkStands(s: Shell) {
+  const glow = canvasTexture(64, 64, (g) => {
+    const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255,255,255,1)');
+    r.addColorStop(0.25, 'rgba(255,255,255,0.8)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 64, 64);
+  });
+  const lightColors = ['#ffd27a', '#ffe9b0', '#b8962e', '#ffffff', '#9fd0ff'];
+  // 小さな明かり：客の何人かに1つ、頭の上あたりに。
+  const picked = s.seats.filter((_, i) => (i * 2654435761) % 1000 < 35);
+  const n = picked.length;
+  const pos = new Float32Array(n * 3);
+  const col = new Float32Array(n * 3);
+  const base = new Float32Array(n * 3);
+  const phase = new Float32Array(n);
+  const c = new THREE.Color();
+  picked.forEach((seat, i) => {
+    pos.set([seat.x, seat.y + 1.25, seat.z], i * 3);
+    c.set(lightColors[i % lightColors.length]);
+    base.set([c.r, c.g, c.b], i * 3);
+    phase[i] = Math.random() * Math.PI * 2;
+  });
+  col.set(base);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const points = new THREE.Points(geo, new THREE.PointsMaterial({ map: glow, size: 2.2, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  points.frustumCulled = false;
+  s.group.add(points);
+
+  // 最上段の縁の常夜灯（バックスクリーンの上は空ける）。
+  const lamps = new Props();
+  s.rim.forEach(({ p, top, outfield }, i) => {
+    if (i % 2 || (outfield && Math.abs(p.x) < 14)) return;
+    lamps.add(new THREE.SphereGeometry(0.28, 8, 6), '#ffcf6b', p.x, top + 0.35, p.z);
+  });
+  s.group.add(lamps.mesh(new THREE.MeshBasicMaterial({ vertexColors: true })));
+  const halos = new Float32Array(s.rim.length * 3);
+  let h = 0;
+  s.rim.forEach(({ p, top, outfield }, i) => {
+    if (i % 2 || (outfield && Math.abs(p.x) < 14)) return;
+    halos.set([p.x, top + 0.35, p.z], h * 3);
+    h++;
+  });
+  const haloGeo = new THREE.BufferGeometry();
+  haloGeo.setAttribute('position', new THREE.BufferAttribute(halos.slice(0, h * 3), 3));
+  const halo = new THREE.Points(haloGeo, new THREE.PointsMaterial({ map: glow, size: 3.2, color: '#ffb84a', transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+  halo.frustumCulled = false;
+  s.group.add(halo);
+
+  const attr = geo.getAttribute('color') as THREE.BufferAttribute;
+  return (_dt: number, time: number) => {
+    for (let i = 0; i < n; i++) {
+      const k = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(time * 1.6 + phase[i]));
+      col[i * 3] = base[i * 3] * k;
+      col[i * 3 + 1] = base[i * 3 + 1] * k;
+      col[i * 3 + 2] = base[i * 3 + 2] * k;
+    }
+    attr.needsUpdate = true;
   };
 }
 

@@ -88,6 +88,8 @@ export class Crowd {
   private teamColors: [TeamColors, TeamColors] | null = null;
   private moving = false;
   private time = 0;
+  /** 観客の明るさ（1 = ふつう）。暗い球場では下げて、シルエットだけ見せる。 */
+  private brightness = 1;
 
   constructor(seats: Seat[]) {
     this.seats = seats;
@@ -154,6 +156,17 @@ export class Crowd {
     }
   }
 
+  /** 観客を暗くする（k は明るさ、1 = ふつう）。体・帽子・旗・タオルの色にかける。 */
+  dim(k: number) {
+    this.brightness = k;
+    this.group.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshLambertMaterial | undefined;
+      if (m?.color && !this.flags.some((f) => f.cloth === o)) m.color.setScalar(k);
+    });
+    this.towelMat.color.setScalar(k);
+    for (const f of this.flags) (f.cloth.material as THREE.MeshLambertMaterial).color.multiplyScalar(k);
+  }
+
   /**
    * 席ごとに、どちらのファンで何を着ているかを決める。観客は基本的にチームカラーを組み合わせたユニフォーム姿で、
    * 私服はわずか。試合がなければ私服。teams は [ビジター（先攻）, ホーム（後攻）]。
@@ -188,7 +201,7 @@ export class Crowd {
       this.place(i);
     });
     for (const f of this.flags) {
-      (f.cloth.material as THREE.MeshLambertMaterial).color.set(teams ? teams[f.team].primary : '#9e9e9e');
+      (f.cloth.material as THREE.MeshLambertMaterial).color.set(teams ? teams[f.team].primary : '#9e9e9e').multiplyScalar(this.brightness);
       f.pole.visible = !!teams;
     }
     for (const { mesh } of this.parts) {
