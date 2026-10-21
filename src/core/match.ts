@@ -49,6 +49,8 @@ const SHIFT_SPEED = 0.6;
 const START = { x: 0, y: (DEFAULT_ZONE.bottom + DEFAULT_ZONE.top) / 2 };
 /** 判定の表示時間（秒）。自動モードでは短くする。 */
 const RESULT_TIME = { call: 0.9, play: 1.8 };
+/** CPU の投手が、投球前の場面になってから投げるまでの間合い（秒）。自動モードは見ているだけなので短め。 */
+const AI_PITCH_DELAY = { normal: 2.0, auto: 0.8 };
 /** 救援投手の力の目安（球速・制球・変化球）。 */
 const power = (p: Pitcher) => (p.velocity - 130) * 2 + p.control + p.breaking;
 /** CPU の中継ぎ・抑えが、回の頭で交代するまでに投げる球数の目安（1イニング投げていなくても）。 */
@@ -306,7 +308,7 @@ export class Match {
       if (bid !== this.shiftOwner.batter) this.batterStance = 0;
       this.shiftOwner = { pitcher: pid, batter: bid };
     }
-    this.aiDelay = this.state.mode === 'auto' ? 0.45 : 1.0;
+    this.aiDelay = this.state.mode === 'auto' ? AI_PITCH_DELAY.auto : AI_PITCH_DELAY.normal;
   }
 
   private moveCursor(c: PlatePoint, input: PlayInput, dt: number) {

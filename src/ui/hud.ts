@@ -174,8 +174,13 @@ export class Hud {
 
     // 結果の文字。結果の表示がないときは、選手交代の知らせを少しのあいだ出す。
     const notice = m.notice && m.clock - m.notice.clock < 2.5 ? { text: m.notice.text, kind: 'info' as const } : null;
-    const msg = m.phase === 'result' && m.message ? m.message : notice;
-    const key = msg ? `${msg.text}|${s.log.length}|${s.teams[1].pitchCount + s.teams[0].pitchCount}` : '';
+    // プレー中でも、フライを捕った・一塁でアウトにした・本塁打が決まった瞬間に出す（終わったら結果の文言に出し直す）。
+    const call = m.phase === 'play' ? m.play?.call : null;
+    const live = call ? { text: call, kind: call.includes('ホームラン') ? ('run' as const) : ('out' as const) } : null;
+    const msg = m.phase === 'result' && m.message ? m.message : (live ?? notice);
+    // プレー中の文言は、結果の記録（log と投球数）が増える前に出るので、出し直しで同じ文言なら出しなおさないよう数をそろえる。
+    const ahead = live ? 1 : 0;
+    const key = msg ? `${msg.text}|${s.log.length + ahead}|${s.teams[1].pitchCount + s.teams[0].pitchCount + ahead}` : '';
     if (key !== this.bannerKey) {
       this.bannerKey = key;
       this.parts.banner.className = `banner ${msg ? `show ${msg.kind}` : ''}`;
