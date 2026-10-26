@@ -104,6 +104,21 @@ button {
   gap: 4px;
   justify-content: flex-end;
 }
+.menu-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+}
+.menu-group-label {
+  margin-right: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5a6478;
+  white-space: nowrap;
+}
 .menu-options button {
   border: 2px solid #c9d3e6;
   background: #fff;
@@ -165,6 +180,40 @@ button {
   margin-top: 8px;
   color: #556;
   font-weight: 700;
+}
+.brand-showcase {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 12px auto 8px;
+  max-width: 510px;
+  text-align: left;
+}
+.brand-feature,
+.brand-opponent,
+.roster-brand {
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--team);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--team) 10%, white);
+  color: var(--team-text);
+}
+.brand-feature { flex: 1; min-width: 0; padding: 6px 10px; gap: 7px; }
+.brand-feature .team-logo { width: 62px; height: 62px; flex: none; }
+.brand-feature .team-mascot { width: 70px; height: 70px; flex: none; }
+.brand-copy { min-width: 0; flex: 1; }
+.brand-copy strong,
+.roster-brand strong { display: block; font-size: 18px; line-height: 1.2; }
+.brand-copy small,
+.roster-brand small { display: block; margin-top: 4px; font-weight: 700; }
+.brand-opponent { flex: none; padding: 5px 8px; gap: 4px; font-size: 12px; font-weight: 800; }
+.brand-opponent .team-logo { width: 42px; height: 42px; flex: none; }
+@media (max-width: 600px) {
+  .brand-showcase { flex-direction: column; }
+  .brand-opponent { justify-content: center; }
+  .brand-feature .team-logo { width: 52px; height: 52px; }
+  .brand-feature .team-mascot { width: 58px; height: 58px; }
 }
 
 /* ---- HUD ---- */
@@ -445,6 +494,62 @@ button {
 .banner.out {
   color: #ff8a80;
 }
+/* 場内アナウンスのテロップ（打者・投手の紹介）。画面の下（操作ガイドの上）に、球場のビジョン風の帯で出す。 */
+.announce {
+  position: absolute;
+  left: 50%;
+  bottom: 44px;
+  transform: translate(-50%, 12px);
+  opacity: 0;
+  padding: 8px 22px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(20, 28, 48, 0.92), rgba(10, 14, 26, 0.92));
+  border-top: 3px solid var(--accent);
+  color: #fff;
+  font-size: clamp(16px, 2.4vw, 24px);
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+  transition:
+    transform 0.25s,
+    opacity 0.25s;
+}
+.announce.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.announce b {
+  font-size: 1.25em;
+  margin: 0 6px;
+}
+.announce small {
+  font-size: 0.7em;
+  margin: 0 6px;
+  color: #c8d2e8;
+}
+/* リプレイ中の印（画面の上のまんなか）。 */
+.replay-badge {
+  position: absolute;
+  top: 14px;
+  right: 50%;
+  transform: translateX(50%);
+  display: none;
+  padding: 4px 14px;
+  border-radius: 4px;
+  background: #e5383b;
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  animation: replay-blink 1s steps(2) infinite;
+}
+.replay-badge.show {
+  display: block;
+}
+@keyframes replay-blink {
+  50% {
+    opacity: 0.55;
+  }
+}
 .guide {
   position: absolute;
   left: 0;
@@ -522,6 +627,57 @@ button {
   margin: 0 auto;
   border-collapse: collapse;
 }
+/* 試合後のヒーローインタビュー。 */
+.hero-interview {
+  margin: 10px auto 0;
+  padding: 8px 14px;
+  max-width: 460px;
+  border-radius: 8px;
+  background: #1d2433;
+  border-left: 6px solid var(--team);
+  color: #fff;
+  text-align: left;
+}
+.hero-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--warn);
+}
+.hero {
+  margin-top: 6px;
+}
+.hero-name {
+  font-size: 18px;
+  font-weight: 900;
+}
+.hero-name small {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #c8d2e8;
+}
+.hero-number {
+  display: inline-block;
+  min-width: 26px;
+  margin-right: 6px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--team);
+  text-align: center;
+  font-size: 14px;
+}
+.hero-line {
+  font-size: 13px;
+  color: #c8d2e8;
+}
+.hero-quote {
+  font-size: 14px;
+  font-weight: 700;
+}
+.hero-end {
+  margin-top: 6px;
+  color: var(--warn);
+}
 .result-log {
   margin-top: 8px;
   font-size: 14px;
@@ -585,6 +741,7 @@ button {
   font-weight: 700;
   font-size: 15px;
 }
+.roster-tabs button .team-logo { width: 23px; height: 23px; vertical-align: middle; margin-right: 3px; }
 .roster-tabs button.selected {
   background: var(--team);
   color: var(--team-ink, #fff);
@@ -594,6 +751,9 @@ button {
   font-size: 11px;
   opacity: 0.8;
 }
+.roster-brand { gap: 10px; max-width: 420px; padding: 6px 12px; margin: 10px 0; }
+.roster-brand .team-logo { width: 57px; height: 57px; flex: none; }
+.roster-brand .team-mascot { width: 70px; height: 70px; margin-left: auto; flex: none; }
 .roster-team h3 {
   margin: 10px 0 4px;
   padding-left: 8px;
@@ -757,6 +917,12 @@ button {
 .sub-row.pitcher {
   margin-top: 6px;
 }
+/* スタメン・打順の画面で、入れ替え方ごとの見出し。 */
+.sub-group {
+  margin: 8px 0 2px;
+  font-size: 13px;
+  color: #556;
+}
 .sub-row.focused {
   border-color: #ff7a1a;
   background: #fff;
@@ -836,13 +1002,16 @@ button {
   font-variant-numeric: tabular-nums;
 }
 .pennant-team {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   padding: 1px 8px;
   border-radius: 6px;
   background: var(--team);
   color: var(--team-ink, #fff);
   font-weight: 700;
 }
+.pennant-team .team-logo { width: 24px; height: 24px; flex: none; }
 .pennant-card h3 {
   margin: 12px 0 4px;
   padding-left: 8px;
@@ -948,6 +1117,15 @@ button {
   font-weight: 700;
 }
 
+.roster-table em.limit-break {
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ff7a1a, #e5383b);
+  color: #fff;
+  font-size: 11px;
+  font-style: normal;
+}
 .roster-table em.injured {
   margin-left: 6px;
   padding: 0 5px;
@@ -1034,4 +1212,32 @@ button {
 }
 .pennant-card tr.title-top td {
   border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* ニーマシリーズのタブ：各試合のスコアと、投手の役割。 */
+.series-game h4 {
+  margin: 10px 0 4px;
+  font-size: 14px;
+}
+.series-game h4 small {
+  margin-left: 8px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+.line-score td,
+.line-score th {
+  text-align: center;
+  min-width: 22px;
+}
+.line-score td.r {
+  font-weight: 800;
+}
+.pennant-card td.role {
+  opacity: 0.75;
+  white-space: nowrap;
+}
+.series-game summary {
+  cursor: pointer;
+  margin: 4px 0;
+  font-size: 13px;
 }

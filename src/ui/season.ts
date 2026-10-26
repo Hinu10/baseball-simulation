@@ -1,8 +1,10 @@
 // ペナントレースの経過（順位・通算成績）を端末に保存する。計算は core/pennant.ts。
 import { earnedRunAverage, type BattingLine, type PitchingLine } from '../core/gameState.ts';
 import { emptyPennant, type Pennant } from '../core/pennant.ts';
+import { SEASON_YEAR } from '../core/pennant.ts';
 
-const KEY = 'baseball-simulation.pennant';
+// 年度を変えても前年の端末内のペナントを次の年へ持ち越さない。
+const KEY = `baseball-simulation.pennant.${SEASON_YEAR}`;
 export type SeasonStats = Record<string, BattingLine>;
 export type SeasonPitching = Record<string, PitchingLine>;
 

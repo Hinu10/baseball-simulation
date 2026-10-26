@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { createPitch, DEFAULT_ZONE, previewPath, fatigue, isStrike, missChance, pitchPosition, PITCHES, staminaLeft } from './pitching.ts';
+import { createPitch, DEFAULT_ZONE, previewPath, fatigue, hitsBatter, isStrike, missChance, pitchPosition, PITCHES, staminaLeft } from './pitching.ts';
 import { Rng } from './rng.ts';
 import { parseTeams, type Pitcher } from './teams.ts';
 import { PITCH_TYPES } from './types.ts';
@@ -116,4 +116,16 @@ test('スタミナ：1球目から減り、先発（スタミナ80）は100球�
   assert.ok(fatigue(sp, 75) > 0.3);
   assert.equal(fatigue(sp, 100), 1);
   assert.equal(staminaLeft(sp, 100), 0);
+});
+
+test('内角に大きく外れた球は打者の体に当たる（死球）。ゾーンの球や外角の球、頭の上を越える球は当たらない', () => {
+  // 右打者は三塁側（x が負）に立つ。
+  assert.ok(hitsBatter({ x: -0.8, y: 1.0 }, 'R'));
+  assert.ok(hitsBatter({ x: 0.8, y: 0.6 }, 'L'));
+  assert.ok(!hitsBatter({ x: 0, y: 0.8 }, 'R'));
+  assert.ok(!hitsBatter({ x: 0.8, y: 0.8 }, 'R'));
+  assert.ok(!hitsBatter({ x: -0.8, y: 2.0 }, 'R'));
+  // 打席の外側に下がって立てば、同じ球でも当たらない。
+  assert.ok(hitsBatter({ x: -0.6, y: 1.0 }, 'R'));
+  assert.ok(!hitsBatter({ x: -0.6, y: 1.0 }, 'R', -0.25));
 });

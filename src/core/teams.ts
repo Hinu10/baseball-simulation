@@ -35,6 +35,9 @@ export function glowColor(c: TeamColors): string {
   return '#ffffff';
 }
 
+/** 白っぽい背景の上の色帯や線に使うチームの色（メインカラーが白に近ければサブカラー）。 */
+export const accentColor = (c: TeamColors): string => (luminance(c.primary) > 0.75 ? c.secondary : c.primary);
+
 /** CSS 変数（--team・--team-ink・--team-text）。 */
 export const teamStyle = (c: TeamColors) => `--team:${c.primary};--team-ink:${inkOn(c.primary)};--team-text:${textColor(c)}`;
 
@@ -56,6 +59,8 @@ export interface Batter {
   fragility?: number;
   /** 故障で出られない残りの日数。登録の状態を反映した選手だけが持つ。 */
   injured?: number;
+  /** 限界突破：今の実力の上限（100）を超えた打者。ミート・パワーが 100 を超えてよい。 */
+  limitBreak?: boolean;
 }
 
 export type PitcherRole = 'starter' | 'reliever' | 'closer';
@@ -96,7 +101,14 @@ export interface StaffMember {
   role: string;
   name: string;
   number: number;
+  /** 監督の継投の早さ（監督だけ。省略すると名前から決まる）。 */
+  hook?: PitchingHook;
 }
+
+/** 監督の継投の早さ。早めは打ち込まれる前に代え、我慢は先発を長く引っぱる。 */
+export type PitchingHook = 'quick' | 'normal' | 'patient';
+export const HOOK_LABEL: Record<PitchingHook, string> = { quick: '早め', normal: '普通', patient: '我慢' };
+const HOOKS: PitchingHook[] = ['quick', 'normal', 'patient'];
 
 /** 首脳陣の上に立つ球団の役職（最高顧問など）。ユニフォームは着ないので背番号はない。note は「元監督」などの補足。 */
 export interface Executive {
@@ -139,8 +151,11 @@ function fail(team: string, message: string): never {
   throw new TeamDataError(`${team}: ${message}`);
 }
 
-function checkRating(team: string, who: string, key: string, v: unknown) {
-  if (typeof v !== 'number' || !(v >= 0 && v <= 100)) fail(team, `${who} の ${key} は 0〜100 の数値にしてください（${String(v)}）`);
+/** 能力の上限は 100。限界突破した打者（limitBreak）だけ、ミート・パワーが 100 を超えてよい（LIMIT_BREAK まで）。 */
+const LIMIT_BREAK = 150;
+
+function checkRating(team: string, who: string, key: string, v: unknown, max = 100) {
+  if (typeof v !== 'number' || !(v >= 0 && v <= max)) fail(team, `${who} の ${key} は 0〜${max} の数値にしてください（${String(v)}）`);
 }
 
 /** teams.json の中身を検証して返す。問題があれば TeamDataError。 */
@@ -158,6 +173,7 @@ export function parseTeams(raw: unknown): TeamData[] {
     }
     if (!Array.isArray(t.staff) || t.staff[0]?.role !== '監督') fail(name, '首脳陣（staff）の先頭に監督が必要です');
     for (const m of t.staff) if (!m.name || !m.role || typeof m.number !== 'number') fail(name, '首脳陣は role・name・number を書いてください');
+    for (const m of t.staff) if (m.hook !== undefined && !HOOKS.includes(m.hook)) fail(name, `継投の早さ（hook）は ${HOOKS.join('・')} のどれかです`);
     for (const m of t.executives ?? []) if (!m.name || !m.role) fail(name, '球団の役職（executives）は role・name を書いてください');
     if (!Array.isArray(t.batters) || t.batters.length < 9) fail(name, '野手は9人以上必要です');
     if (!Array.isArray(t.pitchers) || t.pitchers.length < 1) fail(name, '投手が必要です');
@@ -177,7 +193,7 @@ export function parseTeams(raw: unknown): TeamData[] {
       checkId(b);
       if (!LINEUP_POSITIONS.includes(b.position)) fail(name, `${b.name} の守備位置 ${b.position} が不正です`);
       if (b.bats !== 'R' && b.bats !== 'L') fail(name, `${b.name} の bats は R か L です`);
-      for (const k of RATINGS) checkRating(name, b.name, k, b[k]);
+      for (const k of RATINGS) checkRating(name, b.name, k, b[k], b.limitBreak && (k === 'meet' || k === 'power') ? LIMIT_BREAK : 100);
       if (b.fragility !== undefined) checkRating(name, b.name, 'fragility', b.fragility);
     }
     for (const p of allPitchers(t)) {
@@ -225,3 +241,12 @@ export function rotationStarter(team: TeamData, n: number): string {
 
 /** 監督。 */
 export const managerOf = (t: TeamData): StaffMember => t.staff[0];
+
+/** 監督の継投の早さ。teams.json に書いていなければ、監督の名前から決まる（同じ監督ならいつも同じ）。 */
+export function hookOf(t: TeamData): PitchingHook {
+  const m = managerOf(t);
+  if (m.hook) return m.hook;
+  let h = 0;
+  for (const c of m.name) h = (h * 31 + c.codePointAt(0)!) >>> 0;
+  return HOOKS[h % HOOKS.length];
+}

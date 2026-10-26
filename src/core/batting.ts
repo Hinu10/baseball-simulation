@@ -58,17 +58,19 @@ const BALL_R = 0.037;
 
 /** ミートカーソルの大きさ（横・縦の半径 m）。ミート能力で大きく、強振で小さくなる。 */
 export function cursorSize(b: Batter, mode: SwingMode): { halfW: number; halfH: number } {
-  const r = (0.09 + 0.05 * (b.meet / 100)) * (mode === 'power' ? 0.62 : 1);
+  const r = (0.083 + 0.047 * (b.meet / 100)) * (mode === 'power' ? 0.62 : 1);
   return { halfW: r * 1.35, halfH: r * 0.85 };
 }
 
 /** 当たるタイミングの幅（±秒）。 */
 export function timingWindow(b: Batter, mode: SwingMode): number {
-  return (0.077 + 0.055 * (b.meet / 100)) * (mode === 'power' ? 0.78 : 1);
+  return (0.074 + 0.053 * (b.meet / 100)) * (mode === 'power' ? 0.78 : 1);
 }
 
 /** かんたん打撃では、当たるタイミングの幅を広げる。 */
 export const EASY_TIMING_SCALE = 1.35;
+/** かんたん打撃で、バットの上下のぶれ（カーソルの縦の半径に対する標準偏差）。 */
+const EASY_LIFT_SPREAD = 0.45;
 /** かんたん打撃でバットが届く範囲（ストライクゾーンの外側への余裕 m）。 */
 const EASY_REACH = 0.2;
 
@@ -136,6 +138,13 @@ export function evaluateSwing(b: Batter, pitch: Pitch, swing: SwingCommand, rng:
   if (swing.easy) {
     const cursor = easyCursor(b, pitch, swing.mode, swing.bunt ? 0 : swing.easy.lift);
     if (!cursor) return { kind: 'miss' };
+    // カーソルは球に合うが、バットの上下は少しぶれる（ぴったりライナーばかりにならず、ゴロやフライにもなる）。
+    // タイミングが合えば空振りにはしない（球がカーソルの縦の端を越えない）。
+    if (!swing.bunt) {
+      const reach = cursorSize(b, swing.mode).halfH + BALL_R;
+      const ny = clamp((pitch.plate.y - cursor.y) / reach + rng.gauss(0, EASY_LIFT_SPREAD), -0.85, 0.85);
+      cursor.y = pitch.plate.y - ny * reach;
+    }
     swing = { ...swing, cursor };
   }
   if (swing.bunt) return bunt(b, pitch, swing, rng);
@@ -157,7 +166,7 @@ export function evaluateSwing(b: Batter, pitch: Pitch, swing: SwingCommand, rng:
   const exitSpeed = Math.max(4, base * quality + (pitch.speedKmh / 3.6) * 0.08 + rng.gauss(0, 1));
 
   // カーソルの中心より球が上なら、バットが球の下をたたいて打球が上がる。
-  let launch = 11 + 40 * ny + (swing.mode === 'power' ? 4 : 0) + (b.power - 50) * 0.04 + rng.gauss(0, 4);
+  let launch = 8 + 50 * ny + (swing.mode === 'power' ? 4 : 0) + (b.power - 50) * 0.04 + rng.gauss(0, 4);
   // 根っこで詰まると、ボテボテのゴロか、差し込まれた小フライになりやすい。
   if (batContact(spot) === 'handle') launch += rng.chance(0.5) ? -12 : 14;
   // 早く振れば引っ張り、遅れれば流し方向。外角の球は流し方向に飛びやすい（右打者・左打者とも x の符号で同じ式になる）。

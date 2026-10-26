@@ -1,6 +1,6 @@
 // 投球。球種とコースから、制球誤差・疲労を含めた実際の球を作り、3D の軌道を時間で評価する。
 
-import { PLATE_Z, RELEASE_POINT } from './field.ts';
+import { batterBox, PLATE_Z, RELEASE_POINT } from './field.ts';
 import { clamp, v3, type Vec3 } from './math.ts';
 import type { Rng } from './rng.ts';
 import type { Pitcher } from './teams.ts';
@@ -61,8 +61,22 @@ export function isStrike(zone: StrikeZone, p: PlatePoint): boolean {
   return Math.abs(p.x) <= zone.halfWidth + BALL_R && p.y >= zone.bottom - BALL_R && p.y <= zone.top + BALL_R;
 }
 
-/** コースを狙える範囲。 */
+/** 打者の体の幅の半分と、当たる高さ（m）。 */
+const BODY = { half: 0.25, bottom: 0.25, top: 1.75 };
+
+/**
+ * 見送った球が打者の体に当たるか（死球）。打者は打席の中で stance だけずれて立つ（field.ts の batterBox と同じ x）。
+ * 内角いっぱいを狙うと、制球の誤差でときどき当たる。
+ */
+export function hitsBatter(p: PlatePoint, bats: 'R' | 'L', stance = 0): boolean {
+  const x = batterBox(bats).x + stance;
+  return Math.abs(p.x - x) <= BODY.half + BALL_R && p.y >= BODY.bottom && p.y <= BODY.top;
+}
+
+/** 打者がカーソルを動かせる範囲。 */
 export const AIM_RANGE = { x: 0.55, yMin: 0.15, yMax: 1.45 };
+/** 投手がコースを狙える範囲。内角は打者の体（立ち位置をいちばん外へずらしても）まで、高さは頭まで狙える（死球になる）。 */
+export const PITCH_AIM_RANGE = { x: 1.15, yMin: 0.15, yMax: 1.8 };
 
 /**
  * アーケード向けに投球の進行を遅くする係数。1 なら実際の速さ（時速145kmで約0.42秒）。

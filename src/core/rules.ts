@@ -3,8 +3,8 @@
 
 import { battingTeam, benchBatters, benchPitchers, currentBatter, emptyLine, emptyPitchingLine, fieldingTeam, score, type BattingLine, type GameState, type PitchingLine, type TeamIndex } from './gameState.ts';
 
-export type PitchCall = 'ball' | 'called-strike' | 'swinging-strike' | 'foul' | 'foul-bunt';
-export type PlateAppearanceEnd = 'strikeout' | 'walk' | null;
+export type PitchCall = 'ball' | 'called-strike' | 'swinging-strike' | 'foul' | 'foul-bunt' | 'hit-by-pitch';
+export type PlateAppearanceEnd = 'strikeout' | 'walk' | 'hit-by-pitch' | null;
 
 export type OutKind = 'force' | 'tag' | 'fly';
 
@@ -37,6 +37,8 @@ export interface PlayResult {
   error?: boolean;
   /** 送りバント（打数に数えない）。 */
   sacrifice?: boolean;
+  /** フェンス越えの本塁打。サヨナラでも全走者の得点を認める。 */
+  outOfParkHomeRun?: boolean;
 }
 
 function log(s: GameState, text: string, runs: number) {
@@ -180,6 +182,7 @@ function recordPlateAppearance(s: GameState, line: Partial<BattingLine>) {
   l.hr += line.hr ?? 0;
   l.rbi += line.rbi ?? 0;
   l.bb = (l.bb ?? 0) + (line.bb ?? 0);
+  if (line.hbp) l.hbp = (l.hbp ?? 0) + line.hbp;
   l.so = (l.so ?? 0) + (line.so ?? 0);
 }
 
@@ -189,10 +192,21 @@ function countPitch(s: GameState) {
   pitcherLine(s);
 }
 
-/** ボール・ストライク・ファウルの判定を反映する。打席が終わったら 'strikeout' か 'walk'。 */
+/** ボール・ストライク・ファウル・死球の判定を反映する。打席が終わったら 'strikeout'・'walk'・'hit-by-pitch'。 */
 export function pitchCall(s: GameState, call: PitchCall): PlateAppearanceEnd {
   if (s.over) return null;
   countPitch(s);
+  // 死球：カウントに関係なく打者は一塁へ。四球とは別に記録する。
+  if (call === 'hit-by-pitch') {
+    const scorers = forceAdvanceBatter(s);
+    const runs = scorers.length;
+    pitcherLine(s).hbp = (pitcherLine(s).hbp ?? 0) + 1;
+    log(s, runs ? '死球（押し出し）' : '死球', runs);
+    recordPlateAppearance(s, { rbi: runs, hbp: 1 });
+    addRuns(s, scorers);
+    if (!checkWalkoff(s)) nextBatter(s);
+    return 'hit-by-pitch';
+  }
   if (call === 'ball') {
     s.balls += 1;
     if (s.balls < 4) return null;
@@ -224,17 +238,24 @@ export function countedRuns(outsBefore: number, r: PlayResult): PlayResult['runs
   const outs = [...r.outs].sort((a, b) => a.time - b.time);
   if (outsBefore + outs.length < 3) return r.runs;
   const third = outs[2 - outsBefore];
-  // フォースアウトか、打者走者の一塁到達前のアウトが第3アウトなら、そのプレーの得点は入らない。
-  if (third.kind === 'force' || third.batterBeforeFirst) return [];
-  // タッチアウト・飛球のアウトなら、それより前に本塁に着いた走者だけ得点。
+  // 捕球で打者がアウトになった場合も一塁到達前の第3アウト。捕球前の生還は得点にならない。
+  if (third.kind === 'force' || third.kind === 'fly' || third.batterBeforeFirst) return [];
+  // タッチアウトなら、それより前に本塁に着いた走者だけ得点。
   return r.runs.filter((run) => run.time < third.time);
+}
+
+/** サヨナラの通常のプレーは決勝点まで。本塁打だけは全員の生還を記録する。 */
+function gameEndingRuns(s: GameState, r: PlayResult, runs: PlayRun[]): PlayRun[] {
+  if (s.half !== 'bottom' || s.inning < s.innings || r.outOfParkHomeRun) return runs;
+  const needed = score(s, 0) - score(s, 1) + 1;
+  return needed > 0 && runs.length >= needed ? [...runs].sort((a, b) => a.time - b.time).slice(0, needed) : runs;
 }
 
 /** インプレーの結果を反映する。 */
 export function applyPlay(s: GameState, r: PlayResult) {
   if (s.over) return;
   countPitch(s);
-  const runs = countedRuns(s.outs, r);
+  const runs = gameEndingRuns(s, r, countedRuns(s.outs, r));
   const p = pitcherLine(s);
   p.outs += Math.min(r.outs.length, 3 - s.outs);
   if (r.hit) p.h += 1;
@@ -247,7 +268,7 @@ export function applyPlay(s: GameState, r: PlayResult) {
   const sacFly = runs.length > 0 && r.outs.some((o) => o.playerId === batterId && o.kind === 'fly');
   const doublePlay = r.outs.length >= 2 && r.outs.some((o) => o.kind === 'force');
   recordPlateAppearance(s, {
-    ab: r.sacrifice || sacFly ? 0 : 1,
+    ab: (r.sacrifice && s.outs < 2) || sacFly ? 0 : 1,
     h: r.hit ? 1 : 0,
     hr: r.hit === 4 ? 1 : 0,
     rbi: r.error || doublePlay ? 0 : runs.length

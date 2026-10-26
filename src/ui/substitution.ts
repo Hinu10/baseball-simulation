@@ -165,10 +165,10 @@ export class SubstitutionPanel {
   }
 }
 
-function batterStats(b: Batter) {
+export function batterStats(b: Batter) {
   return `<span class="sub-stats">${conditionBadge(b.condition)}${stat('ミ', b.meet)}${stat('パ', b.power)}${stat('走', b.speed)}${stat('肩', b.arm)}${stat('守', b.fielding)}</span>`;
 }
 
-function pitcherStats(p: Pitcher) {
+export function pitcherStats(p: Pitcher) {
   return `<span class="sub-stats">${conditionBadge(p.condition)}<span class="sub-stat">${p.velocity}km/h</span>${stat('制', p.control)}${stat('ス', p.stamina)}${stat('変', p.breaking)}</span>`;
 }

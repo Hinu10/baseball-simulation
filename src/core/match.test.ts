@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
-import { battingTeam, fieldingTeam, score } from './gameState.ts';
+import { battingTeam, emptyPitchingLine, fieldingTeam, score } from './gameState.ts';
 import { Match } from './match.ts';
 import { NO_INPUT, type PlayInput } from './play.ts';
+import { pitchLimit } from './pitching.ts';
 import { parseTeams } from './teams.ts';
 
 const [away, home] = parseTeams(raw);
@@ -49,6 +50,54 @@ test('モード切替後も試合状態は変わらず、切替は次の投球�
   m.skipToEnd();
   assert.equal(m.phase, 'over');
   assert.ok(m.state.over);
+});
+
+test('3アウトのあとは攻守交代の場面をはさみ、次の回の攻撃を知らせてから投球前に戻る', () => {
+  const m = new Match({ away, home, mode: 'auto', seed: 5 });
+  until(m, () => m.phase === 'change' || m.state.over);
+  assert.equal(m.phase, 'change');
+  assert.deepEqual([m.state.inning, m.state.half], [1, 'bottom']);
+  assert.equal(m.message?.text, `1回裏　${home.nameJa}の攻撃`);
+  until(m, () => m.phase !== 'change');
+  // 回の頭に継投があれば投手交代の場面をはさみ、そのあと投球練習をしてから投球前に戻る。
+  if ((m.phase as string) === 'relief') until(m, () => m.phase !== 'relief');
+  assert.equal(m.phase, 'warmup');
+  until(m, () => m.phase !== 'warmup');
+  assert.equal(m.phase, 'pre-pitch');
+  assert.equal(m.state.outs, 0);
+});
+
+test('投手が代わったら、投手交代の場面と投球練習をはさんでから投げる', () => {
+  const m = new Match({ away, home, mode: 'manager', humanTeam: 1, seed: 3 });
+  // 人のチーム（ホーム）が守る1回表で、投手を代える。
+  until(m, () => m.canSubstitute && fieldingTeam(m.state) === 1);
+  const fresh = m.state.teams[1].team.pitchers.find((p) => p.id !== m.state.teams[1].pitcher.id)!;
+  assert.equal(m.substitute({ kind: 'pitcher', playerId: fresh.id }), null);
+  m.tick(1 / 60);
+  assert.equal(m.phase, 'relief');
+  assert.ok(m.relief && m.relief.duration > 3);
+  until(m, () => m.phase !== 'relief');
+  assert.equal(m.phase, 'warmup');
+  until(m, () => m.phase !== 'warmup');
+  assert.equal(m.phase, 'pre-pitch');
+  assert.equal(m.state.teams[1].pitcher.id, fresh.id);
+});
+
+test('9回の試合では、7回の攻撃の前の攻守交代がラッキーセブンになる（表はビジター、裏はホームのファン）', () => {
+  const m = new Match({ away, home, innings: 9, mode: 'auto', seed: 11 });
+  const next = () => {
+    until(m, () => m.phase !== 'change', NO_INPUT, 2_000_000);
+    until(m, () => m.phase === 'change' || m.state.over, NO_INPUT, 2_000_000);
+  };
+  until(m, () => m.phase === 'change' && m.state.inning === 6 && m.state.half === 'bottom', NO_INPUT, 2_000_000);
+  assert.equal(m.luckySeven, null);
+  next();
+  assert.deepEqual([m.state.inning, m.state.half, m.luckySeven], [7, 'top', 0]);
+  assert.equal(m.message!.text, 'ラッキーセブン！');
+  next();
+  assert.deepEqual([m.state.inning, m.state.half, m.luckySeven], [7, 'bottom', 1]);
+  next();
+  assert.equal(m.luckySeven, null);
 });
 
 test('手動モード：人の投手が J で投げるまで投球は始まらず、L で球種が変わる', () => {
@@ -210,6 +259,44 @@ test('CPU チームは疲れた投手を打席の合間に代える', () => {
   assert.equal(m.state.teams[0].removed.includes(starter.id), true);
 });
 
+test('CPU チームは打ち込まれた先発を、疲れていなくても打席の合間に代える', () => {
+  const m = new Match({ away, home, mode: 'auto', humanTeam: 1, seed: 2 });
+  const starter = away.pitchers.find((p) => p.id === away.startingPitcher)!;
+  until(m, () => m.state.half === 'bottom' && m.phase === 'pitch');
+  // 先攻（CPU）の先発が、試合で7点取られたことにする。
+  m.state.pitching[starter.id] = { ...(m.state.pitching[starter.id] ?? emptyPitchingLine()), r: 7 };
+  until(m, () => m.state.teams[0].pitcher !== starter || m.phase === 'over');
+  assert.notEqual(m.state.teams[0].pitcher, starter);
+});
+
+test('CPU チームは好投中の先発を、疲れても投げられる球数を少し超えるまで引っぱる', () => {
+  const m = new Match({ away, home, mode: 'auto', humanTeam: 1, seed: 2 });
+  const starter = away.pitchers.find((p) => p.id === away.startingPitcher)!;
+  until(m, () => m.state.half === 'bottom' && m.phase === 'pitch');
+  // 先攻（CPU）の先発が無失点のまま、投げられる球数の目安まで投げたことにする。
+  m.state.teams[0].pitchCount = pitchLimit(starter);
+  m.state.pitching[starter.id] = { ...(m.state.pitching[starter.id] ?? emptyPitchingLine()), r: 0, h: 3 };
+  const order = m.state.teams[1].battingIndex;
+  until(m, () => m.state.teams[1].battingIndex !== order && m.phase === 'pitch');
+  assert.equal(m.state.teams[0].pitcher, starter, '無失点なら疲れでは代えない');
+  m.state.teams[0].pitchCount = pitchLimit(starter) + 40;
+  until(m, () => m.state.teams[0].pitcher !== starter || m.phase === 'over');
+  assert.notEqual(m.state.teams[0].pitcher, starter, '球数が目安を大きく超えれば代える');
+});
+
+test('CPU チームは疲れた先発を、回の途中ではなく次の回の頭で代える', () => {
+  const m = new Match({ away, home, mode: 'auto', humanTeam: 1, seed: 2 });
+  const starter = away.pitchers.find((p) => p.id === away.startingPitcher)!;
+  until(m, () => m.state.half === 'bottom' && m.state.outs === 1 && m.phase === 'pitch');
+  // 1死で、先攻（CPU）の先発が2失点のまま投げられる球数の目安まで投げたことにする（好投ではなく、まだ打ち込まれてもいない）。
+  m.state.teams[0].pitchCount = pitchLimit(starter);
+  m.state.pitching[starter.id] = { ...(m.state.pitching[starter.id] ?? emptyPitchingLine()), r: 2 };
+  const inning = m.state.inning;
+  until(m, () => m.state.teams[0].pitcher !== starter || m.phase === 'over');
+  assert.notEqual(m.state.teams[0].pitcher, starter);
+  assert.deepEqual([m.state.inning, m.state.half, m.state.outs], [inning + 1, 'bottom', 0]);
+});
+
 test('かんたん打撃：人が打つとき、カーソルを動かさずタイミングよく J を押すだけで当たる', () => {
   let hits = 0;
   for (let seed = 1; seed <= 6; seed++) {
@@ -256,4 +343,21 @@ test('盗塁のサインを出すと投球動作で走り出し、見送れば�
     else assert.ok(m.state.outs === outs + 1 || m.state.outs === 0);
   }
   assert.ok(tried > 0, '盗塁を試せた');
+});
+
+test('途中経過から作り直した試合は、そのまま続けた試合と同じ結果になる', () => {
+  const m = new Match({ away, home, innings: 9, mode: 'auto', seed: 42 });
+  const dt = 1 / 30;
+  // 4回まで進めて、投球前の場面で途中経過を取る。
+  while (m.state.inning < 4 || !m.snapshot()) m.tick(dt);
+  const saved = JSON.parse(JSON.stringify(m.snapshot()));
+  const resumed = Match.restore(saved);
+  assert.equal(snapshot(resumed), snapshot(m));
+  // 打順の選手は球団の選手と同じもの（控えの判定が参照で比べるため）。
+  const t = resumed.state.teams[0];
+  assert.ok(t.lineup.every((b) => t.team.batters.includes(b)));
+  m.skipToEnd();
+  resumed.skipToEnd();
+  assert.equal(snapshot(resumed), snapshot(m));
+  assert.deepEqual(resumed.state.batting, m.state.batting);
 });

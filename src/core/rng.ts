@@ -7,6 +7,15 @@ export class Rng {
     this.s = seed >>> 0;
   }
 
+  /** 途中から続けるための内部の状態。 */
+  get state(): number {
+    return this.s;
+  }
+
+  set state(v: number) {
+    this.s = v >>> 0;
+  }
+
   /** 0 以上 1 未満。 */
   next(): number {
     this.s = (this.s + 0x6d2b79f5) >>> 0;

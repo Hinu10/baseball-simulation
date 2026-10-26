@@ -155,6 +155,35 @@ export const HOME_PARKS: Readonly<Record<string, Park>> = {
 
 export const parkOf = (homeTeamId: string): Park => HOME_PARKS[homeTeamId] ?? DEFAULT_PARK;
 
+/** ベンチ（ダッグアウト）の中心が、本塁からファウルラインに沿ってどれだけ先か・奥行き・長さ（m）。 */
+export const DUGOUT = { along: 16, depth: 2.8, length: 12 };
+
+/** ベンチの前（選手が出入りするところ）。side は 1 = 一塁側（ホーム）、-1 = 三塁側（ビジター）。ベンチはファウル地域の壁に背をつけて建つ。 */
+export function dugoutPos(park: Park, side: 1 | -1): Vec3 {
+  const out = park.foul.side - DUGOUT.depth - 0.4;
+  const s = Math.SQRT1_2;
+  return v3(side * (DUGOUT.along + out) * s, 0, (DUGOUT.along - out) * s);
+}
+
+/** ファウルラインに沿って本塁から along m、ファウル地域へ out m の点。side は 1 = 一塁側、-1 = 三塁側。 */
+const besideLine = (side: 1 | -1, along: number, out: number): Vec3 => v3(side * (along + out) * Math.SQRT1_2, 0, (along - out) * Math.SQRT1_2);
+
+/** ネクストバッターズサークルの中心（本塁とベンチのあいだ）。 */
+export const NEXT_CIRCLE = { along: 5, out: 5, radius: 0.75 };
+export const onDeckPos = (side: 1 | -1): Vec3 => besideLine(side, NEXT_CIRCLE.along, NEXT_CIRCLE.out);
+
+/** リリーフが走って出てくるブルペンの出口（外野のファウル地域、ファウルラインのそば）。 */
+export const bullpenGate = (side: 1 | -1): Vec3 => besideLine(side, 55, 3);
+
+export type UmpireRole = 'home' | '1B' | '2B' | '3B';
+/** 審判の立ち位置。球審は捕手の後ろ、一塁・三塁の塁審はファウルラインの外、二塁の塁審は二塁の後ろの一塁寄り。 */
+export const UMPIRE_POSITIONS: Record<UmpireRole, Vec3> = {
+  home: v3(0, 0, -2.3),
+  '1B': besideLine(1, BASE_DISTANCE + 3, 2.5),
+  '2B': v3(4, 0, 2 * D + 5),
+  '3B': besideLine(-1, BASE_DISTANCE + 3, 2.5)
+};
+
 /** センター方向からの角度（ラジアン、一塁側が +）。 */
 export const sprayAngle = (p: { x: number; z: number }) => Math.atan2(p.x, p.z);
 

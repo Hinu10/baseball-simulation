@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import raw from '../data/teams.json' with { type: 'json' };
 import { DEFAULT_PARK, parkOf } from './field.ts';
-import { allBatters, glowColor, inkOn, lineupOf, luminance, managerOf, parseTeams, roleOf, rotationStarter, TeamDataError, textColor } from './teams.ts';
+import { allBatters, glowColor, hookOf, inkOn, lineupOf, luminance, managerOf, parseTeams, roleOf, rotationStarter, TeamDataError, textColor } from './teams.ts';
 
 const clone = () => structuredClone(raw) as { teams: any[] };
 
@@ -31,10 +31,18 @@ test('チームカラーが明るくても、白い背景・暗い背景で読�
   }
 });
 
-test('能力が 0〜100 の外なら弾く', () => {
-  const d = clone();
-  d.teams[0].batters[0].power = 120;
-  assert.throws(() => parseTeams(d), TeamDataError);
+test('能力が 0〜100 の外なら弾く（限界突破した打者だけ、ミート・パワーが 100 を超えてよい）', () => {
+  const over = clone();
+  over.teams[0].batters[0].power = 120;
+  assert.throws(() => parseTeams(over), TeamDataError);
+  const breakthrough = clone();
+  breakthrough.teams[0].batters[0].power = 130;
+  breakthrough.teams[0].batters[0].limitBreak = true;
+  assert.doesNotThrow(() => parseTeams(breakthrough));
+  const speed = clone();
+  speed.teams[0].batters[0].speed = 120;
+  speed.teams[0].batters[0].limitBreak = true;
+  assert.throws(() => parseTeams(speed), TeamDataError);
 });
 
 test('打順の守備位置が欠けていたら弾く', () => {
@@ -92,15 +100,24 @@ test('各球団に2軍と育成の選手がいて、育成の背番号は3桁', 
   assert.throws(() => parseTeams(c), TeamDataError);
 });
 
-test('寛ブタイガーの主力：4人がスタメンで、開幕投手は風嵐。海外に移った淵野はいない', () => {
+test('寛ブタイガーの主力：4人がスタメンで、開幕投手は風嵐。海外に移った渕野はいない', () => {
   const t = parseTeams(raw).find((x) => x.id === 'kanbu')!;
   const names = lineupOf(t).map((b) => b.name);
   for (const n of ['中座 玲', '畑見 一樹', '川鷺 尤輔', '大森 煌大']) assert.ok(names.includes(n), n);
   assert.equal(t.pitchers.find((p) => p.id === t.startingPitcher)!.name, '風嵐 柊弥');
-  assert.ok(!allBatters(t).some((b) => b.name.startsWith('淵野')));
+  assert.ok(!allBatters(t).some((b) => b.name.startsWith('渕野')));
 });
 
 test('12球団すべてに本拠地の球場がある', () => {
   for (const t of parseTeams(raw)) assert.notEqual(parkOf(t.id), DEFAULT_PARK, t.shortName);
   assert.ok(parkOf('kanbu').fence.center > Math.max(...parseTeams(raw).filter((t) => t.id !== 'kanbu').map((t) => parkOf(t.id).fence.center)), '寛ブドームが一番広い');
+});
+
+test('監督の継投の早さ：teams.json に書けばそれ、なければ監督の名前で決まり、球団ごとにばらける', () => {
+  const teams = parseTeams(raw);
+  const [t] = teams;
+  assert.equal(hookOf(t), hookOf(t));
+  assert.equal(hookOf({ ...t, staff: [{ ...managerOf(t), hook: 'patient' }, ...t.staff.slice(1)] }), 'patient');
+  assert.ok(new Set(teams.map(hookOf)).size > 1);
+  assert.throws(() => parseTeams({ ...raw, teams: [{ ...raw.teams[0], staff: [{ ...raw.teams[0].staff[0], hook: 'slow' }] }] }), TeamDataError);
 });

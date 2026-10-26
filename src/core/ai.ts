@@ -32,7 +32,9 @@ export const STRATEGY_LABEL = {
 export const DIFFICULTY_LABEL: Record<Difficulty, string> = { easy: 'かんたん', normal: 'ふつう', hard: 'むずかしい' };
 
 /** CPU の打撃の誤差にかける倍率。大きいほど打てない。 */
-export const DIFFICULTY_ERROR: Record<Difficulty, number> = { easy: 1.45, normal: 1.0, hard: 0.78 };
+export const DIFFICULTY_ERROR: Record<Difficulty, number> = { easy: 1.3, normal: 0.85, hard: 0.68 };
+/** CPU の投手がど真ん中寄りを狙う割合にかける倍率。小さいほど甘い球が減る。 */
+export const DIFFICULTY_HEART: Record<Difficulty, number> = { easy: 1.3, normal: 0.75, hard: 0.5 };
 
 export interface Count {
   balls: number;
@@ -45,7 +47,7 @@ const ZONE_MID = (Z.bottom + Z.top) / 2;
 /** 投球の狙い：ど真ん中寄り・ゾーンの端・ボール球（誘い球）。 */
 type Aim = 'heart' | 'edge' | 'chase';
 
-export function choosePitch(p: Pitcher, count: Count, strategy: PitchingStrategy, rng: Rng): PitchCommand {
+export function choosePitch(p: Pitcher, count: Count, strategy: PitchingStrategy, rng: Rng, heartScale = 1): PitchCommand {
   const fastWeight = count.balls >= 3 ? 80 : count.strikes >= 2 ? 35 : 50;
   const others = p.pitches.filter((t) => t !== 'fastball');
   // スローボールは見せ球なので、ほかの変化球の半分ほど。
@@ -63,6 +65,7 @@ export function choosePitch(p: Pitcher, count: Count, strategy: PitchingStrategy
   } else if (count.strikes >= 2 && count.balls < 2) {
     weights.chase += 25;
   }
+  weights.heart *= heartScale;
   const aim = rng.weighted<Aim>([
     { value: 'heart', weight: weights.heart },
     { value: 'edge', weight: weights.edge },
@@ -141,6 +144,9 @@ export function planSwing(b: Batter, pitch: Pitch, sit: BatterSituation, strateg
     if (!inZone) return null;
     return { mode: 'meet', cursor: { x: seen.x, y: seen.y }, time: 0, bunt: true };
   }
+
+  // 体に向かってくる球や、とんでもないボール球には手を出さない（よけて、死球になることもある）。
+  if (Math.abs(seen.x) > 0.6 || seen.y > Z.top + 0.5) return null;
 
   let swingP: number;
   if (inZone) swingP = strategy === 'aggressive' ? 0.8 : strategy === 'careful' ? 0.55 : 0.68;

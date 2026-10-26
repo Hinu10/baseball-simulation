@@ -1,11 +1,11 @@
-// 2.5D のカメラ。3台の仮想カメラ（A：投打、B：打球追従、C：守備・走塁の俯瞰）が毎フレーム
+// 2.5D のカメラ。6台の仮想カメラ（A：投打、B：打球追従、C：守備・走塁の俯瞰、D：本塁打の出迎え、E：乱闘、R：リプレイ）が毎フレーム
 // 「いたい位置と見る点」を計算し、実カメラはそこへなめらかに寄っていく（Cinemachine のブレンドに相当）。
 // 計算は core の座標系で行い、表示用に x を反転する（render/view.ts の root と同じ）。
 import * as THREE from 'three';
 import { BASES } from '../core/field.ts';
 import type { Vec3 } from '../core/math.ts';
 
-export type CameraMode = 'A' | 'B' | 'C';
+export type CameraMode = 'A' | 'B' | 'C' | 'D' | 'E' | 'R';
 
 export interface CameraFocus {
   ball: Vec3;
@@ -17,6 +17,8 @@ export interface CameraFocus {
   batterSide?: 'R' | 'L';
   /** 人が投げる・打つとき：ゾーンとカーソルが大きく見えるよう、打者の後ろに近づく。 */
   close?: boolean;
+  /** カメラ D を置く向き（ball から見た水平の単位ベクトル）。なければグラウンド側（+z）。 */
+  from?: Vec3;
 }
 
 const toView = (x: number, y: number, z: number) => new THREE.Vector3(-x, y, z);
@@ -73,8 +75,31 @@ export class CameraRig {
     return [toView(cx, h, cz - h * 0.95), toView(cx, 0, cz + 3)];
   }
 
+  /** 仮想カメラ D：低い位置から、本塁打の出迎えの列（f.ball が列の真ん中）を正面に見る。from の向きに置く。 */
+  private shotD(f: CameraFocus): [THREE.Vector3, THREE.Vector3] {
+    const b = f.ball;
+    const d = f.from ?? { x: 0, y: 0, z: 1 };
+    return [toView(b.x + d.x * 9.5, 3.2, b.z + d.z * 9.5), toView(b.x - d.x * 0.5, 1.1, b.z - d.z * 0.5)];
+  }
+
+  /** 仮想カメラ E：一塁側の斜め上から、乱闘の輪（f.ball が真ん中）を見下ろす。 */
+  private shotE(f: CameraFocus): [THREE.Vector3, THREE.Vector3] {
+    const b = f.ball;
+    return [toView(b.x + 9, 7.5, b.z - 9), toView(b.x, 0.8, b.z)];
+  }
+
+  /** 仮想カメラ R：リプレイ。打球の飛ぶ向きの横、高めの位置からグラウンドを見下ろして、テレビ中継の別アングルのように追う。 */
+  private shotR(f: CameraFocus): [THREE.Vector3, THREE.Vector3] {
+    const b = f.ball;
+    const dist = Math.hypot(b.x, b.z);
+    const dir = dist > 1 ? { x: b.x / dist, z: b.z / dist } : { x: 0, z: 1 };
+    const side = 16 + dist * 0.12;
+    return [toView(b.x + dir.z * side - dir.x * 8, 13 + dist * 0.08 + b.y * 0.4, b.z - dir.x * side - dir.z * 8), toView(b.x, Math.max(0.5, b.y * 0.7), b.z)];
+  }
+
   update(dt: number, f: CameraFocus) {
-    const [p, l] = this.mode === 'A' ? this.shotA(f) : this.mode === 'B' ? this.shotB(f) : this.shotC(f);
+    const shots = { A: this.shotA, B: this.shotB, C: this.shotC, D: this.shotD, E: this.shotE, R: this.shotR };
+    const [p, l] = shots[this.mode].call(this, f);
     if (!this.initialized) {
       this.pos.copy(p);
       this.look.copy(l);

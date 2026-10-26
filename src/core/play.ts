@@ -695,6 +695,15 @@ export class PlaySim {
         f.animTime = 0;
         if (air) {
           this.caughtFly = true;
+          // 捕球前に本塁へ着いた走者も帰塁義務がある。生還を取り消して帰塁させる。
+          for (const r of this.runners) {
+            if (r.state !== 'scored') continue;
+            this.runs = this.runs.filter((run) => run.playerId !== r.playerId);
+            r.state = 'active';
+            r.u = 3.99;
+            r.target = r.origin;
+            r.mustReturn = true;
+          }
           const batter = this.batterRunner;
           const kind = battedBallType(this.launch);
           if (diving) this.emit('catch', b.pos, 'ダイビングキャッチ！');
@@ -1165,7 +1174,7 @@ export class PlaySim {
     if (this.homeRun) {
       const runs = [...this.runs, ...this.runners.filter((r) => r.state === 'active').map((r) => ({ playerId: r.playerId, time: this.time }))];
       const text = runs.length === 4 ? '満塁ホームラン！' : runs.length === 1 ? 'ソロホームラン！' : `${['', '', 'ツーラン', 'スリーラン'][runs.length]}ホームラン！`;
-      return { outs: this.outs, runs, bases, hit: 4, text, foul: false };
+      return { outs: this.outs, runs, bases, hit: 4, text, foul: false, outOfParkHomeRun: true };
     }
     if (this.groundRule) {
       const runs = [...this.runs];
@@ -1197,7 +1206,7 @@ export class PlaySim {
       if (this.outs.length >= 2) text += this.outs.length >= 3 ? '（トリプルプレー）' : '（併殺）';
       // バントで打者だけがアウトになり、走者が進めば送りバント（犠打）。
       const advanced = this.runners.some((r) => !r.isBatter && (r.state === 'scored' || (r.state === 'active' && Math.round(r.u) > r.origin)));
-      if (this.bunt && this.outs.length === 1 && advanced) return { outs: this.outs, runs: this.runs, bases, hit, text: '送りバント', foul: false, sacrifice: true };
+      if (this.bunt && this.outsBefore < 2 && this.outs.length === 1 && advanced) return { outs: this.outs, runs: this.runs, bases, hit, text: '送りバント', foul: false, sacrifice: true };
     } else if (this.outs.length > 0) {
       text = this.bunt ? '送りバント' : `${fielder}ゴロ（フィルダースチョイス）`;
       if (this.bunt && this.outs.length > 0) text = `${fielder}へのバント（フィルダースチョイス）`;

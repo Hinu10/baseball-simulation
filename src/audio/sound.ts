@@ -1,5 +1,7 @@
-// Web Audio で短い効果音を生成する。音声素材の読み込みは不要。
-export type SoundKind = 'pitch' | 'bat' | 'bunt' | 'glove' | 'bounce' | 'throw' | 'fence' | 'miss' | 'call' | 'out' | 'safe' | 'score' | 'homerun';
+// Web Audio で短い効果音・歓声・応援を生成する。音声素材の読み込みは不要。
+import { Ouen } from './ouen.ts';
+
+export type SoundKind = 'pitch' | 'bat' | 'bunt' | 'glove' | 'bounce' | 'throw' | 'fence' | 'miss' | 'call' | 'out' | 'safe' | 'score' | 'homerun' | 'balloon';
 
 export class Sound {
   enabled = true;
@@ -11,6 +13,9 @@ export class Sound {
   private crowdLoop: AudioBuffer | null = null;
   private crowdOn = false;
   private lastCheer = -1;
+  /** ざわめき（歓声のベース。試合の盛り上がりで大きくなる）と、応援席の鳴り物。 */
+  private murmur: GainNode | null = null;
+  private ouen: Ouen | null = null;
 
   unlock() {
     if (!this.enabled) return;
@@ -61,6 +66,35 @@ export class Sound {
     const gain = this.crowdBus(ctx).gain;
     gain.cancelScheduledValues(ctx.currentTime);
     gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, on ? 0.05 : 0.15);
+  }
+
+  /** ざわめきの大きさ（level は試合の盛り上がり 0〜1）。毎フレーム呼んでよい。 */
+  setMurmur(level: number) {
+    const ctx = this.context;
+    if (!ctx || ctx.state !== 'running') return;
+    if (!this.murmur) {
+      const source = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      source.buffer = this.loopBuffer(ctx);
+      source.loop = true;
+      filter.type = 'bandpass';
+      filter.frequency.value = 700;
+      filter.Q.value = 0.4;
+      this.murmur = ctx.createGain();
+      this.murmur.gain.value = 0;
+      source.connect(filter).connect(this.murmur).connect(this.crowdBus(ctx));
+      source.start();
+    }
+    this.murmur.gain.setTargetAtTime(0.012 + 0.05 * Math.max(0, Math.min(1, level)), ctx.currentTime, 0.4);
+  }
+
+  /** 応援席の鳴り物。teamId（攻撃中の球団）が null なら止める。chance ならチャンステーマ。毎フレーム呼んでよい。 */
+  setOuen(teamId: string | null, chance: boolean) {
+    const ctx = this.context;
+    if (!ctx || ctx.state !== 'running') return;
+    this.ouen ??= new Ouen(ctx, ctx.destination);
+    this.ouen.set(this.enabled ? teamId : null, chance);
+    this.ouen.update();
   }
 
   /** 安打・得点・本塁打の歓声。strength は 0.5（安打）〜 1.2（本塁打）くらい。 */
@@ -179,6 +213,14 @@ export class Sound {
         this.tone(ctx, at, 390, 390, 0.18, 0.11, 'triangle');
         this.tone(ctx, at + 0.13, 520, 520, 0.18, 0.11, 'triangle');
         this.tone(ctx, at + 0.26, 780, 780, 0.38, 0.12, 'triangle');
+        break;
+      case 'balloon':
+        // ジェット風船：たくさんの「ピューッ」が少しずつずれて上がっていく。
+        for (let k = 0; k < 24; k++) {
+          const start = at + Math.random() * 0.6;
+          const base = 500 + Math.random() * 500;
+          this.tone(ctx, start, base, base * (2.2 + Math.random()), 1.1 + Math.random() * 0.6, 0.012, 'sine');
+        }
         break;
     }
   }

@@ -1,9 +1,11 @@
 // 各球団の本拠地の見た目。寸法は core/field.ts の Park のものを使い、色・屋根・飾りは球場 id ごとにここで決める。
 import * as THREE from 'three';
-import { BASES, DEFAULT_PARK, fenceDistance, INFIELD_DIRT_CENTER, INFIELD_DIRT_RADIUS, MOUND, type Park } from '../core/field.ts';
+import { BASES, DEFAULT_PARK, DUGOUT, fenceDistance, INFIELD_DIRT_CENTER, INFIELD_DIRT_RADIUS, MOUND, NEXT_CIRCLE, onDeckPos, type Park } from '../core/field.ts';
 import type { GameState } from '../core/gameState.ts';
 import { score } from '../core/gameState.ts';
 import { glowColor } from '../core/teams.ts';
+import nemuchartLogo from './ads/nemuchart.png';
+import yamanoteRunnerLogo from './ads/yamanote-runner.png';
 import { Crowd, type Seat } from './crowd.ts';
 import { basic, mat, mesh } from './materials.ts';
 import { canvasTexture, LEAVES, Props, Quads, tree } from './parts.ts';
@@ -47,14 +49,21 @@ interface P2 {
 
 const OUTFIELD_SEGMENTS = 60;
 /** 観客席の1段の奥行き（m）。 */
-const ROW_DEPTH = 0.95;
+const ROW_DEPTH = 0.85;
 /** 観客の間隔（m）。 */
-const SEAT_GAP = 0.62;
+const SEAT_GAP = 0.52;
 const WALL_LOW = 1.4;
 /** 最上段の後ろの壁が段より高い分（m）。 */
 const BACK_WALL = 1.6;
 /** 中堅のバックスクリーンの幅の半分（m）。打者がボールを見やすいよう、ここには客を入れない。 */
 const BACKSCREEN_HALF = 12;
+/** 観客席を縦に区切る階段の間隔と幅（m、最前列の長さで測る。どの段でも同じ割合の位置に来るので、上までまっすぐ通る）。 */
+const AISLE_GAP = 11;
+const AISLE_W = 1.1;
+/** 下段と上段の間の通路：何割の高さにあるか、上段がどれだけ高く始まるか（m。その面にリボン看板を張る）。 */
+const WALKWAY_AT = 0.45;
+const DECK_STEP = 1.5;
+const CONCRETE = '#a9a9a4';
 
 /**
  * グラウンドの外周（core 座標）。打球の判定（core/field.ts の inFoulStands とフェンス）と同じ線で、
@@ -160,6 +169,10 @@ interface Look {
   roof?: Roof;
   /** 観客の明るさ（省略は 1 = ふつう）。下げると客席が暗くなり、シルエットだけ見える。 */
   crowdLight?: number;
+  /** グラウンドを照らす明かりの強さ（省略は 1 = ふつう）と色。下げると選手やグラウンドも薄暗くなる。 */
+  fieldLight?: { intensity: number; color: string };
+  /** 屋外の球場で、外に駐車場を作るか（省略は作る。街なか・海辺・森の球場は作らない）。 */
+  parking?: boolean;
   /** 飾りを足す。毎フレームの動きがあれば関数を返す。 */
   decorate?: (s: Shell) => ((dt: number, time: number) => void) | void;
 }
@@ -192,8 +205,8 @@ const LOOKS: Record<string, Look> = {
     screen: '#1d3b2c',
     ground: '#7fae5a',
     track: DIRT,
-    rows: 16,
-    outfieldRows: 16,
+    rows: 41,
+    outfieldRows: 41,
     rise: 0.5,
     fill: 0.9,
     sky: '#8fd3ff',
@@ -213,8 +226,8 @@ const LOOKS: Record<string, Look> = {
     screen: '#4a2338',
     ground: '#d9cfd3',
     track: '#c99a7f',
-    rows: 16,
-    outfieldRows: 16,
+    rows: 41,
+    outfieldRows: 41,
     rise: 0.5,
     fill: 0.92,
     sky: '#2a1d2b',
@@ -231,8 +244,8 @@ const LOOKS: Record<string, Look> = {
     screen: '#141b2c',
     ground: '#7c838b',
     track: DIRT,
-    rows: 16,
-    outfieldRows: 16,
+    rows: 42,
+    outfieldRows: 42,
     rise: 0.5,
     fill: 0.9,
     sky: '#1b2028',
@@ -248,8 +261,8 @@ const LOOKS: Record<string, Look> = {
     screen: '#1f2420',
     ground: '#9a928a',
     track: '#b58a62',
-    rows: 18,
-    outfieldRows: 18,
+    rows: 44,
+    outfieldRows: 44,
     rise: 0.5,
     fill: 0.88,
     sky: '#2a2622',
@@ -265,12 +278,13 @@ const LOOKS: Record<string, Look> = {
     screen: '#2e6b22',
     ground: '#5d8f45',
     track: DIRT,
-    rows: 15,
-    outfieldRows: 13,
+    rows: 41,
+    outfieldRows: 36,
     rise: 0.5,
     fill: 0.88,
     sky: '#8fd3ff',
     // 山あいの森：重なる山並みと、外に広がる針葉樹の森。
+    parking: false,
     decorate: combine(greenery, mountainForest)
   },
   // ファクロムスタジアム：狭い敷地に急な段をぎっしり積んだ、客の多い球場。上段は銀色、照明塔つき。
@@ -283,12 +297,13 @@ const LOOKS: Record<string, Look> = {
     screen: '#0b1330',
     ground: '#5a5e64',
     track: DIRT,
-    rows: 24,
-    outfieldRows: 20,
+    rows: 48,
+    outfieldRows: 40,
     rise: 0.62,
     fill: 0.985,
     sky: '#8fd3ff',
     // 都会のど真ん中：高層ビルと看板、観客席の外をまわる高架の電車。
+    parking: false,
     decorate: combine(lightTowers, city)
   },
   // スマーリンズスタジアム：海辺の球場。外野席は低く、その先は砂浜と海。帆の形の屋根、灯台、ヨット。
@@ -301,87 +316,90 @@ const LOOKS: Record<string, Look> = {
     screen: '#1e5a7a',
     ground: '#e9d6a6',
     track: '#e3c992',
-    rows: 15,
-    outfieldRows: 5,
+    rows: 47,
+    outfieldRows: 15,
     rise: 0.5,
     fill: 0.9,
     sky: '#a7e3ff',
+    parking: false,
     decorate: combine(seaside, islands)
   },
-  // 寛ブドーム：とにかく広い。白い大屋根にチームカラーの橙の骨組みと光の帯、段も多い。
+  // 寛ブドーム：とにかく広い。白い大屋根にチームカラーのからし色の骨組みと光の帯、段も多い。
   kanbu: {
     wall: '#1a1a1a',
-    rim: '#f5a300',
-    pole: '#f5a300',
-    seat: (row, seg, outfield) => (outfield ? (row % 2 ? '#c27f00' : '#d38c00') : seg % 7 === 3 ? '#2a2a2a' : row % 2 ? '#8c939b' : '#99a0a8'),
+    rim: '#dca212',
+    pole: '#dca212',
+    seat: (row, seg, outfield) => (outfield ? (row % 2 ? '#b88a0c' : '#c99812') : seg % 7 === 3 ? '#2a2a2a' : row % 2 ? '#8c939b' : '#99a0a8'),
     back: '#b9bec4',
     screen: '#141414',
     ground: '#8d949c',
     track: DIRT,
-    rows: 20,
-    outfieldRows: 18,
+    rows: 53,
+    outfieldRows: 48,
     rise: 0.5,
     fill: 0.93,
     sky: '#24211c',
-    roof: { panel: '#f4f1ea', line: '#f0b33c', meridians: 48, parallels: 9, height: 58, glow: '#ffd27a', wall: '#e2ddd3', band: '#f5a300', ring: '#ffe3a6' }
+    roof: { panel: '#f4f1ea', line: '#f0b33c', meridians: 48, parallels: 9, height: 58, glow: '#ffd27a', wall: '#e2ddd3', band: '#dca212', ring: '#ffe3a6' }
   },
   // 万山ドームスタジアム：漆黒の屋根に小さな明かりがぽつぽつ。開閉式で、開いている日は夜空が見える。
   manyama: {
     wall: '#111111',
-    rim: '#b8962e',
-    pole: '#b8962e',
+    rim: '#a8862a',
+    pole: '#a8862a',
     seat: (row) => (row % 2 ? '#1e1e22' : '#26262b'),
     back: '#161618',
     screen: '#0a0a0a',
     ground: '#2c2c30',
     track: '#8a6a4a',
-    rows: 17,
-    outfieldRows: 16,
+    rows: 56,
+    outfieldRows: 52,
     rise: 0.52,
     fill: 0.9,
     sky: '#07080d',
-    roof: { panel: '#0d0d10', line: '#1d1d24', meridians: 28, parallels: 6, height: 46, glow: '#b8962e', wall: '#121215', band: '#3a2f12', stars: '#ffe9b0', retractable: true, beams: 8 },
+    roof: { panel: '#0d0d10', line: '#1d1d24', meridians: 28, parallels: 6, height: 46, glow: '#a8862a', wall: '#121215', band: '#3a2f12', stars: '#ffe9b0', retractable: true, beams: 8 },
     // 客席は人がいるのに、ほぼ真っ暗。ところどころの小さな明かりと、最上段の縁の常夜灯だけが灯る。
     crowdLight: 0.018,
+    // グラウンドも薄暗く、少し琥珀がかった明かりだけ。
+    fieldLight: { intensity: 0.22, color: '#ffd9a0' },
     decorate: darkStands
   },
   // オネタールスタジアム：一体感の球場。観客席の上をチームの旗がぐるりと囲む。
   onetar: {
-    wall: '#2e7d6b',
-    rim: '#f2e8cf',
-    pole: '#f2e8cf',
-    seat: (row, seg) => (Math.floor(seg / 3) % 2 ? (row % 2 ? '#3f8f7c' : '#4a9a86') : row % 2 ? '#d9cfb4' : '#e4dbc2'),
-    back: '#cfc6ad',
-    screen: '#1f4f44',
+    wall: '#0e4d5a',
+    rim: '#26b5c0',
+    pole: '#26b5c0',
+    seat: (row, seg) => (Math.floor(seg / 3) % 2 ? (row % 2 ? '#2aa9b3' : '#36b4be') : row % 2 ? '#dcebec' : '#e8f3f3'),
+    back: '#c6dfe1',
+    screen: '#0b3a44',
     ground: '#8e9878',
     track: DIRT,
-    rows: 16,
-    outfieldRows: 15,
+    rows: 41,
+    outfieldRows: 39,
     rise: 0.5,
     fill: 0.92,
     sky: '#8fd3ff',
     // 城下町：石垣の上の天守閣、五重塔、瓦屋根の町並み。
-    decorate: combine((s: Shell) => flags(s, ['#2e7d6b', '#f2e8cf']), castleTown)
+    decorate: combine((s: Shell) => flags(s, ['#26b5c0', '#ffffff']), castleTown)
   },
   // サックスターズスタジアム：照明塔と、バックスクリーンの大きな星。
   sackstars: {
-    wall: '#3a4fa8',
-    rim: '#f7c948',
-    pole: '#f7c948',
-    seat: (row) => (row % 2 ? '#4a5fb3' : '#5669bb'),
-    back: '#a9b3d6',
-    screen: '#1d2a66',
+    wall: '#2c2f38',
+    rim: '#e0b13a',
+    pole: '#f0eee6',
+    seat: (row) => (row % 2 ? '#d6d4cc' : '#e2e0d8'),
+    back: '#c9c7bf',
+    screen: '#1f222a',
     ground: '#c98d5a',
     track: DIRT,
-    rows: 16,
-    outfieldRows: 14,
+    rows: 43,
+    outfieldRows: 39,
     rise: 0.5,
     fill: 0.86,
     sky: '#8fd3ff',
     // 荒野：赤い台地とサボテン。
     decorate: combine(lightTowers, desert, (s: Shell) => {
       emblem(s, (g) => {
-        g.fillStyle = '#f7c948';
+        g.fillStyle = '#e0b13a';
         g.beginPath();
         for (let k = 0; k < 10; k++) {
           const r = k % 2 ? 95 : 230;
@@ -394,16 +412,16 @@ const LOOKS: Record<string, Look> = {
   },
   // メリースタジアム：にぎやかな色の席と、外野の向こうの観覧車。
   merry: {
-    wall: '#3b2a5a',
-    rim: '#d6457a',
-    pole: '#ffe1ec',
+    wall: '#4a2f1c',
+    rim: '#ae7a2c',
+    pole: '#f3e3c3',
     seat: (_row, seg) => ['#e76f9a', '#f2b544', '#6cc3d5', '#9b7fd1'][Math.floor(seg / 4) % 4],
-    back: '#f3dbe5',
-    screen: '#2a1d40',
+    back: '#efe2c9',
+    screen: '#24170e',
     ground: '#d9cdb5',
     track: DIRT,
-    rows: 15,
-    outfieldRows: 13,
+    rows: 43,
+    outfieldRows: 39,
     rise: 0.5,
     fill: 0.8,
     sky: '#9ad9ff',
@@ -412,20 +430,20 @@ const LOOKS: Record<string, Look> = {
   },
   // 金ノダンクドーム：くすんだ金色の屋根の、こぢんまりしたドーム。
   kanenodunk: {
-    wall: '#2d2d2d',
-    rim: '#c9a640',
-    pole: '#c9a640',
+    wall: '#1c1c1c',
+    rim: '#d0b35c',
+    pole: '#d0b35c',
     seat: (row) => (row % 2 ? '#7a6a45' : '#857550'),
     back: '#a39272',
     screen: '#1d1b16',
     ground: '#7c7668',
     track: DIRT,
-    rows: 14,
-    outfieldRows: 13,
+    rows: 43,
+    outfieldRows: 40,
     rise: 0.5,
     fill: 0.78,
     sky: '#221e14',
-    roof: { panel: '#d8c9a0', line: '#9c8550', meridians: 20, parallels: 5, height: 42, glow: '#ffe2a0', wall: '#bfae86', band: '#8a6d1f' }
+    roof: { panel: '#d8c9a0', line: '#9c8550', meridians: 20, parallels: 5, height: 42, glow: '#ffe2a0', wall: '#bfae86', band: '#a8862a' }
   }
 };
 
@@ -438,7 +456,9 @@ export interface Stadium {
   crowd: Crowd;
   /** 背景（空、ドームなら屋根の暗がり）の色。 */
   sky: string;
-  /** スコアボードを立てる位置（core の z）と、その前の観客席の高さ。 */
+  /** グラウンドを照らす明かり（省略はふつうの明るさ）。 */
+  fieldLight?: { intensity: number; color: string };
+  /** スコアボードを立てる位置（core の z）と、本塁から見てその前の観客席（バックスクリーン）に隠れる高さ。 */
   scoreboard: { z: number; standTop: number };
   update(dt: number): void;
   dispose(): void;
@@ -454,7 +474,10 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
   const rowsOf = (i: number) => (segOutfield(i) ? look.outfieldRows : look.rows);
   const maxRows = Math.max(look.rows, look.outfieldRows);
   const wallH = (i: number) => (high[i] ? park.fence.height : WALL_LOW);
-  const rowTop = (i: number, row: number) => wallH(i) + 0.4 + row * look.rise;
+  // 段の少ない球場（外野席の低い海辺など）以外は、途中に通路をはさんで上段を高く始める。
+  const minRows = Math.min(look.rows, look.outfieldRows);
+  const walkway = minRows >= 10 ? Math.round(minRows * WALKWAY_AT) : -1;
+  const rowTop = (i: number, row: number) => wallH(i) + 0.4 + row * look.rise + (walkway >= 0 && row > walkway ? DECK_STEP : 0);
   const loops: P2[][] = [];
   for (let r = 0; r <= maxRows; r++) loops.push(offsetLoop(pts, 0.4 + r * ROW_DEPTH));
   // ドームは屋根の付け根の床に合わせて、後ろの壁の高さをそろえる。
@@ -529,6 +552,16 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
     ];
     for (const [a, b] of box) group.add(lineStrip(a, b, 0.06));
   }
+  // ネクストバッターズサークル：濃い色の円に白い縁。
+  for (const side of [-1, 1] as const) {
+    const c = onDeckPos(side);
+    const disk = mesh(new THREE.CircleGeometry(NEXT_CIRCLE.radius, 32), decal('#3b4a3c', 3), c.x, 0.03, c.z);
+    const ring = mesh(new THREE.RingGeometry(NEXT_CIRCLE.radius - 0.06, NEXT_CIRCLE.radius, 32), decal(LINE, 4), c.x, 0.035, c.z);
+    for (const m of [disk, ring]) {
+      m.rotation.x = -Math.PI / 2;
+      group.add(m);
+    }
+  }
 
   // 外周の壁：外野は高いフェンス（上端に色の帯）、ファウル地域は低い壁。
   const outerWall = loops[0];
@@ -544,6 +577,9 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
     group.add(mesh(new THREE.CylinderGeometry(0.18, 0.18, 22, 8), mat(look.pole), side * d, 11, d));
   }
 
+  fenceAds(group, arc, offsetLoop(pts, -0.06).slice(0, OUTFIELD_SEGMENTS + 1), park.fence.height);
+  for (const side of [-1, 1] as const) dugout(group, park, look, side);
+
   // 観客席：壁の外側に、外へ向かって上がる段を一周つなげる（外野と内野で段数が違ってもよい）。段ごとに観客を座らせる。
   const seats: Seat[] = [];
   const steps = new Quads();
@@ -552,6 +588,16 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
   const outfieldFill = look.fill - 0.02;
   const mids: P2[][] = [];
   for (let row = 0; row < maxRows; row++) mids.push(offsetLoop(pts, 0.4 + (row + 0.6) * ROW_DEPTH));
+  // 階段の位置は、最前列に沿った長さで決める（区間 i の始まりまでの長さ）。
+  const along0: number[] = [0];
+  for (let i = 0; i < n; i++) along0.push(along0[i] + Math.hypot(mids[0][(i + 1) % n].x - mids[0][i].x, mids[0][(i + 1) % n].z - mids[0][i].z));
+  const inAisle = (d: number) => (d + AISLE_W / 2) % AISLE_GAP < AISLE_W;
+  const concrete = new THREE.Color(CONCRETE);
+  // リボン看板（上段の前の面）。黒い板に、区間ごとに色の変わる光る帯。
+  const boards = new Quads();
+  const boardColors = [look.rim, '#ffffff', look.pole, '#ffd54f'].map((c) => new THREE.Color(c));
+  const black = new THREE.Color('#15171c');
+  const at = (line: P2[], i: number, j: number, f: number, y: number) => ({ x: line[i].x + (line[j].x - line[i].x) * f, y, z: line[i].z + (line[j].z - line[i].z) * f });
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     const rows = rowsOf(i);
@@ -560,11 +606,33 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
       const inner = loops[row];
       const outer = loops[row + 1];
       const lo = (k: number) => (row === 0 ? wallH(k) : rowTop(k, row - 1));
-      const c = color.set(look.seat(row, i, outfield));
+      const c = row === walkway ? concrete : color.set(look.seat(row, i, outfield));
       // 蹴上げ（前の段から立ち上がる面）と踏み面。
       steps.quad({ x: inner[i].x, y: lo(i), z: inner[i].z }, { x: inner[j].x, y: lo(j), z: inner[j].z }, { x: inner[j].x, y: rowTop(j, row), z: inner[j].z }, { x: inner[i].x, y: rowTop(i, row), z: inner[i].z }, c);
       steps.quad({ x: inner[i].x, y: rowTop(i, row), z: inner[i].z }, { x: inner[j].x, y: rowTop(j, row), z: inner[j].z }, { x: outer[j].x, y: rowTop(j, row), z: outer[j].z }, { x: outer[i].x, y: rowTop(i, row), z: outer[i].z }, c);
-      // 席：段の奥寄りに等間隔で。外野席は少し空きを多く。
+      // 上段の前の面のリボン看板。
+      if (row === walkway + 1) {
+        const y0 = (k: number) => rowTop(k, walkway) + 0.25;
+        const y1 = (k: number) => rowTop(k, row) - 0.15;
+        const ym = (k: number) => (y0(k) + y1(k)) / 2;
+        const front = offsetLoop(pts, 0.4 + row * ROW_DEPTH - 0.03);
+        boards.quad({ x: front[i].x, y: y0(i), z: front[i].z }, { x: front[j].x, y: y0(j), z: front[j].z }, { x: front[j].x, y: y1(j), z: front[j].z }, { x: front[i].x, y: y1(i), z: front[i].z }, black);
+        const led = boardColors[Math.floor(i / 4) % boardColors.length];
+        const f = offsetLoop(pts, 0.4 + row * ROW_DEPTH - 0.06);
+        boards.quad({ x: f[i].x, y: ym(i) - 0.22, z: f[i].z }, { x: f[j].x, y: ym(j) - 0.22, z: f[j].z }, { x: f[j].x, y: ym(j) + 0.22, z: f[j].z }, { x: f[i].x, y: ym(i) + 0.22, z: f[i].z }, led);
+      }
+      // 階段：最前列の長さで決めた位置に、上の段まで踏み面をコンクリートの色で通す。
+      const seg0 = along0[i + 1] - along0[i];
+      for (let d = Math.ceil((along0[i] - AISLE_W / 2) / AISLE_GAP) * AISLE_GAP; d - AISLE_W / 2 < along0[i + 1]; d += AISLE_GAP) {
+        const f0 = Math.max(0, (d - AISLE_W / 2 - along0[i]) / seg0);
+        const f1 = Math.min(1, (d + AISLE_W / 2 - along0[i]) / seg0);
+        if (f1 <= f0 || row === walkway) continue;
+        const y = (f: number) => rowTop(i, row) + (rowTop(j, row) - rowTop(i, row)) * f + 0.012;
+        steps.quad(at(inner, i, j, f0, y(f0)), at(inner, i, j, f1, y(f1)), at(outer, i, j, f1, y(f1)), at(outer, i, j, f0, y(f0)), concrete);
+      }
+      // 通路の段には席を置かない。
+      if (row === walkway) continue;
+      // 席：段の奥寄りに等間隔で。外野席は少し空きを多く。階段の上は空ける。
       const a = mids[row][i];
       const b = mids[row][j];
       const len = Math.hypot(b.x - a.x, b.z - a.z);
@@ -576,6 +644,7 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
         const s = t / len;
         const x = a.x + (b.x - a.x) * s;
         if (outfield && Math.abs(x) < BACKSCREEN_HALF + 1) continue;
+        if (inAisle(along0[i] + s * seg0)) continue;
         seats.push({ x, z: a.z + (b.z - a.z) * s, y: rowTop(i, row) + (rowTop(j, row) - rowTop(i, row)) * s, yaw, outfield });
       }
     }
@@ -593,6 +662,7 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
   }
   group.add(new THREE.Mesh(steps.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })));
   group.add(new THREE.Mesh(back.geometry(), new THREE.MeshLambertMaterial({ color: look.back, side: THREE.DoubleSide })));
+  if (boards.pos.length) group.add(new THREE.Mesh(boards.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 })));
   const crowd = new Crowd(seats);
   if (look.crowdLight !== undefined) crowd.dim(look.crowdLight);
   group.add(crowd.group);
@@ -629,15 +699,19 @@ export function buildStadium(park: Park = DEFAULT_PARK): Stadium {
   for (const { p } of rimPts) radius = Math.max(radius, Math.hypot(p.x - center.x, p.z - center.z));
   radius += 5;
   const shell: Shell = { group, park, look, rim: rimPts, seats, center, radius, scoreboardZ };
-  const standTop = backTop(mid, look.outfieldRows);
+  // 本塁の後ろ（打者を映すカメラのあたり）から、バックスクリーンの上端ごしにスコアボードの位置を見たときの高さ。
+  const eye = { y: 3, z: -8 };
+  const screenFront = park.fence.center + 0.4;
+  const standTop = eye.y + ((screenTop - eye.y) * (scoreboardZ - eye.z)) / (screenFront - eye.z);
   if (look.roof) buildRoof(shell, look.roof, domeFloor);
-  const animate = look.decorate?.(shell);
+  const animate = combine(look.decorate ?? (() => {}), look.roof ? () => {} : outside)(shell);
   let time = 0;
   return {
     park,
     group,
     crowd,
     sky: look.sky,
+    fieldLight: look.fieldLight,
     scoreboard: { z: scoreboardZ, standTop },
     update(dt: number) {
       time += dt;
@@ -788,6 +862,306 @@ function buildRoof(s: Shell, roof: Roof, floorY: number) {
   }
 }
 
+/** 外野フェンスの広告（架空の会社と、作者のアプリ）。3区間ずつ1枚、バックスクリーンの前は空ける。logo はアプリのアイコン（左端に置く）。 */
+const ADS: { text: string; bg: string; fg: string; logo?: string }[] = [
+  { text: 'そらいろ銀行', bg: '#1565c0', fg: '#ffffff' },
+  { text: 'ハヤブサ急便', bg: '#ffffff', fg: '#2e7d32' },
+  { text: 'まんぷく食堂', bg: '#c62828', fg: '#fff3c4' },
+  { text: 'スターライト電機', bg: '#212121', fg: '#ffd54f' },
+  { text: 'NemuChart', bg: '#283593', fg: '#e8eaf6', logo: nemuchartLogo },
+  { text: '山手線ランナー', bg: '#9acd32', fg: '#1b3a1b', logo: yamanoteRunnerLogo },
+  { text: 'ひだまり保険', bg: '#ffb300', fg: '#3e2723' },
+  { text: 'みなと鉄道', bg: '#00897b', fg: '#ffffff' },
+  { text: 'くもり堂', bg: '#f5f5f5', fg: '#6a1b9a' }
+];
+/** 広告を縦に並べた1枚の絵（1枚の高さ H）。 */
+function adTexture(H: number): THREE.CanvasTexture {
+  const atlas = canvasTexture(512, H * ADS.length, (g) => {
+    ADS.forEach((ad, k) => {
+      g.fillStyle = ad.bg;
+      g.fillRect(0, k * H, 512, H);
+      g.fillStyle = ad.fg;
+      g.font = '900 78px "Hiragino Sans", "Noto Sans JP", sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      // アイコンのある広告は、文字を右に寄せる。
+      if (ad.logo) g.fillText(ad.text, (LOGO.x + LOGO.size + 512) / 2, k * H + H / 2 + 4, 512 - LOGO.size - LOGO.x * 3);
+      else g.fillText(ad.text, 256, k * H + H / 2 + 4, 470);
+    });
+  });
+  // アイコンは読み込めたら、角を丸めて左端に描き足す。
+  ADS.forEach((ad, k) => {
+    if (!ad.logo) return;
+    const img = new Image();
+    img.onload = () => {
+      const g = (atlas.image as HTMLCanvasElement).getContext('2d')!;
+      const y = k * H + (H - LOGO.size) / 2;
+      g.save();
+      g.beginPath();
+      g.roundRect(LOGO.x, y, LOGO.size, LOGO.size, LOGO.size * 0.22);
+      g.clip();
+      g.drawImage(img, LOGO.x, y, LOGO.size, LOGO.size);
+      g.restore();
+      atlas.needsUpdate = true;
+    };
+    img.src = ad.logo;
+  });
+  return atlas;
+}
+
+let adAtlas: THREE.CanvasTexture | null = null;
+const LOGO = { x: 16, size: 128 };
+function fenceAds(group: THREE.Group, arc: P2[], front: P2[], height: number) {
+  const H = 160;
+  adAtlas ??= adTexture(H);
+  const pos: number[] = [];
+  const uv: number[] = [];
+  const y0 = 0.35;
+  const y1 = height - 0.35;
+  let k = 0;
+  for (let i = 0; i + 3 <= OUTFIELD_SEGMENTS; i += 3) {
+    if (Math.abs(arc[i].x) < BACKSCREEN_HALF + 2 || Math.abs(arc[i + 3].x) < BACKSCREEN_HALF + 2) continue;
+    const ad = k++ % ADS.length;
+    const v0 = 1 - (ad + 1) / ADS.length;
+    const v1 = 1 - ad / ADS.length;
+    for (let t = 0; t < 3; t++) {
+      const a = front[i + t];
+      const b = front[i + t + 1];
+      // 外野の弧は左翼から右翼へ並ぶ。球場は左右反転して描くので、この向きに貼るとグラウンドから読める。
+      const u0 = t / 3;
+      const u1 = (t + 1) / 3;
+      pos.push(a.x, y0, a.z, b.x, y0, b.z, b.x, y1, b.z, a.x, y0, a.z, b.x, y1, b.z, a.x, y1, a.z);
+      uv.push(u0, v0, u1, v0, u1, v1, u0, v0, u1, v1, u0, v1);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.computeVertexNormals();
+  group.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: adAtlas, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })));
+}
+
+/** ベンチ（ダッグアウト）：ファウル地域の壁に背をつけた、屋根つきの低い小屋。side は 1 = 一塁側、-1 = 三塁側。 */
+function dugout(group: THREE.Group, park: Park, look: Look, side: 1 | -1) {
+  const s = Math.SQRT1_2;
+  const out = park.foul.side - DUGOUT.depth / 2;
+  const cx = side * (DUGOUT.along + out) * s;
+  const cz = (DUGOUT.along - out) * s;
+  // 小屋の向き：x がファウルラインに沿う向き、z がグラウンド側。
+  const ry = side === 1 ? -Math.PI / 4 : (-3 * Math.PI) / 4;
+  const props = new Props();
+  const L = DUGOUT.length;
+  const D = DUGOUT.depth;
+  const put = (geo: THREE.BufferGeometry, color: string, x: number, y: number, z: number) =>
+    props.add(geo, color, cx + x * Math.cos(ry) + z * Math.sin(ry), y, cz - x * Math.sin(ry) + z * Math.cos(ry), { ry });
+  put(new THREE.BoxGeometry(L + 0.4, 0.18, D + 0.4), look.wall, 0, 1.8, 0.1);
+  put(new THREE.BoxGeometry(L + 0.4, 0.26, 0.12), look.rim, 0, 1.68, D / 2 + 0.3);
+  put(new THREE.BoxGeometry(L, 1.8, 0.12), '#4a505a', 0, 0.9, -D / 2 + 0.06);
+  for (const e of [-1, 1]) put(new THREE.BoxGeometry(0.22, 1.8, D), look.wall, (e * L) / 2, 0.9, 0);
+  put(new THREE.BoxGeometry(L, 0.04, D), '#3b3226', 0, 0.02, 0);
+  put(new THREE.BoxGeometry(L - 1.2, 0.45, 0.55), '#6d4c41', 0, 0.23, -D / 2 + 0.5);
+  put(new THREE.BoxGeometry(L, 0.07, 0.07), '#d6d6d6', 0, 1.0, D / 2);
+  for (let x = -L / 2 + 0.6; x <= L / 2 - 0.6; x += 2.2) put(new THREE.BoxGeometry(0.07, 1.0, 0.07), '#d6d6d6', x, 0.5, D / 2);
+  // 壁に掛けたヘルメットとバット立て。
+  for (let x = -L / 2 + 1.2; x < L / 2 - 1; x += 0.55) put(new THREE.SphereGeometry(0.15, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), '#1d2433', x, 1.3, -D / 2 + 0.2);
+  for (let x = L / 2 - 2.6; x < L / 2 - 1; x += 0.12) put(new THREE.CylinderGeometry(0.025, 0.035, 0.85, 5), '#d9a35f', x, 0.45, -D / 2 + 0.25);
+  group.add(props.mesh());
+}
+
+/**
+ * 屋外の球場の外まわり：外壁の柱と窓、まわりの広場（舗装・街灯・行き交う人・屋台）、入場ゲート、駐車場。
+ * 広場は観客席の後ろの壁に沿って、PLAZA m の幅でぐるりと囲む。
+ */
+const PLAZA = 13;
+function outside(s: Shell) {
+  const outline = s.rim.map((r) => r.p);
+  const n = outline.length;
+  const props = new Props();
+  const glow = new Props();
+  const backColor = '#' + new THREE.Color(s.look.back).multiplyScalar(0.82).getHexString();
+
+  // 外壁：各階の窓の帯（約5 m ごと）と、一定の間隔の柱。
+  const face = offsetLoop(outline, 0.12);
+  const glass = new Quads();
+  const dark = new THREE.Color('#2b3846');
+  const FLOOR = 5;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const top = Math.min(s.rim[i].top, s.rim[j].top);
+    for (let y0 = 3; y0 + 1.3 < top - 1.5; y0 += FLOOR) {
+      const y1 = y0 + 1.3;
+      glass.quad({ x: face[i].x, y: y0, z: face[i].z }, { x: face[j].x, y: y0, z: face[j].z }, { x: face[j].x, y: y1, z: face[j].z }, { x: face[i].x, y: y1, z: face[i].z }, dark);
+    }
+  }
+  s.group.add(new THREE.Mesh(glass.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 })));
+  const pillarLine = offsetLoop(outline, 0.45);
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const a = pillarLine[i];
+    const b = pillarLine[j];
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    const yaw = Math.atan2(b.x - a.x, b.z - a.z);
+    for (let t = 0; t < len; t += 7.5) {
+      const f = t / len;
+      const top = s.rim[i].top + (s.rim[j].top - s.rim[i].top) * f;
+      props.add(new THREE.BoxGeometry(0.9, top, 0.9), backColor, a.x + (b.x - a.x) * f, top / 2, a.z + (b.z - a.z) * f, { ry: yaw });
+    }
+  }
+
+  // 広場の舗装。
+  const paving = new Quads();
+  const plazaIn = offsetLoop(outline, 0.2);
+  const plazaOut = offsetLoop(outline, PLAZA);
+  paving.ribbon(plazaIn, plazaOut, () => 0.03, () => 0.03);
+  s.group.add(new THREE.Mesh(paving.geometry(), decal('#cdc5b4', 1)));
+
+  // 広場の道（人が歩く筋）を、長さで測れる折れ線にしておく。
+  const lane = (d: number) => {
+    const line = offsetLoop(outline, d);
+    line.push(line[0]);
+    const acc = [0];
+    for (let i = 1; i < line.length; i++) acc.push(acc[i - 1] + Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z));
+    return { line, acc, length: acc[acc.length - 1] };
+  };
+  const pointOn = (l: ReturnType<typeof lane>, d: number) => {
+    const t = ((d % l.length) + l.length) % l.length;
+    let lo = 0;
+    let hi = l.acc.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (l.acc[mid] <= t) lo = mid;
+      else hi = mid;
+    }
+    const f = (t - l.acc[lo]) / (l.acc[hi] - l.acc[lo] || 1);
+    const a = l.line[lo];
+    const b = l.line[hi];
+    return { x: a.x + (b.x - a.x) * f, z: a.z + (b.z - a.z) * f, yaw: Math.atan2(b.x - a.x, b.z - a.z) };
+  };
+
+  // 街灯：広場の外寄りに等間隔で。
+  const lamps = lane(PLAZA - 1.5);
+  for (let d = 0; d < lamps.length; d += 16) {
+    const p = pointOn(lamps, d);
+    props.add(new THREE.CylinderGeometry(0.1, 0.14, 6, 6), '#4a4f57', p.x, 3, p.z);
+    props.add(new THREE.BoxGeometry(0.9, 0.18, 0.4), '#4a4f57', p.x, 6.05, p.z, { ry: p.yaw });
+    glow.add(new THREE.BoxGeometry(0.7, 0.08, 0.3), '#fff4cf', p.x, 5.93, p.z, { ry: p.yaw });
+  }
+
+  // 入場ゲート：本塁の後ろと、一塁側・三塁側の角。ゲートの両脇に屋台を並べる。
+  const gates = [n - 3, n - 4, n - 1].map((i) => {
+    const a = outline[i];
+    const b = outline[(i + 1) % n];
+    const f = i === n - 3 ? 0.5 : 0;
+    const p = { x: a.x + (b.x - a.x) * f, z: a.z + (b.z - a.z) * f };
+    const l = Math.hypot(p.x - s.center.x, p.z - s.center.z) || 1;
+    return { p, out: { x: (p.x - s.center.x) / l, z: (p.z - s.center.z) / l } };
+  });
+  const awnings = ['#e53935', '#fdd835', '#1e88e5', '#43a047', '#fb8c00', '#8e24aa'];
+  gates.forEach(({ p, out }, g) => {
+    const yaw = Math.atan2(out.x, out.z);
+    const side = { x: out.z, z: -out.x };
+    const at = (along: number, across: number) => ({ x: p.x + out.x * along + side.x * across, z: p.z + out.z * along + side.z * across });
+    for (const e of [-1, 1]) {
+      const q = at(1.5, e * 4.5);
+      props.add(new THREE.BoxGeometry(1.1, 7, 1.1), s.look.rim, q.x, 3.5, q.z, { ry: yaw });
+    }
+    const top = at(1.5, 0);
+    props.add(new THREE.BoxGeometry(10.2, 1.4, 1.2), s.look.wall, top.x, 7.3, top.z, { ry: yaw });
+    glow.add(new THREE.BoxGeometry(8.4, 0.5, 1.25), s.look.rim, top.x, 7.3, top.z, { ry: yaw });
+    // 屋台：ゲートの両脇に3軒ずつ、色とりどりのひさし。
+    for (const e of [-1, 1]) {
+      for (let k = 0; k < 3; k++) {
+        const q = at(6.5, e * (9 + k * 3.6));
+        const c = awnings[(g * 6 + k * 2 + (e > 0 ? 1 : 0)) % awnings.length];
+        props.add(new THREE.BoxGeometry(2.8, 2.1, 1.8), '#f2efe9', q.x, 1.05, q.z, { ry: yaw });
+        props.add(new THREE.BoxGeometry(3.1, 0.12, 1.2), c, q.x - out.x * 1.2, 2.25, q.z - out.z * 1.2, { ry: yaw, rx: -0.35 });
+        props.add(new THREE.BoxGeometry(2.4, 0.5, 0.06), c, q.x - out.x * 0.93, 2.6, q.z - out.z * 0.93, { ry: yaw });
+      }
+    }
+  });
+
+  // 駐車場：一塁側・三塁側の角の外。白線と、とめてある車。
+  if (s.look.parking !== false) {
+    const lot = new Quads();
+    const lines = new Quads();
+    const asphalt = new THREE.Color('#4b4e54');
+    const white = new THREE.Color('#e8e8e8');
+    const carColors = ['#f5f5f5', '#212121', '#9e9e9e', '#c62828', '#1565c0', '#eeeeee', '#455a64', '#8d6e63', '#2e7d32', '#fbc02d'];
+    for (const i of [n - 4, n - 1]) {
+      const p = outline[i];
+      const l = Math.hypot(p.x - s.center.x, p.z - s.center.z) || 1;
+      const out = { x: (p.x - s.center.x) / l, z: (p.z - s.center.z) / l };
+      const side = { x: out.z, z: -out.x };
+      const yaw = Math.atan2(out.x, out.z);
+      const at = (along: number, across: number, y = 0.02) => ({ x: p.x + out.x * along + side.x * across, y, z: p.z + out.z * along + side.z * across });
+      const [a0, a1, w] = [PLAZA + 4, PLAZA + 30, 20];
+      lot.quad(at(a0, -w), at(a0, w), at(a1, w), at(a1, -w), asphalt);
+      // 2列の駐車枠（列ごとに向かい合わせ）。
+      for (const row of [a0 + 6, a0 + 19]) {
+        for (let k = -w + 1.5; k <= w - 1.5; k += 2.8) {
+          lines.quad(at(row - 2.6, k - 0.06, 0.04), at(row - 2.6, k + 0.06, 0.04), at(row + 2.6, k + 0.06, 0.04), at(row + 2.6, k - 0.06, 0.04), white);
+          if (k + 2.8 > w - 1.5 || Math.random() < 0.25) continue;
+          const c = at(row, k + 1.4);
+          const color = carColors[Math.floor(Math.random() * carColors.length)];
+          props.add(new THREE.BoxGeometry(1.75, 0.75, 4.2), color, c.x, 0.55, c.z, { ry: yaw });
+          props.add(new THREE.BoxGeometry(1.55, 0.6, 2.2), '#37474f', c.x, 1.2, c.z, { ry: yaw });
+        }
+      }
+    }
+    s.group.add(new THREE.Mesh(lot.geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1 })));
+    s.group.add(new THREE.Mesh(lines.geometry(), new THREE.MeshBasicMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2 })));
+  }
+  s.group.add(props.mesh());
+  s.group.add(glow.mesh(new THREE.MeshBasicMaterial({ vertexColors: true })));
+
+  // 行き交う人：広場の3本の筋を、思い思いの速さで右回り・左回りに歩く。ゲートの前には立ち止まっている人も。
+  const lanes = [3.5, 6.5, 9.5].map(lane);
+  const WALKERS = 240;
+  const STANDING = 90;
+  const total = WALKERS + STANDING;
+  const bodyMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.2, 0.24, 1.15, 6).translate(0, 0.62, 0), new THREE.MeshLambertMaterial(), total);
+  const headMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.14, 1).translate(0, 1.36, 0), new THREE.MeshLambertMaterial(), total);
+  const shirts = ['#e53935', '#1e88e5', '#fdd835', '#ffffff', '#212121', '#43a047', '#ff7043', '#8e24aa', '#90a4ae', '#f48fb1', s.look.rim];
+  const skins = ['#f1c9a5', '#e8b996', '#d9a47c', '#f6d7bd'];
+  const color = new THREE.Color();
+  const walkers = Array.from({ length: WALKERS }, (_, k) => ({ lane: lanes[k % 3], d: Math.random() * lanes[k % 3].length, v: (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 0.6), k: 0.9 + Math.random() * 0.2 }));
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const up = new THREE.Vector3(0, 1, 0);
+  const v = new THREE.Vector3();
+  const sc = new THREE.Vector3();
+  for (let k = 0; k < total; k++) {
+    bodyMesh.setColorAt(k, color.set(shirts[Math.floor(Math.random() * shirts.length)]));
+    headMesh.setColorAt(k, color.set(skins[Math.floor(Math.random() * skins.length)]));
+    if (k < WALKERS) continue;
+    // 立ち止まっている人：ゲートと屋台のまわりに集まる。
+    const { p, out } = gates[k % gates.length];
+    const r = 3 + Math.random() * 8;
+    const a = Math.random() * Math.PI * 2;
+    const x = p.x + out.x * 4 + Math.cos(a) * r;
+    const z = p.z + out.z * 4 + Math.sin(a) * r;
+    const size = 1.15 + Math.random() * 0.2;
+    m.compose(v.set(x, 0, z), q.setFromAxisAngle(up, Math.random() * Math.PI * 2), sc.set(size, size, size));
+    bodyMesh.setMatrixAt(k, m);
+    headMesh.setMatrixAt(k, m);
+  }
+  for (const mesh of [bodyMesh, headMesh]) {
+    mesh.frustumCulled = false;
+    s.group.add(mesh);
+  }
+  return (_dt: number, time: number) => {
+    walkers.forEach((w, k) => {
+      const p = pointOn(w.lane, w.d + w.v * time);
+      const bob = Math.abs(Math.sin(time * 7 * Math.abs(w.v) + k)) * 0.05;
+      m.compose(v.set(p.x, bob, p.z), q.setFromAxisAngle(up, p.yaw + (w.v < 0 ? Math.PI : 0)), sc.set(1.25 * w.k, 1.25 * w.k, 1.25 * w.k));
+      bodyMesh.setMatrixAt(k, m);
+      headMesh.setMatrixAt(k, m);
+    });
+    bodyMesh.instanceMatrix.needsUpdate = true;
+    headMesh.instanceMatrix.needsUpdate = true;
+  };
+}
+
 /** マイカイ：外の木立ち、バックスクリーンの上の植え込み、ところどころの観客席の花壇。 */
 function greenery(s: Shell) {
   const props = new Props();
@@ -798,7 +1172,8 @@ function greenery(s: Shell) {
     const ux = (p.x - s.center.x) / l;
     const uz = (p.z - s.center.z) / l;
     for (let k = 0; k < 2; k++) {
-      const d = 5 + k * 7 + Math.random() * 4;
+      // 外まわりの広場（outside）の先に植える。
+      const d = 15 + k * 7 + Math.random() * 4;
       const h = 12 + Math.random() * 9;
       tree(props, p.x + ux * d + (Math.random() - 0.5) * 3, p.z + uz * d, h, Math.random() < 0.3 ? 'cone' : 'round', LEAVES[(i + k) % LEAVES.length]);
     }

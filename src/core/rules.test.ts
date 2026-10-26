@@ -29,7 +29,7 @@ const hit = (s: GameState, n: 1 | 2 | 3 | 4) => {
   }
   if (n === 4) runs.push({ playerId: currentBatter(s).id, time: 1 });
   else bases[n] = currentBatter(s).id;
-  applyPlay(s, { outs: [], runs, bases, hit: n, text: 'hit' });
+  applyPlay(s, { outs: [], runs, bases, hit: n, text: 'hit', outOfParkHomeRun: n === 4 });
 };
 
 test('3ストライクで三振になり、アウトが1つ増える', () => {
@@ -188,6 +188,22 @@ test('第3アウトがタッチアウトなら、それより前の生還は得�
   assert.equal(s.half, 'bottom');
 });
 
+test('第3アウトが飛球の捕球なら、捕球前に本塁を通過しても得点にならない', () => {
+  const s = newGame();
+  strikeout(s);
+  strikeout(s);
+  hit(s, 3);
+  const runner = s.bases[3]!;
+  const batter = currentBatter(s).id;
+  applyPlay(s, {
+    outs: [{ playerId: batter, kind: 'fly', time: 4 }],
+    runs: [{ playerId: runner, time: 3 }],
+    bases: [null, null, null, null], hit: 0, text: 'フライ'
+  });
+  assert.equal(score(s, 0), 0);
+  assert.equal(s.half, 'bottom');
+});
+
 const playTo = (s: GameState, inning: number, half: 'top' | 'bottom') => {
   while (!s.over && (s.inning < inning || (s.inning === inning && s.half !== half))) threeOuts(s);
 };
@@ -281,6 +297,31 @@ test('3回裏の押し出し四球でもサヨナラ', () => {
   walk(s);
   assert.equal(s.over, true);
   assert.equal(s.endReason, 'walkoff');
+});
+
+test('サヨナラの通常打球は決勝点だけ、本塁打は全員の得点を記録する', () => {
+  const single = newGame();
+  playTo(single, 3, 'bottom');
+  walk(single);
+  walk(single);
+  const [first, second] = [single.bases[1]!, single.bases[2]!];
+  applyPlay(single, {
+    outs: [],
+    runs: [{ playerId: second, time: 3 }, { playerId: first, time: 4 }],
+    bases: [null, currentBatter(single).id, null, null],
+    hit: 1,
+    text: 'ヒット'
+  });
+  assert.equal(score(single, 1), 1);
+  assert.equal(single.log.at(-1)?.runs, 1);
+  assert.equal(single.batting[single.log.at(-1)!.batterId].rbi, 1);
+
+  const homer = newGame();
+  playTo(homer, 3, 'bottom');
+  walk(homer);
+  walk(homer);
+  hit(homer, 4);
+  assert.equal(score(homer, 1), 3);
 });
 
 test('同点で迎えた2回裏の勝ち越しはサヨナラにならない', () => {
@@ -434,4 +475,39 @@ test('代走は元の走者の責任を引き継ぎ、攻守交代で責任は�
   assert.equal(s.pitching[starter].r, 1);
   threeOuts(s);
   assert.deepEqual(s.responsible, {});
+});
+
+test('死球はカウントに関係なく打者が一塁へ。満塁なら押し出しで1点、四球と別に記録する', () => {
+  const s = newGame();
+  const pitcher = s.teams[1].pitcher.id;
+  pitchCall(s, 'called-strike');
+  pitchCall(s, 'called-strike');
+  const first = currentBatter(s);
+  assert.equal(pitchCall(s, 'hit-by-pitch'), 'hit-by-pitch');
+  assert.equal(s.bases[1], first.id);
+  assert.equal(s.strikes, 0);
+  assert.equal(s.batting[first.id].bb, 0);
+  assert.equal(s.batting[first.id].hbp, 1);
+  assert.equal(s.pitching[pitcher].bb, 0);
+  assert.equal(s.pitching[pitcher].hbp, 1);
+  assert.equal(s.batting[first.id].ab, 0);
+  walk(s);
+  walk(s);
+  pitchCall(s, 'hit-by-pitch');
+  assert.equal(score(s, 0), 1);
+  assert.equal(s.log.at(-1)!.text, '死球（押し出し）');
+  assert.equal(s.pitching[pitcher].bb, 2);
+  assert.equal(s.pitching[pitcher].hbp, 2);
+});
+
+test('2アウトからのバントは送りバントとして打数を免除しない', () => {
+  const s = newGame();
+  strikeout(s);
+  strikeout(s);
+  const batter = currentBatter(s).id;
+  applyPlay(s, {
+    outs: [{ playerId: batter, kind: 'force', time: 2, batterBeforeFirst: true }],
+    runs: [], bases: [null, null, null, null], hit: 0, text: 'バント', sacrifice: true
+  });
+  assert.equal(s.batting[batter].ab, 1);
 });

@@ -2,7 +2,7 @@
 // その下に、選手ごとのシーズン成績（ペナントの通算）を出す。
 import { battingTeam, type BattingLine, type GameState, type PitchingLine, type TeamIndex } from '../core/gameState.ts';
 import { PITCHES } from '../core/pitching.ts';
-import { roleOf, ROLE_LABEL, teamStyle, type Batter, type Pitcher, type Squad, type TeamData } from '../core/teams.ts';
+import { hookOf, HOOK_LABEL, roleOf, ROLE_LABEL, teamStyle, type Batter, type Pitcher, type Squad, type TeamData } from '../core/teams.ts';
 import { conditionLevel } from '../core/condition.ts';
 import { POSITION_LABEL, type LineupPosition } from '../core/types.ts';
 import { formatAverage, formatEra, formatInnings } from './season.ts';
@@ -29,6 +29,8 @@ export function conditionBadge(c: number | undefined): string {
   return `<span class="condition ${l.cls}" title="調子：${l.label}">${l.mark}${l.label}</span>`;
 }
 
+/** 限界突破（能力が上限の 100 を超えた打者）の印。 */
+const limitBadge = (b: { limitBreak?: boolean }) => (b.limitBreak ? '<em class="limit-break">限界突破</em>' : '');
 /** 故障中の印。 */
 const injuryBadge = (p: { injured?: number }) => (p.injured ? `<em class="injured">故障 あと${p.injured}日</em>` : '');
 
@@ -48,7 +50,7 @@ function batterRow(b: Batter, order: string, pos: LineupPosition | null, live: R
         .join('、') || '―'
     : '';
   const cls = current ? 'current' : removed ? 'removed' : '';
-  return `<tr class="${cls}"><td class="order">${order}</td><td class="pos">${pos ? POSITION_LABEL[pos] : removed ? '退' : ''}</td><td class="name">${esc(b.name)}<small>#${b.number}</small>${injuryBadge(b)}</td><td>${HAND[b.bats]}</td><td>${conditionBadge(b.condition)}</td>${stat(b.meet)}${stat(b.power)}${stat(b.speed)}${stat(b.arm)}${stat(b.fielding)}${live ? `<td class="today">${today}</td>` : ''}</tr>`;
+  return `<tr class="${cls}"><td class="order">${order}</td><td class="pos">${pos ? POSITION_LABEL[pos] : removed ? '退' : ''}</td><td class="name">${esc(b.name)}<small>#${b.number}</small>${limitBadge(b)}${injuryBadge(b)}</td><td>${HAND[b.bats]}</td><td>${conditionBadge(b.condition)}</td>${stat(b.meet)}${stat(b.power)}${stat(b.speed)}${stat(b.arm)}${stat(b.fielding)}${live ? `<td class="today">${today}</td>` : ''}</tr>`;
 }
 
 function pitcherRow(p: Pitcher, live: RosterLive | undefined, onMound: boolean, pitchCount: number, removed: boolean) {
@@ -71,7 +73,7 @@ export interface RosterSeason {
  * 選手ごとのシーズン成績の表。野手は打順の順に控えまで、投手は登録順に全員を並べ、まだ出場していない選手は「―」。
  * 今日の試合の成績は、試合が終わってから加わる。
  */
-export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
+export function seasonStatsHtml(team: TeamData, season: RosterSeason, label = '今季'): string {
   // 2軍・育成の選手は、今季に出場していれば成績の表に残す。
   const played = <T extends { id: string }>(list: T[] | undefined, rec: Record<string, unknown>) => (list ?? []).filter((p) => rec[p.id]);
   const order = [
@@ -87,8 +89,8 @@ export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
     .map((b) => {
       const l = season.batting[b.id];
       const cells = l
-        ? [l.g, l.pa, l.ab, l.h, l.hr, l.rbi, l.bb, l.so, l.sb].map(cell).join('') + `<td class="value">${formatAverage(l)}</td>`
-        : none(10);
+        ? [l.g, l.pa, l.ab, l.h, l.hr, l.rbi, l.bb, l.hbp ?? 0, l.so, l.sb].map(cell).join('') + `<td class="value">${formatAverage(l)}</td>`
+        : none(11);
       return `<tr><td class="pos">${POSITION_LABEL[b.position]}</td><td class="name">${esc(b.name)}<small>#${b.number}</small></td>${cells}</tr>`;
     })
     .join('');
@@ -96,15 +98,15 @@ export function seasonStatsHtml(team: TeamData, season: RosterSeason): string {
     .map((p) => {
       const l = season.pitching[p.id];
       const cells = l
-        ? [l.g, l.w, l.l].map(cell).join('') + `<td>${formatInnings(l.outs)}</td>` + [l.h, l.so, l.bb, l.r].map(cell).join('') + `<td class="value">${formatEra(l)}</td>`
-        : none(9);
+        ? [l.g, l.w, l.l].map(cell).join('') + `<td>${formatInnings(l.outs)}</td>` + [l.h, l.so, l.bb, l.hbp ?? 0, l.r].map(cell).join('') + `<td class="value">${formatEra(l)}</td>`
+        : none(10);
       return `<tr><td class="role">${ROLE_LABEL[roleOf(p)]}</td><td class="name">${esc(p.name)}<small>#${p.number}</small></td>${cells}</tr>`;
     })
     .join('');
-  return `<h3>今季の打撃成績</h3>
-    <div class="roster-scroll"><table class="roster-table season-table"><tr><th>守</th><th class="name">名前</th><th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th><th>四球</th><th>三振</th><th>盗塁</th><th>打率</th></tr>${batters}</table></div>
-    <h3>今季の投手成績</h3>
-    <div class="roster-scroll"><table class="roster-table season-table"><tr><th>役割</th><th class="name">名前</th><th>登板</th><th>勝</th><th>敗</th><th>投球回</th><th>被安打</th><th>奪三振</th><th>与四球</th><th>失点</th><th>防御率</th></tr>${pitchers}</table></div>`;
+  return `<h3>${label}の打撃成績</h3>
+    <div class="roster-scroll"><table class="roster-table season-table"><tr><th>守</th><th class="name">名前</th><th>試合</th><th>打席</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th><th>四球</th><th>死球</th><th>三振</th><th>盗塁</th><th>打率</th></tr>${batters}</table></div>
+    <h3>${label}の投手成績</h3>
+    <div class="roster-scroll"><table class="roster-table season-table"><tr><th>役割</th><th class="name">名前</th><th>登板</th><th>勝</th><th>敗</th><th>投球回</th><th>被安打</th><th>奪三振</th><th>与四球</th><th>与死球</th><th>失点</th><th>防御率</th></tr>${pitchers}</table></div>`;
 }
 
 const BATTER_HEAD = '<tr><th></th><th>守</th><th class="name">名前</th><th>打</th><th>調子</th><th>ミート</th><th>パワー</th><th>走力</th><th>肩</th><th>守備</th></tr>';
@@ -121,11 +123,11 @@ export function squadHtml(title: string, sq: Squad | undefined): string {
 /** 首脳陣（監督・コーチ）の一覧。最高顧問などの役職があれば、監督より先に出す。 */
 export function staffHtml(team: TeamData): string {
   const execs = (team.executives ?? []).map((m) => `<span class="exec"><small>${esc(m.role)}</small>${esc(m.name)}${m.note ? `<small>${esc(m.note)}</small>` : ''}</span>`);
-  return `<h3>首脳陣</h3><p class="staff">${[...execs, ...team.staff.map((m, i) => `<span${i === 0 ? ' class="manager"' : ''}><small>${esc(m.role)}</small>${esc(m.name)}<small>#${m.number}</small></span>`)].join('')}</p>`;
+  return `<h3>首脳陣</h3><p class="staff">${[...execs, ...team.staff.map((m, i) => `<span${i === 0 ? ' class="manager"' : ''}><small>${esc(m.role)}</small>${esc(m.name)}<small>#${m.number}</small>${i === 0 ? `<small>継投 ${HOOK_LABEL[hookOf(team)]}</small>` : ''}</span>`)].join('')}</p>`;
 }
 
-/** 1チーム分の表。live があれば試合中の打順・投手を使う。season があれば、その下にシーズン成績を出す。 */
-export function rosterHtml(team: TeamData, live?: RosterLive, season?: RosterSeason): string {
+/** 1チーム分の表。live があれば試合中の打順・投手を使う。season があれば、その下にシーズン成績を出す（見出しは「{label}の打撃成績」）。 */
+export function rosterHtml(team: TeamData, live?: RosterLive, season?: RosterSeason, label?: string): string {
   const t = live?.state.teams[live.index];
   const lineup = t?.lineup ?? team.lineup.map((id) => team.batters.find((b) => b.id === id)!);
   const positions = t?.positions ?? lineup.map((b) => b.position);
@@ -149,6 +151,6 @@ export function rosterHtml(team: TeamData, live?: RosterLive, season?: RosterSea
       .join('')}</table></div>
     ${squadHtml('2軍', team.farm)}
     ${squadHtml('育成', team.development)}
-    ${season ? seasonStatsHtml(team, season) : ''}
+    ${season ? seasonStatsHtml(team, season, label) : ''}
   </div>`;
 }

@@ -9,25 +9,38 @@ import { conditionedTeam, initialConditions } from './core/condition.ts';
 import { managedTeam } from './core/manager.ts';
 import { registeredTeam } from './core/registration.ts';
 import { parkOf } from './core/field.ts';
+import { pickHeroes } from './core/hero.ts';
+import { isCurrentSeason, SEASON_YEARS, teamsOf } from './core/seasons.ts';
+import { CHANCE_TENSION, tension } from './core/tension.ts';
 import { SEASON_YEAR, addGame, advanceDay, emptyPennant, emptyRecord, gamesPlayed, leagues, nextOpponent, pairOthers, seasonOver, standings, syncRosters, type GameResult, type Pennant } from './core/pennant.ts';
 import { Match, type BattingControl, type FieldingControl, type Phase, type RunningControl } from './core/match.ts';
 import type { PlaySim } from './core/play.ts';
-import { parseTeams, roleOf, rotationStarter, teamStyle, type TeamData } from './core/teams.ts';
+import { accentColor, parseTeams, roleOf, rotationStarter, teamStyle, type TeamData } from './core/teams.ts';
 import { InputMap, type InputFrame } from './input/actions.ts';
 import { MatchView } from './render/view.ts';
 import { HELP_HTML } from './ui/help.ts';
 import { Hud, MODE_LABEL } from './ui/hud.ts';
 import { MenuList, type MenuItem, type MenuOption } from './ui/menuList.ts';
 import { RANK_NOTE, rosterHtml } from './ui/roster.ts';
-import { PENNANT_TABS, pennantHtml, pennantProgress, pennantSummaryHtml, rankOf } from './ui/pennant.ts';
+import { PAST_SEASONS, PENNANT_TABS, pennantHtml, pennantProgress, pennantSummaryHtml, rankOf, seriesHeadHtml, seriesSummaryHtml } from './ui/pennant.ts';
+import { clearMatch, loadMatch, saveMatch } from './ui/matchSave.ts';
+import { addSeriesGame, SERIES_NAME, seriesStatus, startPostseason, type Postseason } from './core/postseason.ts';
 import { loadPennant, savePennant } from './ui/season.ts';
-import { loadSettings, saveSettings, type Settings } from './ui/settings.ts';
+import { loadSettings, savedLineup, saveSettings, withSavedLineup, type Settings } from './ui/settings.ts';
 import { SubstitutionPanel } from './ui/substitution.ts';
+import { LineupPanel } from './ui/lineup.ts';
+import { mascotName, teamLogoSvg, teamMascotSvg } from './ui/branding.ts';
+import { applyLineupEdit } from './core/lineupEdit.ts';
 
 const teams = parseTeams(raw);
 
+/** 過去の年度のシーズン成績（2025年の記録など）。記録がなければ空。 */
+const pastStats = (year: number) => PAST_SEASONS.find((s) => s.year === year)?.stats ?? { batting: {}, pitching: {} };
+
 /** 調子がまだなければ（開幕前・以前の保存データ）、開幕時の調子を決める。 */
 const withConditions = (p: Pennant): Pennant => (Object.keys(p.condition).length ? p : { ...p, condition: initialConditions(teams) });
+/** シーズンが終わっていて、まだポストシーズンが無ければ、両リーグの優勝チームでニーマシリーズを始める。 */
+const withPostseason = (p: Pennant): Pennant => (seasonOver(p, teams) && !p.postseason ? { ...p, postseason: startPostseason(p, teams) } : p);
 const MODES: MatchMode[] = ['manual', 'manager', 'auto'];
 const SPEEDS = [1, 2, 4];
 const FIELDING_OPTIONS = [
@@ -61,8 +74,9 @@ class App {
   /** 「新しいシーズン」を一度押した（もう一度押すとリセット）。 */
   private resetArmed = false;
   /** メニューで選んだ、あなたのチームの先発（チームを変えたら無効）。試合が終わったら選び直し。 */
-  private starterPick: { team: string; id: string } | null = null;
+  private starterPick: { year: number; team: string; id: string } | null = null;
   subsOpen = false;
+  lineupOpen = false;
   /** 選手・打順の画面で表示しているチーム（rosterTeams() の添字）。 */
   rosterIndex = 0;
   private rosterMoveX = 0;
@@ -77,8 +91,14 @@ class App {
   private heardEvents = 0;
   /** いまのプレーで攻撃しているチーム（そのファンが沸く）。 */
   private heardTeam: TeamIndex = 0;
+  /** ジェット風船の音を鳴らした攻守交代（同じ場面で二度鳴らさない）。 */
+  private heardLucky = '';
+  /** いまの試合の年度（過去の年度なら練習試合）。 */
+  private matchYear: number = SEASON_YEAR;
+  /** 最後に端末に保存した途中経過の目印（同じ場面を何度も保存しない）。 */
+  private savedKey = '';
   /** ペナントレースの経過。試合が終わるたびに、他球場の試合も行って足して保存する。teams.json の1軍の入れ替えは読み込むときに反映する。 */
-  private pennant = withConditions(syncRosters(loadPennant(), teams));
+  private pennant = withPostseason(withConditions(syncRosters(loadPennant(), teams)));
   private readonly hud = new Hud();
   private readonly ui = document.getElementById('ui')!;
   private readonly menuEl = document.createElement('div');
@@ -89,7 +109,15 @@ class App {
   private readonly pennantEl = document.createElement('div');
   private readonly parksEl = document.createElement('div');
   private readonly progressEl = document.createElement('div');
+  private readonly brandEl = document.createElement('div');
   private readonly subs = new SubstitutionPanel();
+  private readonly lineupPanel = new LineupPanel({
+    team: () => this.myBase(),
+    edit: () => savedLineup(this.settings),
+    setEdit: (e) => this.set({ lineups: withSavedLineup(this.settings, e).lineups, lineup: undefined }),
+    starter: () => this.myStarter(),
+    setStarter: (id) => (this.starterPick = id ? { year: this.settings.year, team: this.settings.team, id } : null)
+  });
   private readonly menu: MenuList;
   private readonly pauseMenu: MenuList;
   private resultMenu: MenuList | null = null;
@@ -103,22 +131,47 @@ class App {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 
-    const teamOptions = teams.map((t) => ({ value: t.id, label: t.nameJa }));
+    // 球団はリーグごとにまとめて並べる（A/D で送る順もこの順）。
+    const ordered = leagues(teams).flatMap((l) => l.teams);
+    const teamOptions = ordered.map((t) => ({ value: t.id, label: t.nameJa, group: t.league }));
     const owner = this;
     const mainItems: MenuItem[] = [
-      { kind: 'choice', label: 'あなたのチーム', options: teamOptions, get: () => this.settings.team, set: (v) => this.set({ team: v }) },
+      {
+        kind: 'choice',
+        label: '年度',
+        options: SEASON_YEARS.map((y) => ({ value: String(y), label: isCurrentSeason(y) ? `${y}（ペナント）` : `${y}（練習試合）` })),
+        get: () => String(this.settings.year),
+        set: (v) => {
+          this.set({ year: Number(v) });
+          this.renderProgress();
+        }
+      },
+      {
+        kind: 'choice',
+        label: 'あなたのチーム',
+        options: teamOptions,
+        get: () => this.settings.team,
+        set: (v) => {
+          // ニーマシリーズの最中は、出ている2球団のどちらか。
+          const ps = this.activeSeries();
+          if (ps && v !== ps.first && v !== ps.second) v = this.settings.team === ps.first ? ps.second : ps.first;
+          this.set({ team: v });
+        }
+      },
       {
         kind: 'choice',
         label: '相手',
         options: teamOptions,
         get: () => this.opponent().id,
         set: (v) => {
+          // ニーマシリーズの相手は決まっている。
+          if (this.activeSeries()) return;
           // 自分のチームは選べないので、送った向きにもう1つ進める。
           if (v === this.settings.team) {
-            const n = teams.length;
-            const from = teams.indexOf(this.opponent());
-            const at = teams.findIndex((t) => t.id === v);
-            v = teams[(at + ((at - from + n) % n === 1 ? 1 : -1) + n) % n].id;
+            const n = ordered.length;
+            const from = ordered.indexOf(this.opponent());
+            const at = ordered.findIndex((t) => t.id === v);
+            v = ordered[(at + ((at - from + n) % n === 1 ? 1 : -1) + n) % n].id;
           }
           this.set({ opponent: v });
         }
@@ -130,8 +183,11 @@ class App {
           { value: 'away', label: '先攻' },
           { value: 'home', label: '後攻' }
         ],
-        get: () => this.settings.side,
-        set: (v) => this.set({ side: v as Settings['side'] })
+        // ニーマシリーズは何戦目かで決まる。
+        get: () => this.side(this.settings),
+        set: (v) => {
+          if (!this.activeSeries()) this.set({ side: v as Settings['side'] });
+        }
       },
       {
         kind: 'choice',
@@ -141,7 +197,7 @@ class App {
           return owner.starterOptions();
         },
         get: () => this.myStarter(),
-        set: (v) => (this.starterPick = { team: this.settings.team, id: v })
+        set: (v) => (this.starterPick = { year: this.settings.year, team: this.settings.team, id: v })
       },
       { kind: 'choice', label: 'モード', options: MODES.map((m) => ({ value: m, label: MODE_LABEL[m] })), get: () => this.settings.mode, set: (v) => this.set({ mode: v as MatchMode }) },
       {
@@ -183,7 +239,19 @@ class App {
         set: (v) => this.set({ innings: Number(v) as Innings })
       },
       { kind: 'choice', label: '効果音', options: [{ value: 'on', label: 'オン' }, { value: 'off', label: 'オフ' }], get: () => this.settings.sound ? 'on' : 'off', set: (v) => this.setSound(v === 'on') },
+      { kind: 'choice', label: '応援歌', options: [{ value: 'on', label: 'オン' }, { value: 'off', label: 'オフ' }], get: () => this.settings.ouen ? 'on' : 'off', set: (v) => this.set({ ouen: v === 'on' }), hidden: () => !this.settings.sound },
+      {
+        kind: 'button',
+        // 途中でやめた試合があれば、その続きから。
+        get label() {
+          return owner.savedMatchLabel();
+        },
+        primary: true,
+        action: () => this.resume(),
+        hidden: () => !loadMatch()
+      },
       { kind: 'button', label: 'プレイボール！', primary: true, action: () => this.start() },
+      { kind: 'button', label: 'スタメン・選手を入れ替える', action: () => this.showLineup(true) },
       { kind: 'button', label: 'ペナント（順位・タイトル）', action: () => this.showPennant(true) },
       { kind: 'button', label: '選手・打順', action: () => this.showRoster(true) },
       { kind: 'button', label: '球場を見る', action: () => this.showParks(true) },
@@ -193,7 +261,8 @@ class App {
     this.menuEl.className = 'screen title-screen';
     this.menuEl.innerHTML = `<div class="title-card"><div class="logo">Baseball<br><span>Simulation</span></div><div class="sub">3・7・9回の CPU 戦 ／ Sky Park Stadium</div></div>`;
     this.progressEl.className = 'pennant-progress';
-    this.menuEl.querySelector('.title-card')!.append(this.progressEl, this.menu.el);
+    this.brandEl.className = 'brand-showcase';
+    this.menuEl.querySelector('.title-card')!.append(this.brandEl, this.progressEl, this.menu.el);
 
     const strategyItem = (key: keyof Strategy, label: string): MenuItem => ({
       kind: 'choice',
@@ -240,6 +309,7 @@ class App {
         hidden: () => this.match?.nextMode !== 'manual'
       },
       { kind: 'choice', label: '効果音', options: [{ value: 'on', label: 'オン' }, { value: 'off', label: 'オフ' }], get: () => this.settings.sound ? 'on' : 'off', set: (v) => this.setSound(v === 'on') },
+      { kind: 'choice', label: '応援歌', options: [{ value: 'on', label: 'オン' }, { value: 'off', label: 'オフ' }], get: () => this.settings.ouen ? 'on' : 'off', set: (v) => this.set({ ouen: v === 'on' }), hidden: () => !this.settings.sound },
       strategyItem('offense', '攻撃方針'),
       strategyItem('pitching', '投球方針'),
       strategyItem('running', '走塁方針'),
@@ -270,6 +340,8 @@ class App {
     this.pennantEl.className = 'screen help-screen roster-screen';
 
     this.subs.onClose = () => this.showSubs(false);
+    this.lineupPanel.onClose = () => this.showLineup(false);
+    this.lineupPanel.el.style.display = 'none';
 
     this.parksEl.className = 'screen parks-screen';
     this.parksEl.addEventListener('click', (e) => {
@@ -278,7 +350,7 @@ class App {
       else if (b?.classList.contains('close')) this.showParks(false);
     });
 
-    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl, this.pennantEl, this.parksEl, this.subs.el);
+    this.ui.append(this.hud.el, this.menuEl, this.pauseEl, this.resultEl, this.helpEl, this.rosterEl, this.pennantEl, this.parksEl, this.subs.el, this.lineupPanel.el);
     window.addEventListener('resize', () => this.resize());
     this.resize();
     this.showHelp(false);
@@ -293,25 +365,48 @@ class App {
   private set(p: Partial<Settings>) {
     this.settings = { ...this.settings, ...p };
     saveSettings(this.settings);
-    if (('team' in p || 'opponent' in p || 'side' in p) && !this.match) this.dressCrowd();
+    if (('team' in p || 'opponent' in p || 'side' in p || 'year' in p) && !this.match) this.dressCrowd();
   }
 
-  /** 設定のチームと先攻・後攻から [先攻, 後攻]。 */
+  /** いまのシーズンのニーマシリーズの最中なら、そのシリーズ（まだ始まっていない・終わっていれば null）。 */
+  private activeSeries(year = this.settings.year): Postseason | null {
+    const ps = this.pennant.postseason;
+    return ps && isCurrentSeason(year) && seasonOver(this.pennant, teams) && seriesStatus(ps).next ? ps : null;
+  }
+
+  /** あなたのチームの先攻・後攻。ニーマシリーズは何戦目かで決まる。 */
+  private side(st: Settings): Settings['side'] {
+    const ps = this.activeSeries(st.year);
+    if (!ps) return st.side;
+    return seriesStatus(ps).next!.home === st.team ? 'home' : 'away';
+  }
+
+  /** 設定のチームと先攻・後攻から [先攻, 後攻]。ニーマシリーズの最中は次の試合の2球団。 */
   private matchup(st: Settings): [TeamData, TeamData] {
-    const mine = teams.find((t) => t.id === st.team) ?? teams[0];
-    const other = teams.find((t) => t.id === st.opponent && t !== mine) ?? teams.find((t) => t !== mine)!;
+    const ps = this.activeSeries(st.year);
+    if (ps) {
+      const next = seriesStatus(ps).next!;
+      const find = (id: string) => teams.find((t) => t.id === id)!;
+      return [find(next.away), find(next.home)];
+    }
+    const pool = teamsOf(st.year, teams);
+    const mine = pool.find((t) => t.id === st.team) ?? pool[0];
+    const other = pool.find((t) => t.id === st.opponent && t !== mine) ?? pool.find((t) => t !== mine)!;
     return st.side === 'home' ? [other, mine] : [mine, other];
   }
 
   private opponent(): TeamData {
     const [away, home] = this.matchup(this.settings);
-    return this.settings.side === 'home' ? away : home;
+    return this.side(this.settings) === 'home' ? away : home;
   }
 
   /** メニューの背景を、次の試合の球場（ホームの本拠地）と2チームのファンにする。 */
   private dressCrowd() {
     const [away, home] = this.matchup(this.settings);
     this.view.setPark(parkOf(home.id), [away.colors, home.colors]);
+    const mine = away.id === this.settings.team ? away : home.id === this.settings.team ? home : teams.find((t) => t.id === this.settings.team) ?? home;
+    const other = away.id === mine.id ? home : away;
+    this.brandEl.innerHTML = `<div class="brand-feature" style="${teamStyle(mine.colors)}">${teamLogoSvg(mine)}<div class="brand-copy"><strong>${mine.nameJa}</strong><small>${mascotName(mine.id)}</small></div>${teamMascotSvg(mine)}</div><div class="brand-opponent" style="${teamStyle(other.colors)}"><span>対戦相手</span>${teamLogoSvg(other)}<strong>${other.shortName}</strong></div>`;
   }
 
   private setSound(enabled: boolean) {
@@ -359,7 +454,7 @@ class App {
     const p = parkOf(t.id);
     this.view.setPark(p, [t.colors, t.colors]);
     const size = p.fence.left === p.fence.right ? `両翼 ${p.fence.left}m` : `左翼 ${p.fence.left}m・右翼 ${p.fence.right}m`;
-    this.parksEl.innerHTML = `<div class="panel parks-card" style="--team:${t.colors.primary}">
+    this.parksEl.innerHTML = `<div class="panel parks-card" style="--team:${accentColor(t.colors)}">
       <button class="step" data-step="-1" aria-label="前の球場">‹</button>
       <div class="parks-info">
         <div class="parks-name">${p.nameJa}</div>
@@ -391,8 +486,22 @@ class App {
   private today(t: TeamData): TeamData {
     const starter = t.id === this.settings.team ? this.myStarter() : this.rotation(t);
     const team = { ...conditionedTeam(this.registered(t), this.pennant.condition), startingPitcher: starter };
-    // あなたのチーム以外は、CPU の監督がひどく調子を落とした選手を2軍に落とし、打順を少し組み替える。
-    return t.id === this.settings.team ? team : managedTeam(team).team;
+    // あなたのチームは試合前に組み替えた打順で出る。ほかは CPU の監督がひどく調子を落とした選手を2軍に落とし、打順を少し組み替える。
+    return t.id === this.settings.team ? applyLineupEdit(team, savedLineup(this.settings)).team : managedTeam(team).team;
+  }
+
+  /** 組み替える前のあなたのチーム（公示・調子を反映したもの）。 */
+  private myBase(): TeamData {
+    const pool = teamsOf(this.settings.year, teams);
+    const mine = pool.find((t) => t.id === this.settings.team) ?? pool[0];
+    return isCurrentSeason(this.settings.year) ? conditionedTeam(this.registered(mine), this.pennant.condition) : mine;
+  }
+
+  private showLineup(open: boolean) {
+    this.lineupOpen = open;
+    this.lineupPanel.el.style.display = open ? '' : 'none';
+    if (open) this.lineupPanel.open();
+    else this.menu.render();
   }
 
   /** 出場選手登録（公示）を反映した球団。1軍・2軍・育成が入れ替わっている。 */
@@ -400,22 +509,27 @@ class App {
     return registeredTeam(t, this.pennant.registrations[t.id], this.pennant.day);
   }
 
-  /** ローテーションで次に投げる先発（その球団のこれまでの試合数で決まる）。 */
+  /** ローテーションで次に投げる先発（その球団のこれまでの試合数で決まる。ニーマシリーズは第1戦を開幕投手からやり直す）。 */
   private rotation(t: TeamData): string {
-    return rotationStarter(this.registered(t), gamesPlayed(this.pennant.teams[t.id] ?? emptyRecord()));
+    const ps = this.activeSeries();
+    return rotationStarter(this.registered(t), ps ? ps.games.length : gamesPlayed(this.pennant.teams[t.id] ?? emptyRecord()));
   }
 
   /** メニューで選んだ、あなたのチームの先発（選んでいなければローテーションの順番）。 */
   myStarter(): string {
-    const mine = this.registered(teams.find((t) => t.id === this.settings.team) ?? teams[0]);
+    return this.starterFor(this.settings, this.myBase());
+  }
+
+  private starterFor(st: Settings, mine: TeamData): string {
     const pick = this.starterPick;
-    return pick && pick.team === mine.id && mine.pitchers.some((p) => p.id === pick.id) ? pick.id : this.rotation(mine);
+    return pick && pick.year === st.year && pick.team === mine.id && mine.pitchers.some((p) => p.id === pick.id)
+      ? pick.id : isCurrentSeason(st.year) ? this.rotation(mine) : mine.startingPitcher;
   }
 
   /** 先発投手の選択肢：先発の投手（ローテーションの順番の投手に印）。 */
   starterOptions(): MenuOption[] {
-    const mine = this.registered(teams.find((t) => t.id === this.settings.team) ?? teams[0]);
-    const next = this.rotation(mine);
+    const mine = this.myBase();
+    const next = this.myStarter();
     return mine.pitchers
       .filter((p) => roleOf(p) === 'starter')
       .map((p) => ({ value: p.id, label: `${p.name.split(' ')[0]}${p.id === next ? '（順番）' : ''}` }));
@@ -424,9 +538,18 @@ class App {
   /** 選手・打順の画面に出すチーム。試合中は先攻・後攻、試合前はあなたのチーム・相手・ほかの球団の順。 */
   private rosterTeams(): TeamData[] {
     if (this.match) return this.match.state.teams.map((t) => t.team);
-    const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
+    // 過去の年度を選んでいれば、その年の顔ぶれ・スタメンを見せる。
+    const current = isCurrentSeason(this.settings.year);
+    const pool = teamsOf(this.settings.year, teams);
+    const mine = pool.find((t) => t.id === this.settings.team) ?? pool[0];
     const other = this.opponent();
-    return [mine, other, ...teams.filter((t) => t !== mine && t !== other)].map((t) => this.today(t));
+    return [mine, other, ...pool.filter((t) => t.id !== mine.id && t.id !== other.id)].map((t) =>
+      current ? this.today(t) : t.id === mine.id ? { ...applyLineupEdit(t, savedLineup(this.settings)).team, startingPitcher: this.myStarter() } : t);
+  }
+
+  /** 選手・打順の画面に出している年度（試合中はその試合の年度）。 */
+  private rosterYear(): number {
+    return this.match ? this.matchYear : this.settings.year;
   }
 
   private showRoster(open: boolean) {
@@ -445,9 +568,15 @@ class App {
     const live = m ? { state: m.state, index: this.rosterIndex as 0 | 1 } : undefined;
     const you = m ? m.state.teams[m.humanTeam].team : list[0];
     const tabs = list
-      .map((t, i) => `<button class="${i === this.rosterIndex ? 'selected' : ''}" data-i="${i}" style="${teamStyle(t.colors)}">${t.shortName}${t === you ? '<small>あなた</small>' : ''}</button>`)
+      .map((t, i) => `<button class="${i === this.rosterIndex ? 'selected' : ''}" data-i="${i}" style="${teamStyle(t.colors)}">${teamLogoSvg(t)}${t.shortName}${t === you ? '<small>あなた</small>' : ''}</button>`)
       .join('');
-    this.rosterEl.innerHTML = `<div class="panel help-card roster-card"><h2>選手・打順</h2><div class="roster-tabs">${tabs}</div>${rosterHtml(team, live, this.pennant)}<p class="note">${RANK_NOTE}　成績はペナントの通算（今日の試合は終わってから加わる）　A/D でチーム切り替え</p><button class="close">とじる（Esc）</button></div>`;
+    // 過去の年度は、その年の顔ぶれと、その年のシーズン成績を出す。
+    const year = this.rosterYear();
+    const current = isCurrentSeason(year);
+    const title = current ? '選手・打順' : `選手・打順<small>${year}年</small>`;
+    const stats = current ? '成績はペナントの通算（今日の試合は終わってから加わる）' : `${year}年の顔ぶれ・スタメンと、${year}年のシーズン成績`;
+    const season = current ? this.pennant : pastStats(year);
+    this.rosterEl.innerHTML = `<div class="panel help-card roster-card"><h2>${title}</h2><div class="roster-tabs">${tabs}</div><div class="roster-brand" style="${teamStyle(team.colors)}">${teamLogoSvg(team)}<div><strong>${team.nameJa}</strong><small>マスコット：${mascotName(team.id)}</small></div>${teamMascotSvg(team)}</div>${rosterHtml(team, live, season, current ? '今季' : `${year}年`)}<p class="note">${RANK_NOTE}　${stats}　A/D でチーム切り替え</p><button class="close">とじる（Esc）</button></div>`;
     this.rosterEl.querySelectorAll<HTMLButtonElement>('.roster-tabs button').forEach((b) =>
       b.addEventListener('click', () => {
         this.rosterIndex = Number(b.dataset.i);
@@ -475,7 +604,13 @@ class App {
   private renderProgress() {
     const mine = teams.find((t) => t.id === this.settings.team) ?? teams[0];
     const rank = this.pennant.teams[mine.id] ? `　${mine.shortName} ${mine.league} ${rankOf(this.pennant, teams, mine.id)}位` : '';
-    this.progressEl.textContent = `${SEASON_YEAR} ペナント ${pennantProgress(this.pennant, teams)}${rank}`;
+    const ps = isCurrentSeason(this.settings.year) && seasonOver(this.pennant, teams) ? this.pennant.postseason : undefined;
+    const st = ps && seriesStatus(ps);
+    const short = (id: string) => teams.find((t) => t.id === id)?.shortName ?? id;
+    const series = ps && st ? `　${SERIES_NAME} ${short(ps.first)} ${st.wins[0]}勝-${st.wins[1]}勝 ${short(ps.second)}${st.next ? `（次は第${st.next.n}戦）` : `　${short(st.winner!)} 優勝`}` : '';
+    this.progressEl.textContent = isCurrentSeason(this.settings.year)
+      ? `${SEASON_YEAR} ペナント ${pennantProgress(this.pennant, teams)}${series || rank}`
+      : `${this.settings.year} 練習試合（先発メンバーを変更できます。ペナントの記録には残りません）`;
   }
 
   private showPennant(open: boolean) {
@@ -490,7 +625,8 @@ class App {
     const you = this.match ? this.match.state.teams[this.match.humanTeam].team.id : this.settings.team;
     const tabs = PENNANT_TABS.map((label, i) => `<button class="${i === this.pennantTab ? 'selected' : ''}" data-i="${i}">${label}</button>`).join('');
     const over = seasonOver(this.pennant, teams);
-    const champion = over ? `<p class="pennant-champion">${leagues(teams).map((l) => `🏆 ${l.name} ${standings(this.pennant, l.teams)[0].team.nameJa} 優勝！`).join('　')}</p>` : '';
+    const ps = this.pennant.postseason;
+    const champion = over ? `<p class="pennant-champion">${leagues(teams).map((l) => `🏆 ${l.name} ${standings(this.pennant, l.teams)[0].team.nameJa} 優勝！`).join('　')}</p>${ps ? seriesHeadHtml(ps, teams) : ''}` : '';
     const reset = this.resetArmed ? 'もう一度押すとリセット' : '新しいシーズンを始める';
     this.pennantEl.innerHTML = `<div class="panel help-card roster-card pennant-card"><h2>${SEASON_YEAR} ペナント<small>${pennantProgress(this.pennant, teams)}</small></h2>${champion}<div class="roster-tabs pennant-tabs">${tabs}</div>${pennantHtml(this.pennant, teams, this.pennantTab, you)}<p class="note">あなたの試合が終わるたびに、ほかの10球団も1試合ずつ行い（ふだんは同じリーグどうし、交流戦の期間は他リーグと）、各球団はたまに出場選手登録を入れ替えます（公示）。勝率は引き分けを除いて計算し、失点はすべて自責点として扱います。　A/D でタブ切り替え</p><div class="pennant-buttons"><button class="reset${this.resetArmed ? ' armed' : ''}">${reset}</button><button class="close">とじる（Esc）</button></div></div>`;
     this.pennantEl.querySelectorAll<HTMLButtonElement>('.pennant-tabs button').forEach((b) =>
@@ -551,12 +687,24 @@ class App {
       games.push(other.state);
     }
     // 1日が終わったら、その日の出来も踏まえて全選手の調子が変わり、たまに出場選手登録が入れ替わる（公示）。
-    this.pennant = advanceDay({ ...p, lastRound: round }, teams, games);
+    this.pennant = withPostseason(advanceDay({ ...p, lastRound: round }, teams, games));
     savePennant(this.pennant);
     // 次の相手は日程どおり（メニューで変えることもできる）。
     const mine = teams.find((t) => t.id === this.settings.team);
     if (mine) this.settings = { ...this.settings, opponent: nextOpponent(this.pennant, teams, mine).id };
     saveSettings(this.settings);
+    return true;
+  }
+
+  /** 終わった試合が次のニーマシリーズの試合なら、シリーズに足す。足したら true。 */
+  private recordSeries(): boolean {
+    const ps = this.activeSeries(this.matchYear);
+    const s = this.match!.state;
+    const next = ps && seriesStatus(ps).next;
+    if (!ps || !next || s.teams[0].team.id !== next.away || s.teams[1].team.id !== next.home) return false;
+    // シリーズの試合はシーズンの成績には数えない（調子・公示もシーズン最後の日のまま）。
+    this.pennant = { ...this.pennant, postseason: addSeriesGame(ps, { away: next.away, home: next.home, awayRuns: score(s, 0), homeRuns: score(s, 1) }, s) };
+    savePennant(this.pennant);
     return true;
   }
 
@@ -587,13 +735,46 @@ class App {
   /** メニューの設定で試合を始める。 */
   start(overrides: Partial<Settings> & { seed?: number } = {}) {
     const st = { ...this.settings, ...overrides };
-    const humanTeam = st.side === 'home' ? 1 : 0;
-    const [away, home] = this.matchup(st).map((t) => this.today(t));
-    this.match = new Match({ away, home, innings: st.innings, mode: st.mode, fielding: st.fielding, batting: st.batting, running: st.running, humanTeam, difficulty: st.difficulty, seed: overrides.seed });
+    const humanTeam = this.side(st) === 'home' ? 1 : 0;
+    // 過去の年度はその年の登録選手から試合を作り、あなたの選手変更だけを反映する。
+    const current = isCurrentSeason(st.year);
+    const [away, home] = this.matchup(st).map((t) => {
+      if (current) return this.today(t);
+      if (t.id !== st.team) return t;
+      return { ...applyLineupEdit(t, savedLineup(st, st.year, t.id)).team, startingPitcher: this.starterFor(st, t) };
+    });
+    clearMatch();
+    this.begin(new Match({ away, home, innings: st.innings, mode: st.mode, fielding: st.fielding, batting: st.batting, running: st.running, humanTeam, difficulty: st.difficulty, seed: overrides.seed }), st.year);
+  }
+
+  /** 途中でやめた試合の続きから。 */
+  private resume() {
+    const saved = loadMatch();
+    if (!saved) return;
+    this.begin(Match.restore(saved.snapshot), saved.year);
+  }
+
+  /** 続きからのボタンの文字（「つづきから　寛ブ 3-0 花桜　4回表」）。 */
+  savedMatchLabel(): string {
+    const saved = loadMatch();
+    if (!saved) return '';
+    const s = saved.snapshot.state;
+    return `つづきから　${s.teams[0].team.shortName} ${score(s, 0)}-${score(s, 1)} ${s.teams[1].team.shortName}　${s.inning}回${s.half === 'top' ? '表' : '裏'}`;
+  }
+
+  private begin(match: Match, year: number) {
+    const current = isCurrentSeason(year);
+    this.matchYear = year;
+    this.match = match;
+    this.savedKey = '';
     this.heardPlay = null;
     this.heardEvents = 0;
-    this.hud.season = this.pennant.batting;
-    this.hud.seasonPitching = this.pennant.pitching;
+    // 打者・投手のカードの通算成績：いまのシーズンはペナントの通算、過去の年度はその年のシーズン成績。
+    const season = current ? this.pennant : pastStats(year);
+    this.hud.season = season.batting;
+    this.hud.seasonPitching = season.pitching;
+    // ニーマシリーズの試合はシーズンの成績に足さないので、カードもシーズンの成績のまま出す。
+    this.hud.countToday = current && !this.activeSeries(year);
     this.view.attach(this.match);
     this.speed = 1;
     this.overTime = 0;
@@ -601,6 +782,19 @@ class App {
     this.showHelp(false);
     this.showSubs(false);
     this.showScreen('match');
+  }
+
+  /** 投球前の場面になるたびに、途中経過を端末に保存する。 */
+  private autosave() {
+    const m = this.match!;
+    if (m.phase !== 'pre-pitch') return;
+    const s = m.state;
+    const key = `${s.log.length}:${s.inning}${s.half}:${s.outs}:${s.balls}:${s.strikes}:${s.teams.map((t) => `${t.pitcher.id}/${t.pitchCount}/${t.battingIndex}`).join(',')}:${s.mode}`;
+    if (key === this.savedKey) return;
+    const snapshot = m.snapshot();
+    if (!snapshot) return;
+    this.savedKey = key;
+    saveMatch({ year: this.matchYear, snapshot });
   }
 
   private skip() {
@@ -621,8 +815,11 @@ class App {
     this.starterPick = null;
     const m = this.match!;
     const s = m.state;
-    // 最後まで終わった試合だけペナントに数える（途中でメニューに戻った試合は数えない）。
-    const counted = this.recordPennant();
+    // 最後まで終わった試合だけペナントに数える（途中でメニューに戻った試合と、過去の年度の練習試合は数えない）。
+    clearMatch();
+    const exhibition = !isCurrentSeason(this.matchYear);
+    const series = !exhibition && this.recordSeries();
+    const counted = !exhibition && !series && this.recordPennant();
     const a = score(s, 0);
     const h = score(s, 1);
     const winner = s.winner === null ? null : s.teams[s.winner].team;
@@ -633,8 +830,8 @@ class App {
     const reason = s.endReason === 'walkoff' ? `（${extra}サヨナラ）` : s.endReason === 'skip-bottom' ? `（${s.inning}回裏は行いません）` : s.inning > s.innings ? `（${extra}）` : '';
     const lines = this.hudLines();
     this.resultEl.innerHTML = `<div class="panel result-card"><div class="result-head">試合終了${reason}</div><div class="result-title">${headline}</div><div class="result-sub">${sub}</div>
-      <div class="result-score"><span style="--team:${s.teams[0].team.colors.primary}">${s.teams[0].team.nameJa}</span><b>${a} - ${h}</b><span style="--team:${s.teams[1].team.colors.primary}">${s.teams[1].team.nameJa}</span></div>
-      ${lines}${counted ? pennantSummaryHtml(this.pennant, teams, you) : '<div class="pennant-summary">シーズンは終了しています。ペナントの画面から新しいシーズンを始めると、また順位がつきます。</div>'}<div class="result-log">${s.log
+      <div class="result-score"><span style="--team:${accentColor(s.teams[0].team.colors)}">${s.teams[0].team.nameJa}</span><b>${a} - ${h}</b><span style="--team:${accentColor(s.teams[1].team.colors)}">${s.teams[1].team.nameJa}</span></div>
+      ${lines}${this.heroHtml()}${exhibition ? `<div class="pennant-summary">${this.matchYear}年の練習試合です。ペナントの記録には残りません。</div>` : series ? seriesSummaryHtml(this.pennant.postseason!, teams) : counted ? pennantSummaryHtml(this.pennant, teams, you) : '<div class="pennant-summary">シーズンは終了しています。ペナントの画面から新しいシーズンを始めると、また順位がつきます。</div>'}<div class="result-log">${s.log
         .filter((e) => e.runs > 0)
         .map((e) => `<div>${e.inning}回${e.half === 'top' ? '表' : '裏'}　${e.text.replace(/　.*/, '')}（${e.runs}点）</div>`)
         .join('')}</div></div>`;
@@ -645,6 +842,17 @@ class App {
     ]);
     this.resultEl.querySelector('.result-card')!.append(this.resultMenu.el);
     this.showScreen('result');
+  }
+
+  /** ヒーローインタビュー（勝ったチームの活躍した選手。引き分けなら出さない）。 */
+  private heroHtml(): string {
+    const s = this.match!.state;
+    const heroes = pickHeroes(s);
+    if (!heroes.length) return '';
+    const team = s.teams[s.winner!].team;
+    return `<div class="hero-interview" style="--team:${accentColor(team.colors)}"><div class="hero-title">ヒーローインタビュー</div>${heroes
+      .map((h) => `<div class="hero"><div class="hero-name"><span class="hero-number">${h.number}</span>${h.name}<small>${h.kind === 'pitcher' ? '投手' : ''}</small></div><div class="hero-line">${h.line}</div><div class="hero-quote">「${h.quote}」</div></div>`)
+      .join('')}<div class="hero-quote hero-end">「明日も応援よろしくお願いします！」</div></div>`;
   }
 
   private hudLines() {
@@ -671,6 +879,12 @@ class App {
     const m = this.match!;
     const play = m.play;
     if (before === 'windup' && m.phase === 'pitch') this.sound.play('pitch');
+    // ラッキーセブン：画面で風船が上がるのと同時に鳴らす。
+    const lucky = m.phase === 'change' && m.luckySeven !== null ? `${m.state.inning}${m.state.half}` : '';
+    if (lucky && lucky !== this.heardLucky && m.phaseTime > 0.8) {
+      this.heardLucky = lucky;
+      this.sound.play('balloon');
+    }
     if (before === 'pitch' && m.phase === 'play' && play) {
       this.heardTeam = battingTeam(m.state);
       const speed = Math.hypot(play.ball.vel.x, play.ball.vel.y, play.ball.vel.z);
@@ -725,6 +939,8 @@ class App {
       this.handleParks(f);
     } else if (this.subsOpen) {
       this.subs.handle(f, dt);
+    } else if (this.lineupOpen) {
+      this.lineupPanel.handle(f, dt);
     } else if (this.screen === 'menu') {
       this.menu.handle(f, dt);
     } else if (this.screen === 'result') {
@@ -745,6 +961,7 @@ class App {
           this.match.tick(dt, { move: f.move, shift: f.shift, primary: f.pressed.primary && i === 0, secondary: f.pressed.secondary && i === 0, switch: f.pressed.switch && i === 0, steal: f.pressed.steal && i === 0 });
           this.hearTick(before);
         }
+        this.autosave();
         if (this.match.phase === 'over') {
           this.overTime += dt;
           if (this.overTime > 1.6) this.showResult();
@@ -753,7 +970,14 @@ class App {
     }
 
     // 歓声は試合を見ている間だけ。ポーズ・交代・説明の画面、結果、メニューでは絞る。
-    this.sound.setCrowd(this.screen === 'match' && !!this.match && !this.paused && !this.helpOpen && !this.rosterOpen && !this.pennantOpen && !this.subsOpen);
+    const watching = this.screen === 'match' && !!this.match && !this.paused && !this.helpOpen && !this.rosterOpen && !this.pennantOpen && !this.subsOpen;
+    this.sound.setCrowd(watching);
+    // ざわめきは盛り上がりに合わせ、応援は投球のあいだだけ攻撃中のチームのものを鳴らす（チャンスではチャンステーマ。設定でオフにできる）。
+    const m = this.match;
+    const level = m ? tension(m.state) : 0;
+    this.sound.setMurmur(level);
+    const pitching = !!m && (m.phase === 'pre-pitch' || m.phase === 'windup' || m.phase === 'pitch');
+    this.sound.setOuen(watching && pitching && this.settings.ouen ? m!.state.teams[battingTeam(m!.state)].team.id : null, level >= CHANCE_TENSION);
     if (this.match) {
       this.view.update(this.paused ? 0 : dt);
       if (this.screen === 'match') this.hud.update(this.match, this.view, w, h, this.speed);

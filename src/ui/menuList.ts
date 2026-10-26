@@ -4,6 +4,8 @@ import type { InputFrame } from '../input/actions.ts';
 export interface MenuOption<T = string> {
   value: T;
   label: string;
+  /** 見出しをつけてまとめる組（リーグなど）。同じ組の選択肢は続けて並べておく。 */
+  group?: string;
 }
 
 export type MenuItem =
@@ -50,7 +52,20 @@ export class MenuList {
         label.textContent = item.label;
         const opts = document.createElement('span');
         opts.className = 'menu-options';
+        // 組のある選択肢は、組ごとに見出しをつけて1行ずつ並べる。
+        let box: HTMLElement = opts;
+        let group: string | undefined;
         for (const o of item.options) {
+          if (o.group && o.group !== group) {
+            group = o.group;
+            box = document.createElement('span');
+            box.className = 'menu-group';
+            const head = document.createElement('span');
+            head.className = 'menu-group-label';
+            head.textContent = o.group;
+            box.append(head);
+            opts.append(box);
+          }
           const b = document.createElement('button');
           b.textContent = o.label;
           b.className = o.value === item.get() ? 'selected' : '';
@@ -58,7 +73,7 @@ export class MenuList {
             item.set(o.value);
             this.render();
           });
-          opts.append(b);
+          box.append(b);
         }
         row.append(label, opts);
       }
